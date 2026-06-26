@@ -70,10 +70,25 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 .grp-tog:hover{border-color:var(--accent2);color:var(--accent2);}
 .grp-tog.all-on{border-color:var(--accent3);color:var(--accent3);}
 .pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
-.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
+.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;position:relative;}
 .pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
 .pat-chip.hidden{display:none;}
 .pat-group-label.hidden{display:none;}
+/* Pattern preview tooltip */
+#patTooltip{
+  position:fixed;
+  display:none;
+  background:#1a1a28;
+  border:1px solid var(--accent3);
+  border-radius:6px;
+  padding:8px;
+  pointer-events:none;
+  z-index:9999;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);
+}
+#patTooltip canvas{display:block;border-radius:3px;}
+#patTooltip .tip-name{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.08em;color:var(--accent);text-align:center;margin-bottom:6px;text-transform:uppercase;}
+#patTooltip .tip-cat{font-size:10px;color:var(--muted);text-align:center;margin-top:5px;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
 </head>
@@ -140,6 +155,10 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
         <label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label>
       </div>
       <div class="tog-row">
+        <label>Beat-only mode (quarter notes)</label>
+        <label class="toggle"><input type="checkbox" id="beatOnly"/><span class="sl"></span></label>
+      </div>
+      <div class="tog-row">
         <label>Double tap on repeated notes</label>
         <label class="toggle"><input type="checkbox" id="doubleTap" checked/><span class="sl"></span></label>
       </div>
@@ -148,8 +167,10 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div>
       <div class="sec">Stream Rules</div>
+      <div class="field"><label>Patterns per chain <span id="chainLenVal">3–5</span></label><input type="range" id="chainLen" min="2" max="8" value="4" step="1"/></div>
       <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
       <div class="field"><label>Min break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
+      <div class="field"><label>Max break length (beats) <span id="maxBreakVal">16</span></label><input type="range" id="maxBreak" min="4" max="64" value="16" step="2"/></div>
       <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
     </div>
     <div>
@@ -178,9 +199,19 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <canvas id="waveCanvas" height="80"></canvas>
       <canvas id="energyCanvas" height="50"></canvas>
     </div>
+    <div class="wave-sec" id="densitySection" style="display:none">
+      <div class="wave-label">Step Density — per difficulty</div>
+      <canvas id="densityCanvas" height="90"></canvas>
+      <div id="densityLegend" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:5px;font-size:10px;color:var(--muted)"></div>
+    </div>
     <div class="log-box" id="log"><span style="color:var(--muted)">Waiting for audio...</span><br/></div>
     <button class="gen-btn" id="genBtn" disabled>⚡ GENERATE STEP FILE</button>
   </div>
+</div>
+<div id="patTooltip">
+  <div class="tip-name" id="tipName"></div>
+  <canvas id="tipCanvas" width="160" height="120"></canvas>
+  <div class="tip-cat" id="tipCat"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
@@ -261,6 +292,7 @@ function buildPatChips() {
       if (activePats.has(name)) { activePats.delete(name); chip.classList.remove('on'); }
       else { activePats.add(name); chip.classList.add('on'); }
     });
+    addTooltipEvents(chip, name);
     (p.group === 'stamina' ? gridS : gridT).appendChild(chip);
   });
   applyTabFilter();
@@ -321,21 +353,190 @@ function toggleGroup(group) {
 buildPatChips();
 
 // ═══════════════════════════════════════════════════════════════════
-// STATE
+// PATTERN PREVIEW TOOLTIP
+// Draws an arrow diagram showing each step in the sequence.
+// Panels: 0=L 1=D 2=U 3=R laid out as a 2×2 pad grid.
 // ═══════════════════════════════════════════════════════════════════
+
+// Arrow shapes for each panel direction
+const ARROW_SHAPES = {
+  0: { label:'◀', color:'#3399ff', col:0, row:1 }, // Left
+  1: { label:'▼', color:'#ff3333', col:1, row:1 }, // Down  (bottom center)
+  2: { label:'▲', color:'#ff3333', col:1, row:0 }, // Up    (top center)
+  3: { label:'▶', color:'#3399ff', col:2, row:1 }, // Right
+};
+
+// Pad layout: 3 columns (L, center, R), 2 rows (U row, D row)
+// col: 0=left, 1=center, 2=right
+// row: 0=top(Up), 1=bottom(Down/Left/Right)
+
+function drawPatternPreview(canvas, patName) {
+  const seq  = PATTERNS[patName].seq;
+  const W    = canvas.width;
+  const H    = canvas.height;
+  const cx   = canvas.getContext('2d');
+
+  cx.fillStyle = '#0e0e1a';
+  cx.fillRect(0, 0, W, H);
+
+  // Layout constants
+  const PAD_W   = 36;   // arrow box size
+  const PAD_H   = 36;
+  const COLS    = 3;    // L, center, R
+  const ROWS    = 2;    // Up row, Down row
+  const GAP_X   = 8;
+  const GAP_Y   = 10;
+  const GRID_W  = COLS * PAD_W + (COLS - 1) * GAP_X;
+  const GRID_H  = ROWS * PAD_H + (ROWS - 1) * GAP_Y;
+  const OX      = (W - GRID_W) / 2;
+  const OY      = 12;
+
+  // Draw panel background grid (dim)
+  for(let c = 0; c < COLS; c++){
+    for(let r = 0; r < ROWS; r++){
+      // Skip center-bottom (no panel there in 4-panel)
+      if(c === 1 && r === 1) continue; // Down is actually center-bottom — keep it
+      const x = OX + c * (PAD_W + GAP_X);
+      const y = OY + r * (PAD_H + GAP_Y);
+      cx.fillStyle = '#1a1a2a';
+      cx.strokeStyle = '#2a2a3a';
+      cx.lineWidth = 1;
+      cx.beginPath();
+      cx.roundRect(x, y, PAD_W, PAD_H, 4);
+      cx.fill(); cx.stroke();
+    }
+  }
+
+  // Draw sequence as numbered steps with connecting arrows
+  const STEP_H = 18;
+  const SEQ_Y  = OY + GRID_H + 14;
+
+  // For each step, highlight the panel and draw a step number
+  seq.forEach((panel, stepIdx) => {
+    const shape = ARROW_SHAPES[panel];
+    const x = OX + shape.col * (PAD_W + GAP_X);
+    const y = OY + shape.row * (PAD_H + GAP_Y);
+
+    // Glow effect for this step
+    const alpha = 0.25 + 0.75 * ((stepIdx + 1) / seq.length);
+    cx.fillStyle = shape.color + Math.round(alpha * 255).toString(16).padStart(2,'0');
+    cx.strokeStyle = shape.color;
+    cx.lineWidth = 2;
+    cx.beginPath();
+    cx.roundRect(x, y, PAD_W, PAD_H, 4);
+    cx.fill(); cx.stroke();
+
+    // Arrow symbol
+    cx.fillStyle = '#ffffff';
+    cx.font = 'bold 18px sans-serif';
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    cx.fillText(shape.label, x + PAD_W/2, y + PAD_H/2);
+
+    // Step number badge
+    cx.fillStyle = '#000000aa';
+    cx.beginPath();
+    cx.arc(x + PAD_W - 6, y + 6, 7, 0, Math.PI*2);
+    cx.fill();
+    cx.fillStyle = '#ffffff';
+    cx.font = 'bold 8px sans-serif';
+    cx.fillText(stepIdx + 1, x + PAD_W - 6, y + 6);
+  });
+
+  // Draw connecting line between steps in sequence order
+  if(seq.length > 1){
+    cx.strokeStyle = '#ffffff33';
+    cx.lineWidth = 1.5;
+    cx.setLineDash([3,3]);
+    cx.beginPath();
+    seq.forEach((panel, i) => {
+      const shape = ARROW_SHAPES[panel];
+      const x = OX + shape.col * (PAD_W + GAP_X) + PAD_W/2;
+      const y = OY + shape.row * (PAD_H + GAP_Y) + PAD_H/2;
+      i === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y);
+    });
+    cx.stroke();
+    cx.setLineDash([]);
+  }
+
+  // Foot labels below grid
+  cx.fillStyle = '#3399ff66';
+  cx.font = '9px Inter';
+  cx.textAlign = 'center';
+  cx.textBaseline = 'top';
+  cx.fillText('L', OX + PAD_W/2, OY + GRID_H + 4);
+  cx.fillText('R', OX + 2*(PAD_W+GAP_X) + PAD_W/2, OY + GRID_H + 4);
+  cx.fillStyle = '#ff333366';
+  cx.fillText('D', OX + (PAD_W+GAP_X) + PAD_W/2, OY + GRID_H + 4);
+}
+
+// ── Tooltip show/hide ─────────────────────────────────────────────
+const tooltip   = document.getElementById('patTooltip');
+const tipCanvas = document.getElementById('tipCanvas');
+const tipName   = document.getElementById('tipName');
+const tipCat    = document.getElementById('tipCat');
+let   tipTimer  = null;
+
+function showTooltip(chip, patName) {
+  const p = PATTERNS[patName];
+  tipName.textContent = patName;
+  tipCat.textContent  = p.cat + ' · min block ' + p.minDiff;
+  drawPatternPreview(tipCanvas, patName);
+  tooltip.style.display = 'block';
+  positionTooltip(chip);
+}
+
+function positionTooltip(chip) {
+  const rect  = chip.getBoundingClientRect();
+  const tw    = tooltip.offsetWidth  || 176;
+  const th    = tooltip.offsetHeight || 180;
+  const vw    = window.innerWidth;
+  const vh    = window.innerHeight;
+
+  // Try to the right of sidebar; fall back left if no room
+  let x = rect.right + 10;
+  let y = rect.top;
+  if(x + tw > vw) x = rect.left - tw - 10;
+  if(y + th > vh) y = vh - th - 8;
+  if(y < 4)       y = 4;
+
+  tooltip.style.left = x + 'px';
+  tooltip.style.top  = y + 'px';
+}
+
+function hideTooltip() { tooltip.style.display = 'none'; }
+
+// Wire hover events onto chips inside buildPatChips
+function addTooltipEvents(chip, patName) {
+  chip.addEventListener('mouseenter', () => {
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => showTooltip(chip, patName), 120);
+  });
+  chip.addEventListener('mouseleave', () => {
+    clearTimeout(tipTimer);
+    hideTooltip();
+  });
+  chip.addEventListener('mousemove', () => positionTooltip(chip));
+}
+
 let audioBuffer = null, audioFileObj = null;
 let detectedBPM = 120, energyCurve = [], onsetTimes = [], sectionMap = [];
 let embeddedArt = null, userArt = null;
 
 // ── Sliders ───────────────────────────────────────────────────────
 [['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
- ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['offset','offsetVal',''],
- ['onsetSens','onsetSensVal',''],['repeatWin','repeatWinVal','']
+ ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['maxBreak','maxBreakVal',''],
+ ['offset','offsetVal',''],['onsetSens','onsetSensVal',''],['repeatWin','repeatWinVal','']
 ].forEach(([id,vid,u])=>{
   document.getElementById(id).addEventListener('input',()=>{
     document.getElementById(vid).textContent=document.getElementById(id).value+u;
     updateDiffBadges();
   });
+});
+// Chain length shows a range display
+document.getElementById('chainLen').addEventListener('input', () => {
+  const v = +document.getElementById('chainLen').value;
+  document.getElementById('chainLenVal').textContent = `${Math.max(2,v-1)}–${v+1}`;
 });
 document.getElementById('diffCount').addEventListener('change',updateDiffBadges);
 
@@ -413,102 +614,66 @@ function computeEnergy(){
 // Divides audio into FFT frames, measures how much the spectrum
 // increases frame-to-frame (flux). Peaks = note onsets.
 function computeOnsets(){
-  const sr   = audioBuffer.sampleRate;
-  const data = audioBuffer.getChannelData(0);
-  const FFT_SIZE  = 1024;
-  const HOP       = 512;   // 50% overlap
-  const HALF      = FFT_SIZE / 2;
-
-  // Simple DFT magnitude per frame (real-signal, only positive freqs)
-  function fftMag(frame) {
-    const mag = new Float32Array(HALF);
-    for (let k = 0; k < HALF; k++) {
-      let re = 0, im = 0;
-      for (let n = 0; n < FFT_SIZE; n++) {
-        const angle = -2 * Math.PI * k * n / FFT_SIZE;
-        re += frame[n] * Math.cos(angle);
-        im += frame[n] * Math.sin(angle);
-      }
-      mag[k] = Math.sqrt(re*re + im*im);
-    }
-    return mag;
-  }
-
-  // Use OfflineAudioContext + AnalyserNode for efficient FFT
-  // Build frame list manually using Web Audio API's getFloatTimeDomainData
-  // Since we can't use real OfflineAudioContext easily here, use a fast
-  // approximation: half-wave rectified spectral flux on energy bands
-
-  const BAND_SIZE = 64; // samples per energy band
-  const numFrames = Math.floor((data.length - FFT_SIZE) / HOP);
-  const flux = new Float32Array(numFrames);
-
-  let prevMags = new Float32Array(HALF);
+  const sr      = audioBuffer.sampleRate;
+  const data    = audioBuffer.getChannelData(0);
+  const HOP     = 256;
+  const WIN     = 1024;
+  const sensitivity = +document.getElementById('onsetSens').value;
 
   // Hann window
-  const hann = new Float32Array(FFT_SIZE);
-  for(let i=0;i<FFT_SIZE;i++) hann[i]=0.5*(1-Math.cos(2*Math.PI*i/FFT_SIZE));
+  const hann = new Float32Array(WIN);
+  for(let i=0;i<WIN;i++) hann[i]=0.5*(1-Math.cos(2*Math.PI*i/WIN));
 
-  // For speed, use a coarser approach: split spectrum into 8 bands,
-  // measure RMS per band per hop frame, compute half-wave rectified flux
-  const NUM_BANDS = 8;
-  const BAND_BINS = Math.floor(HALF / NUM_BANDS);
-  let prevBands = new Float32Array(NUM_BANDS);
-  const frameFlux = [];
-  const frameTimes = [];
+  // 16 frequency subbands, weighted toward bass/low-mid (where beats live)
+  const NUM_BANDS = 16;
+  const WEIGHTS   = [2.0,2.0,1.8,1.5,1.3,1.2,1.0,1.0,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1];
+  const numHops   = Math.floor((data.length - WIN) / HOP);
+  const prevBands = new Float32Array(NUM_BANDS);
+  const fluxArr   = new Float32Array(numHops);
+  const hopTimes  = new Float32Array(numHops);
 
-  for(let f=0; f<numFrames; f++){
-    const start = f * HOP;
+  for(let h=0; h<numHops; h++){
+    const start = h*HOP;
+    hopTimes[h] = start/sr;
     const bands = new Float32Array(NUM_BANDS);
-    // For each band, compute RMS of windowed samples in that freq region
-    // Approximate: use time-domain windowed energy in sub-segments
     for(let b=0; b<NUM_BANDS; b++){
-      const segStart = start + Math.floor(b * FFT_SIZE / NUM_BANDS);
-      const segEnd   = segStart + Math.floor(FFT_SIZE / NUM_BANDS);
-      let s = 0, cnt = 0;
-      for(let i=segStart; i<segEnd && i<data.length; i++){
-        s += data[i]*data[i]; cnt++;
+      const sStart = start + Math.floor(b*WIN/NUM_BANDS);
+      const sEnd   = Math.min(sStart + Math.floor(WIN/NUM_BANDS), data.length);
+      let s=0, cnt=sEnd-sStart;
+      for(let i=sStart; i<sEnd; i++){
+        const wi = i - start;
+        const w  = (wi>=0 && wi<WIN) ? hann[wi] : 1;
+        s += (data[i]*w)**2;
       }
-      bands[b] = cnt ? Math.sqrt(s/cnt) : 0;
+      bands[b] = cnt>0 ? Math.sqrt(s/cnt)*WEIGHTS[b] : 0;
     }
-
-    // Half-wave rectified spectral flux: sum of positive differences
-    let fluxVal = 0;
-    for(let b=0; b<NUM_BANDS; b++){
-      const diff = bands[b] - prevBands[b];
-      if(diff > 0) fluxVal += diff;
+    let flux=0;
+    for(let b=0;b<NUM_BANDS;b++){
+      const diff=bands[b]-prevBands[b];
+      if(diff>0) flux+=diff;
+      prevBands[b]=bands[b];
     }
-    prevBands = bands;
-    frameFlux.push(fluxVal);
-    frameTimes.push(start / sr);
+    fluxArr[h]=flux;
   }
 
-  // Normalize flux
-  const maxFlux = Math.max(...frameFlux) || 1;
-  const normFlux = frameFlux.map(v => v / maxFlux);
+  // Adaptive peak picking
+  const PWIN    = 20;
+  const MIN_GAP = Math.max(1, Math.round(0.05*sr/HOP));
+  const maxFlux = Math.max(...fluxArr) || 1;
+  onsetTimes    = [];
+  let lastHop   = -MIN_GAP;
 
-  // Peak picking: local maxima above adaptive threshold
-  const sensitivity = +document.getElementById('onsetSens').value;
-  const WINDOW = 10; // local window for threshold
-  onsetTimes = [];
-
-  for(let i=1; i<normFlux.length-1; i++){
-    const v = normFlux[i];
-    // Local mean threshold
-    let sum=0, cnt=0;
-    for(let j=Math.max(0,i-WINDOW); j<Math.min(normFlux.length,i+WINDOW); j++){sum+=normFlux[j];cnt++;}
-    const localMean = sum/cnt;
-    const threshold = localMean + sensitivity;
-
-    if(v > threshold && v > normFlux[i-1] && v > normFlux[i+1]){
-      // Suppress duplicates within 40ms
-      const t = frameTimes[i];
-      if(!onsetTimes.length || t - onsetTimes[onsetTimes.length-1] > 0.04){
-        onsetTimes.push(t);
-      }
+  for(let i=1; i<numHops-1; i++){
+    const v=fluxArr[i];
+    let sum=0,cnt=0;
+    for(let j=Math.max(0,i-PWIN);j<Math.min(numHops,i+PWIN);j++){sum+=fluxArr[j];cnt++;}
+    const threshold=(sum/cnt)+sensitivity*maxFlux*0.5;
+    if(v>threshold && v>fluxArr[i-1] && v>fluxArr[i+1] && i-lastHop>=MIN_GAP){
+      onsetTimes.push(hopTimes[i]);
+      lastHop=i;
     }
   }
-  log(`Onsets detected: ${onsetTimes.length}`,'ok');
+  log('Onsets detected: '+onsetTimes.length,'ok');
 }
 
 // ── Section map: classify each beat as 'run', 'melody', or 'rest' ─
@@ -629,13 +794,107 @@ function buildSectionMap(bpm, duration) {
   return map;
 }
 
-// ── BPM ───────────────────────────────────────────────────────────
+// ── BPM detection — ArrowVortex gap-confidence method ────────────
+// Ports Bram van de Wetering's "Non-causal Beat Tracking for Rhythm
+// Games" to JS. Uses onset times (already computed) as input.
+// Key idea: for each candidate interval (= beat period), wrap all
+// onsets modulo that interval and measure how tightly they cluster
+// using a Hamming-windowed scoring function. The interval with the
+// highest normalised score is the beat.
 function detectBPM(){
-  const d=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate,len=Math.min(d.length,sr*30),step=512,rms=[];
-  for(let i=0;i<len-step;i+=step){let s=0;for(let j=0;j<step;j++)s+=d[i+j]*d[i+j];rms.push(Math.sqrt(s/step));}
-  const minL=Math.floor(60/200*sr/step),maxL=Math.floor(60/60*sr/step);let bL=minL,bC=-Infinity;
-  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<rms.length-lag;i++)c+=rms[i]*rms[i+lag];if(c>bC){bC=c;bL=lag;}}
-  let bpm=60/(bL*step/sr);if(bpm<80)bpm*=2;if(bpm>200)bpm/=2;return Math.round(bpm*10)/10;
+  const sr = audioBuffer.sampleRate;
+
+  if(!onsetTimes || onsetTimes.length < 2){
+    log('Too few onsets for BPM detection, falling back','warn');
+    return 120;
+  }
+
+  // Convert onset times → sample positions with uniform strength=1
+  const onsets = onsetTimes.map(t => Math.round(t * sr));
+
+  const MIN_BPM = 60,  MAX_BPM = 220;
+  const minInterval = Math.round(sr * 60 / MAX_BPM);
+  const maxInterval = Math.round(sr * 60 / MIN_BPM);
+
+  // Hamming window for gap confidence (length = windowSize samples)
+  const WINDOW_SIZE = 2048;
+  const HALF_WIN    = WINDOW_SIZE >> 1;
+  const hammingWin  = new Float32Array(WINDOW_SIZE);
+  for(let i=0;i<WINDOW_SIZE;i++)
+    hammingWin[i] = 0.54 - 0.46*Math.cos(2*Math.PI*i/(WINDOW_SIZE-1));
+
+  // Score one candidate interval: wrap onsets, build histogram,
+  // slide Hamming window over it, return max peak + offbeat bonus
+  function scoreInterval(interval){
+    // Downsample for speed: reduce by 4
+    const DS      = 4;
+    const redInt  = interval >> 2;  // reduced interval
+    const hist    = new Float32Array(redInt);
+
+    for(const pos of onsets){
+      const p = (pos % interval) >> 2;
+      if(p < redInt) hist[p] += 1;
+    }
+
+    // Slide Hamming window, find max confidence
+    const hw = WINDOW_SIZE >> 2;  // half-window in downsampled space
+    let best = 0;
+    for(let i=0; i<redInt; i++){
+      let area = 0;
+      // convolve histogram around position i with Hamming window
+      for(let d=-hw; d<hw; d++){
+        const p = ((i+d) % redInt + redInt) % redInt;
+        const wi = d + hw;
+        if(wi>=0 && wi<WINDOW_SIZE) area += hist[p] * hammingWin[wi];
+      }
+      // offbeat bonus: add 50% weight for offbeat position
+      const ob = (i + (redInt>>1)) % redInt;
+      let offArea = 0;
+      for(let d=-hw; d<hw; d++){
+        const p = ((ob+d) % redInt + redInt) % redInt;
+        const wi = d + hw;
+        if(wi>=0 && wi<WINDOW_SIZE) offArea += hist[p] * hammingWin[wi];
+      }
+      const total = area + offArea * 0.5;
+      if(total > best) best = total;
+    }
+    return best;
+  }
+
+  // Coarse pass: evaluate every 10 samples in the interval range
+  const STEP   = 10;
+  const coarse = [];
+  for(let iv=minInterval; iv<=maxInterval; iv+=STEP){
+    coarse.push({iv, score: scoreInterval(iv)});
+  }
+
+  // Find top candidates (score > 40% of max)
+  const maxScore = Math.max(...coarse.map(c=>c.score));
+  const threshold= maxScore * 0.4;
+  const candidates = coarse.filter(c=>c.score>=threshold);
+
+  // Fine pass: refine each candidate ±STEP
+  let bestScore = 0, bestInterval = minInterval;
+  for(const {iv} of candidates){
+    const lo = Math.max(minInterval, iv-STEP);
+    const hi = Math.min(maxInterval, iv+STEP);
+    for(let interval=lo; interval<=hi; interval++){
+      const s = scoreInterval(interval);
+      if(s > bestScore){ bestScore=s; bestInterval=interval; }
+    }
+  }
+
+  let bpm = sr * 60 / bestInterval;
+
+  // Octave correction: prefer range 80-180, avoid doubling/halving errors
+  while(bpm < 80)  bpm *= 2;
+  while(bpm > 180) bpm /= 2;
+
+  // Round to nearest integer when very close (mirrors ArrowVortex RoundBPMValues)
+  const rounded = Math.round(bpm);
+  if(Math.abs(bpm - rounded) < 0.5) bpm = rounded;
+
+  return Math.round(bpm * 10) / 10;
 }
 
 // ── Canvases ──────────────────────────────────────────────────────
@@ -704,34 +963,57 @@ function rowStepForEnergy(e){
 
 // ── Pattern pool filtered for context ────────────────────────────
 function getPool(block, lastFoot, energy, allowCross, recentPats) {
+  // Difficulty gates:
+  // block 1-3:  stream, box, gallop only
+  // block 4-5:  + candle, anchor, spiral
+  // block 6-7:  + crossover, drill, footswitch
+  // block 8-9:  + sideswitch
+  // block 10+:  + split, all patterns
+  const techAllowed = block >= 4;
+  const crossAllowed = allowCross && block >= 6;
+  const advancedAllowed = block >= 8;
+
   let pool = [...activePats].filter(name => {
     const p = PATTERNS[name];
     if (p.minDiff > block) return false;
-    if (!allowCross && (p.cat==='crossover'||p.cat==='sideswitch')) return false;
+    // Category gates by block
+    if (!techAllowed && (p.cat==='candle'||p.cat==='anchor'||p.cat==='spiral')) return false;
+    if (!crossAllowed && (p.cat==='crossover'||p.cat==='sideswitch')) return false;
+    if (block < 6 && (p.cat==='drill'||p.cat==='footswitch')) return false;
+    if (!advancedAllowed && p.cat==='split') return false;
+    // Energy gates
     if ((p.cat==='drill'||p.cat==='footswitch') && energy < 0.45) return false;
-    if (p.cat==='split' && (energy < 0.65 || block < 8)) return false;
+    if (p.cat==='split' && energy < 0.65) return false;
     if (p.cat==='candle' && energy < 0.3) return false;
     return true;
   });
 
   if (!pool.length) {
-    // Absolute fallback: basic runs, ignore active filter
-    pool = Object.keys(PATTERNS).filter(n=>PATTERNS[n].cat==='stream'||PATTERNS[n].cat==='box');
+    pool = Object.keys(PATTERNS).filter(n=>
+      PATTERNS[n].cat==='stream' && PATTERNS[n].minDiff <= block
+    );
+    if(!pool.length) pool = Object.keys(PATTERNS).slice(0,2);
   }
 
-  // Must be foot-valid from current lastFoot
+  // Foot validity
   const valid = pool.filter(name => seqValid(PATTERNS[name].seq, lastFoot));
   if (valid.length) pool = valid;
 
-  // Anti-repeat: exclude patterns used in last N picks
+  // Anti-repeat: exclude last N picks
   const fresh = pool.filter(name => !recentPats.includes(name));
   if (fresh.length >= 2) pool = fresh;
 
-  // Prefer patterns from a different category than the last one used
+  // Prefer different category from last
   const lastCat = recentPats.length ? PATTERNS[recentPats[recentPats.length-1]]?.cat : null;
   if (lastCat) {
     const diffCat = pool.filter(name => PATTERNS[name].cat !== lastCat);
     if (diffCat.length >= 2) pool = diffCat;
+  }
+
+  // At higher blocks, weight toward longer/more complex patterns
+  if (block >= 7) {
+    const complex = pool.filter(name => PATTERNS[name].seq.length >= 6);
+    if (complex.length >= 2) pool = complex;
   }
 
   return pool;
@@ -740,11 +1022,33 @@ function getPool(block, lastFoot, energy, allowCross, recentPats) {
 // ── Main chart generator — hybrid section-aware ───────────────────
 function generateChart(block, bpm, energy, duration) {
   const allowCross  = block >= 6;
-  const maxRun      = +document.getElementById('maxRun').value;
-  const minBreak    = +document.getElementById('minBreak').value;
+
+  // ── Difficulty scaling ────────────────────────────────────────
+  // block 1-3:  short runs, long breaks, sparse 8th/quarter notes
+  // block 4-6:  medium runs, moderate breaks, 8th/16th mix
+  // block 7-9:  long runs, short breaks, mostly 16ths
+  // block 10-12: very long runs, minimal breaks, dense 16ths
+  const diffFactor  = (block - 1) / 11; // 0.0 at block 1, 1.0 at block 12
+
+  // Slider values are the USER's max settings — difficulty scales DOWN from them
+  const userMaxRun   = +document.getElementById('maxRun').value;
+  const userMinBreak = +document.getElementById('minBreak').value;
+  const userMaxBreak = +document.getElementById('maxBreak').value;
+
+  // Easy charts: short runs, frequent breaks; hard charts approach user's max
+  const maxRun   = Math.max(4,  Math.round(userMaxRun   * (0.2 + 0.8 * diffFactor)));
+  const minBreak = Math.max(1,  Math.round(userMinBreak * (2.0 - 1.5 * diffFactor)));
+  const maxBreak = Math.max(4,  Math.round(userMaxBreak * (2.0 - diffFactor)));
+
+  // Subdivision: low block uses 8ths/quarters more; high block mostly 16ths
+  // This is a probability — at block 12, 90% 16th; at block 1, 10% 16th
+  const sixteenthProb = 0.1 + 0.8 * diffFactor;
+
+  const chainTarget = +document.getElementById('chainLen').value;
   const leadIn      = +document.getElementById('offset').value;
   const breaksOn    = document.getElementById('forceBreaks').checked;
   const useOnsets   = document.getElementById('onsetSnap').checked;
+  const beatOnly    = document.getElementById('beatOnly').checked;
   const doubleTapOn = document.getElementById('doubleTap').checked;
   const repeatWinMs = +document.getElementById('repeatWin').value / 1000;
 
@@ -755,7 +1059,6 @@ function generateChart(block, bpm, energy, duration) {
   const totalRows  = totalBeats * RPB;
   const leadRows   = Math.ceil(leadIn / rowDur);
 
-  // Per-beat energy
   const eBeat = [];
   for(let b=0;b<totalBeats;b++){
     const idx=Math.floor(b/totalBeats*energy.length);
@@ -771,12 +1074,10 @@ function generateChart(block, bpm, energy, duration) {
   let lastFoot  = 'R';
   let lastPanel = 3;
   let recentPats = [];
-  const RECENT_SIZE = 5;
+  const RECENT_SIZE = 6;
 
-  function getE(row){ const b=Math.floor(row/RPB); return smoothE[Math.min(b,smoothE.length-1)]||0; }
   function getSection(row){ const b=Math.floor(row/RPB); return sectionMap[Math.min(b,sectionMap.length-1)]||'melody'; }
 
-  // ── Place a single note, enforcing alt feet ───────────────────
   function placeNote(row, forcePanel){
     if(row<0||row>=totalRows||notes[row]!==-1) return;
     let panel;
@@ -790,7 +1091,6 @@ function generateChart(block, bpm, energy, duration) {
     notes[row]=panel; lastFoot=footOf(panel); lastPanel=panel;
   }
 
-  // ── Place a full pattern ──────────────────────────────────────
   function placePattern(patName, startRow, rowStep){
     const seq=PATTERNS[patName].seq;
     for(let i=0;i<seq.length;i++){
@@ -804,20 +1104,37 @@ function generateChart(block, bpm, energy, duration) {
     return (seq.length-1)*rowStep+1;
   }
 
-  // ── Snap onset times to rows ──────────────────────────────────
+  // Pick next pattern; after chainTarget in a row, force a category change
+  function pickNext(e, chainCount){
+    let pool = getPool(block, lastFoot, e, allowCross, recentPats);
+    if(chainCount >= chainTarget){
+      const usedCats = new Set(recentPats.map(n=>PATTERNS[n]?.cat));
+      const fresh = pool.filter(n=>!usedCats.has(PATTERNS[n].cat));
+      if(fresh.length >= 2) pool = fresh;
+    }
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  // Build onset row list
   const onsetRows=[];
   if(useOnsets && onsetTimes.length>0){
     let prevT=-999;
     for(const t of onsetTimes){
       if(t<leadIn) continue;
-      const row=Math.round((t-leadIn)/rowDur);
+      let row;
+      if(beatOnly){
+        row = Math.round((t-leadIn)/beatDur) * RPB;
+      } else {
+        row = Math.round((t-leadIn)/rowDur);
+      }
       if(row<leadRows||row>=totalRows) continue;
       const isRepeat=(t-prevT)<repeatWinMs;
-      onsetRows.push({row,isRepeat,time:t});
+      if(!onsetRows.length || onsetRows[onsetRows.length-1].row !== row){
+        onsetRows.push({row,isRepeat,time:t});
+      }
       prevT=t;
     }
   }
-  // Index onset rows by beat for fast lookup
   const onsetsByBeat={};
   for(const o of onsetRows){
     const b=Math.floor(o.row/RPB);
@@ -825,58 +1142,54 @@ function generateChart(block, bpm, energy, duration) {
     onsetsByBeat[b].push(o);
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // MAIN LOOP — beat by beat, driven by sectionMap
-  // ═══════════════════════════════════════════════════════════════
   let b = Math.ceil(leadIn/beatDur);
-  let runStreak=0, breakStreak=0;
+  let runBeats=0, breakBeats=0, chainCount=0;
 
   while(b < totalBeats){
     const section = getSection(b*RPB);
     const e       = smoothE[Math.min(b,smoothE.length-1)]||0;
 
-    // ── REST section: silence ───────────────────────────────────
     if(section==='rest'){
-      runStreak=0; breakStreak=0; b++; continue;
+      breakBeats++;
+      // Max break: force a note if silent too long and there's an onset
+      if(breakBeats >= maxBreak){
+        const bo = onsetsByBeat[b];
+        if(bo && bo.length) { placeNote(bo[0].row); breakBeats=0; }
+        else { placeNote(b*RPB); breakBeats=0; }
+      }
+      runBeats=0; chainCount=0; b++; continue;
     }
 
-    // ── RUN section: continuous 16th-note stream ────────────────
     if(section==='run'){
-      // Check if we've hit the max run cap
-      if(runStreak>=maxRun){
-        // Force a short break even inside a run section
-        breakStreak++;
-        if(breakStreak>=minBreak){ runStreak=0; breakStreak=0; }
+      if(runBeats>=maxRun){
+        breakBeats++;
+        if(breakBeats>=minBreak){ runBeats=0; breakBeats=0; chainCount=0; }
         b++; continue;
       }
-      breakStreak=0;
-
-      // Fill this beat with a 16th pattern flowing from last position
+      breakBeats=0;
       const startRow=b*RPB;
-      const pool=getPool(block,lastFoot,e,allowCross,recentPats);
-      const patName=pool[Math.floor(Math.random()*pool.length)];
-      const seq=PATTERNS[patName].seq;
-
-      // Use 16th note spacing (rowStep=1) — stamina runs are always 16ths
-      placePattern(patName, startRow, 1);
-      runStreak += Math.ceil(PATTERNS[patName].seq.length / RPB) || 1;
-      b += Math.max(1, Math.ceil(PATTERNS[patName].seq.length / RPB));
-      continue;
+      const patName=pickNext(e, chainCount);
+      // Row step based on difficulty: low block uses 8ths more, high block uses 16ths
+      const rowStep = (Math.random() < sixteenthProb) ? 1 : 2;
+      const consumed=placePattern(patName, startRow, rowStep);
+      chainCount++;
+      if(chainCount > chainTarget+1) chainCount=0;
+      const beatsUsed=Math.max(1,Math.ceil(consumed/RPB));
+      runBeats+=beatsUsed; b+=beatsUsed; continue;
     }
 
-    // ── MELODY section: onset-snapped or sparse ─────────────────
-    runStreak=0;
-    const beatOnsets = onsetsByBeat[b] || [];
+    // MELODY
+    runBeats=0; chainCount=0;
+    const beatOnsets=onsetsByBeat[b]||[];
 
     if(!useOnsets || beatOnsets.length===0){
-      // No onsets this beat — skip (natural break)
+      breakBeats++;
+      if(breakBeats>=maxBreak){ placeNote(b*RPB); breakBeats=0; }
       b++; continue;
     }
-
-    // Place notes at each onset in this beat
+    breakBeats=0;
     for(const {row,isRepeat} of beatOnsets){
       if(isRepeat && doubleTapOn){
-        // Double tap: same panel twice in quick succession
         placeNote(row, lastPanel);
         if(row+1<totalRows && notes[row+1]===-1) notes[row+1]=lastPanel;
       } else {
@@ -899,10 +1212,11 @@ function notesToSM(notes){
   return measures.map(m=>m.map(p=>{const r=['0','0','0','0'];if(p>=0)r[p]='1';return r.join('');}).join('\n')).join('\n,\n');
 }
 
-function buildSM(title,artist,bpm,offset,charts,ext){
+function buildSM(title,artist,bpm,offset,charts,ext,safe){
+  safe = safe || title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
   const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
   const base=5-charts.length;
-  const hdr=`#TITLE:${title};\n#SUBTITLE:;\n#ARTIST:${artist};\n#TITLETRANSLIT:;\n#SUBTITLETRANSLIT:;\n#ARTISTTRANSLIT:;\n#GENRE:;\n#CREDIT:ITG StepGen;\n#BANNER:banner.png;\n#BACKGROUND:bg.png;\n#CDTITLE:;\n#MUSIC:song.${ext};\n#OFFSET:-${offset.toFixed(6)};\n#SAMPLESTART:12.000;\n#SAMPLELENGTH:13.000;\n#SELECTABLE:YES;\n#BPMS:0.000=${bpm.toFixed(3)};\n#STOPS:;\n\n`;
+  const hdr=`#TITLE:${title};\n#SUBTITLE:;\n#ARTIST:${artist};\n#TITLETRANSLIT:;\n#SUBTITLETRANSLIT:;\n#ARTISTTRANSLIT:;\n#GENRE:;\n#CREDIT:ITG StepGen;\n#BANNER:${safe}-banner.png;\n#BACKGROUND:${safe}-bg.png;\n#CDTITLE:;\n#MUSIC:${safe}.${ext};\n#OFFSET:-${offset.toFixed(6)};\n#SAMPLESTART:12.000;\n#SAMPLELENGTH:13.000;\n#SELECTABLE:YES;\n#BPMS:0.000=${bpm.toFixed(3)};\n#STOPS:;\n\n`;
   const cblocks=charts.map((c,i)=>{const name=diffNames[Math.min(base+i,4)];return`#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes)}\n;`;}).join('\n\n');
   return hdr+cblocks;
 }
@@ -918,6 +1232,94 @@ async function makeImg(title,artist,w,h,artImg){
   cx.shadowColor='#000';cx.shadowBlur=10;cx.fillStyle='#fff';cx.font=`bold ${tfs}px sans-serif`;cx.textAlign='center';cx.fillText(title,w/2,h-(w===418?19:52));
   cx.font=`${tfs*.62}px sans-serif`;cx.fillStyle='#aaaaee';cx.fillText(artist,w/2,h-(w===418?4:27));
   return new Promise(res=>cv.toBlob(res,'image/png'));
+}
+
+// ── Density chart: notes per measure across time, per difficulty ──
+function drawDensityChart(charts, duration, bpm) {
+  const cv  = document.getElementById('densityCanvas');
+  const cx  = cv.getContext('2d');
+  cv.width  = cv.offsetWidth || 800;
+  cv.height = 90;
+  const W = cv.width, H = cv.height;
+
+  cx.fillStyle = '#12121a';
+  cx.fillRect(0,0,W,H);
+
+  if(!charts.length) return;
+
+  const beatDur      = 60/bpm;
+  const RPB          = 4;
+  const rowsPerMeasure = 16; // 4 beats × 4 rows
+  const colors       = ['#00ff88','#ffb800','#ff3cac','#00f0ff'];
+  const diffNames    = ['Easy','Medium','Hard'];
+  const legend       = document.getElementById('densityLegend');
+  legend.innerHTML   = '';
+
+  // How many measures total
+  const totalRows    = charts[0].notes.length;
+  const totalMeasures = Math.ceil(totalRows / rowsPerMeasure);
+  const WINDOW       = 4; // smooth over 4-measure windows
+
+  // For each chart compute notes-per-measure
+  const series = charts.map((ch, ci) => {
+    const meas = [];
+    for(let m=0;m<totalMeasures;m++){
+      const start=m*rowsPerMeasure, end=start+rowsPerMeasure;
+      let count=0;
+      for(let r=start;r<end&&r<ch.notes.length;r++) if(ch.notes[r]>=0) count++;
+      meas.push(count);
+    }
+    // Smooth
+    const smooth = meas.map((_,i,a)=>{
+      let s=0,c=0;
+      for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}
+      return s/c;
+    });
+    return {smooth, block:ch.block, color:colors[ci]};
+  });
+
+  // Find global max for Y scale
+  const globalMax = Math.max(...series.flatMap(s=>s.smooth), 1);
+
+  // Draw each series
+  series.forEach((s,si) => {
+    cx.beginPath();
+    cx.strokeStyle = s.color;
+    cx.lineWidth   = 2;
+    s.smooth.forEach((v,i) => {
+      const x = i/totalMeasures*W;
+      const y = H - (v/globalMax)*(H-10) - 4;
+      i===0 ? cx.moveTo(x,y) : cx.lineTo(x,y);
+    });
+    cx.stroke();
+
+    // Fill under lowest difficulty only for readability
+    if(si===0){
+      cx.beginPath();
+      s.smooth.forEach((v,i)=>{
+        const x=i/totalMeasures*W;
+        const y=H-(v/globalMax)*(H-10)-4;
+        i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+      });
+      cx.lineTo(W,H); cx.lineTo(0,H); cx.closePath();
+      cx.fillStyle=s.color+'22';
+      cx.fill();
+    }
+
+    // Legend entry
+    const name = diffNames[si] || `Block ${s.block}`;
+    const el   = document.createElement('div');
+    el.style.cssText = `display:flex;align-items:center;gap:4px`;
+    el.innerHTML = `<span style="display:inline-block;width:18px;height:3px;background:${s.color};border-radius:2px"></span>${name} (Blk ${s.block})`;
+    legend.appendChild(el);
+  });
+
+  // Y axis label
+  cx.fillStyle='#5a5a7a'; cx.font='9px Inter'; cx.textAlign='left';
+  cx.fillText('NOTES/MEASURE',4,11);
+  cx.fillText(Math.round(globalMax),4,H-4);
+
+  document.getElementById('densitySection').style.display='flex';
 }
 
 // ── GENERATE BUTTON ───────────────────────────────────────────────
@@ -942,8 +1344,11 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
       charts.push({block,notes,rpb});
     }
 
+    drawDensityChart(charts, audioBuffer.duration, bpm);
+
     log('Writing .sm...');
-    const smText=buildSM(title,artist,bpm,offset,charts,ext);
+    const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
+    const smText=buildSM(title,artist,bpm,offset,charts,ext,safe);
 
     log('Generating artwork...');
     const artSrc=userArt||embeddedArt||null;
@@ -954,13 +1359,12 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
 
     log('Packing ZIP...');
     const zip=new JSZip();
-    const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
     const folder=zip.folder(safe);
-    folder.file('song.sm',smText);
-    folder.file('banner.png',bannerBlob);
-    folder.file('bg.png',bgBlob);
-    folder.file('jacket.png',jacketBlob);
-    if(audioFileObj)folder.file(`song.${ext}`,audioFileObj);
+    folder.file(`${safe}.sm`,smText);
+    folder.file(`${safe}-banner.png`,bannerBlob);
+    folder.file(`${safe}-bg.png`,bgBlob);
+    folder.file(`${safe}-jacket.png`,jacketBlob);
+    if(audioFileObj)folder.file(`${safe}.${ext}`,audioFileObj);
 
     const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
     const url=URL.createObjectURL(zipBlob);

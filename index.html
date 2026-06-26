@@ -3,1025 +3,473 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ITG Stamina Chart Generator</title>
+<title>ITG StepGen</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
-
-  :root {
-    --bg: #0a0a0f;
-    --panel: #12121a;
-    --border: #1e1e2e;
-    --accent: #00f0ff;
-    --accent2: #ff3cac;
-    --accent3: #7b2fff;
-    --text: #e0e0f0;
-    --muted: #5a5a7a;
-    --success: #00ff88;
-    --warn: #ffb800;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  header {
-    padding: 18px 28px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: var(--panel);
-  }
-
-  header h1 {
-    font-family: 'Orbitron', monospace;
-    font-size: 18px;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  header span {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .arrows {
-    display: flex;
-    gap: 3px;
-    margin-left: auto;
-  }
-
-  .arrows div {
-    width: 14px; height: 14px;
-    border-radius: 2px;
-  }
-
-  .main {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: 300px;
-    min-width: 300px;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .section-label {
-    font-family: 'Orbitron', monospace;
-    font-size: 9px;
-    letter-spacing: 0.18em;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-
-  .field label {
-    font-size: 12px;
-    color: var(--muted);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .field label span { color: var(--accent); font-weight: 600; font-size: 13px; }
-
-  input[type=text], input[type=number], select {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 7px 10px;
-    border-radius: 4px;
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    width: 100%;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  input[type=text]:focus, input[type=number]:focus, select:focus {
-    border-color: var(--accent);
-  }
-
-  input[type=range] {
-    width: 100%;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-
-  .toggle-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-
-  .toggle-row label { font-size: 12px; color: var(--muted); }
-
-  .toggle {
-    position: relative;
-    width: 38px; height: 20px;
-  }
-
-  .toggle input { opacity: 0; width: 0; height: 0; }
-
-  .slider-toggle {
-    position: absolute; inset: 0;
-    background: var(--border);
-    border-radius: 20px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .slider-toggle:before {
-    content: '';
-    position: absolute;
-    width: 14px; height: 14px;
-    left: 3px; top: 3px;
-    background: var(--muted);
-    border-radius: 50%;
-    transition: 0.2s;
-  }
-
-  .toggle input:checked + .slider-toggle { background: var(--accent3); }
-  .toggle input:checked + .slider-toggle:before {
-    transform: translateX(18px);
-    background: var(--accent);
-  }
-
-  /* MAIN CONTENT */
-  .content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 24px;
-    gap: 20px;
-  }
-
-  /* UPLOAD ZONE */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: 8px;
-    padding: 36px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    position: relative;
-  }
-
-  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(0,240,255,0.03); }
-  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-
-  .upload-zone .icon { font-size: 36px; margin-bottom: 10px; }
-  .upload-zone h2 { font-family: 'Orbitron', monospace; font-size: 14px; letter-spacing: 0.1em; margin-bottom: 6px; }
-  .upload-zone p { color: var(--muted); font-size: 12px; }
-
-  /* ART UPLOAD */
-  .art-zone {
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    text-align: center;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--muted);
-    position: relative;
-    transition: border-color 0.2s;
-  }
-  .art-zone:hover { border-color: var(--accent2); }
-  .art-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .art-zone img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; }
-
-  /* WAVEFORM */
-  .waveform-section { display: flex; flex-direction: column; gap: 8px; }
-  .waveform-label { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
-  canvas { width: 100%; border-radius: 4px; display: block; background: var(--panel); border: 1px solid var(--border); }
-
-  /* LOG */
-  .log-box {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 14px;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    color: var(--accent);
-    min-height: 70px;
-    max-height: 120px;
-    overflow-y: auto;
-    line-height: 1.6;
-  }
-
-  .log-box .err { color: var(--accent2); }
-  .log-box .ok { color: var(--success); }
-  .log-box .warn { color: var(--warn); }
-
-  /* GENERATE BUTTON */
-  .gen-btn {
-    background: linear-gradient(135deg, var(--accent3), var(--accent2));
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 14px 28px;
-    font-family: 'Orbitron', monospace;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-    width: 100%;
-  }
-
-  .gen-btn:hover { opacity: 0.9; }
-  .gen-btn:active { transform: scale(0.98); }
-  .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* SONG INFO */
-  .song-info {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    display: none;
-    gap: 14px;
-    align-items: center;
-  }
-
-  .song-info.visible { display: flex; }
-
-  .song-art {
-    width: 60px; height: 60px;
-    border-radius: 4px;
-    object-fit: cover;
-    background: var(--border);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-  }
-
-  .song-meta h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-  .song-meta p { font-size: 11px; color: var(--muted); }
-
-  .bpm-badge {
-    margin-left: auto;
-    background: rgba(0,240,255,0.1);
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    font-family: 'Orbitron', monospace;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 6px 12px;
-    border-radius: 4px;
-    white-space: nowrap;
-  }
-
-  .progress-bar-wrap {
-    background: var(--border);
-    border-radius: 4px;
-    height: 4px;
-    overflow: hidden;
-    margin-top: 6px;
-  }
-
-  .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    width: 0%;
-    transition: width 0.3s;
-  }
-
-  /* DIFFICULTY PREVIEW */
-  .diff-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 4px;
-  }
-
-  .diff-badge {
-    font-family: 'Orbitron', monospace;
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 3px;
-    border: 1px solid;
-  }
-
-  .diff-badge.easy { color: #00ff88; border-color: #00ff88; background: rgba(0,255,136,0.08); }
-  .diff-badge.med { color: #ffb800; border-color: #ffb800; background: rgba(255,184,0,0.08); }
-  .diff-badge.hard { color: #ff3cac; border-color: #ff3cac; background: rgba(255,60,172,0.08); }
-
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
+:root {
+  --bg:#0a0a0f; --panel:#12121a; --border:#1e1e2e;
+  --accent:#00f0ff; --accent2:#ff3cac; --accent3:#7b2fff;
+  --text:#e0e0f0; --muted:#5a5a7a; --success:#00ff88; --warn:#ffb800;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100dvh;display:flex;flex-direction:column;}
+header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--panel);}
+header h1{font-family:'Orbitron',monospace;font-size:17px;font-weight:900;letter-spacing:.12em;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+header span{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
+.arrows{display:flex;gap:3px;margin-left:auto;}
+.arrows div{width:13px;height:13px;border-radius:2px;}
+.main{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:290px;min-width:290px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:18px 14px;display:flex;flex-direction:column;gap:18px;}
+.sec{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.field label{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+.field label span{color:var(--accent);font-weight:600;}
+input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 9px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;width:100%;outline:none;transition:border-color .2s;}
+input[type=text]:focus,select:focus{border-color:var(--accent);}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
+.tog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.tog-row label{font-size:12px;color:var(--muted);}
+.toggle{position:relative;width:36px;height:20px;}
+.toggle input{opacity:0;width:0;height:0;}
+.sl{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:background .2s;}
+.sl:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:var(--muted);border-radius:50%;transition:.2s;}
+.toggle input:checked+.sl{background:var(--accent3);}
+.toggle input:checked+.sl:before{transform:translateX(16px);background:var(--accent);}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:20px;gap:16px;}
+.upload-zone{border:2px dashed var(--border);border-radius:8px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(0,240,255,.03);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone .icon{font-size:32px;margin-bottom:8px;}
+.upload-zone h2{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:.1em;margin-bottom:4px;}
+.upload-zone p{color:var(--muted);font-size:11px;}
+.art-zone{border:1px dashed var(--border);border-radius:5px;padding:12px;text-align:center;cursor:pointer;font-size:11px;color:var(--muted);position:relative;transition:border-color .2s;}
+.art-zone:hover{border-color:var(--accent2);}
+.art-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.song-info{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px;display:none;gap:12px;align-items:center;}
+.song-info.on{display:flex;}
+.song-art{width:56px;height:56px;border-radius:4px;background:var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;}
+.song-art img{width:100%;height:100%;object-fit:cover;}
+.song-meta h3{font-size:13px;font-weight:600;margin-bottom:2px;}
+.song-meta p{font-size:11px;color:var(--muted);}
+.bpm-badge{margin-left:auto;background:rgba(0,240,255,.1);border:1px solid var(--accent);color:var(--accent);font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:6px 10px;border-radius:4px;white-space:nowrap;}
+.prog-wrap{background:var(--border);border-radius:4px;height:3px;overflow:hidden;margin-top:5px;}
+.prog{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s;}
+.wave-sec{display:flex;flex-direction:column;gap:6px;display:none;}
+.wave-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border:1px solid var(--border);}
+.log-box{background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-family:'Courier New',monospace;font-size:11px;color:var(--accent);min-height:65px;max-height:110px;overflow-y:auto;line-height:1.7;}
+.log-box .err{color:var(--accent2);}
+.log-box .ok{color:var(--success);}
+.log-box .warn{color:var(--warn);}
+.gen-btn{background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;border-radius:6px;padding:13px 24px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:.12em;cursor:pointer;transition:opacity .2s,transform .1s;width:100%;}
+.gen-btn:hover{opacity:.9;}
+.gen-btn:active{transform:scale(.98);}
+.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+.diff-row{display:flex;gap:6px;flex-wrap:wrap;}
+.db{font-family:'Orbitron',monospace;font-size:10px;padding:3px 7px;border-radius:3px;border:1px solid;}
+.db.easy{color:#00ff88;border-color:#00ff88;background:rgba(0,255,136,.08);}
+.db.med{color:#ffb800;border-color:#ffb800;background:rgba(255,184,0,.08);}
+.db.hard{color:#ff3cac;border-color:#ff3cac;background:rgba(255,60,172,.08);}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
 </head>
 <body>
-
 <header>
   <div class="arrows">
-    <div style="background:#3399ff"></div>
-    <div style="background:#ff3333"></div>
-    <div style="background:#ff3333"></div>
-    <div style="background:#3399ff"></div>
+    <div style="background:#3399ff"></div><div style="background:#ff3333"></div>
+    <div style="background:#ff3333"></div><div style="background:#3399ff"></div>
   </div>
   <h1>ITG STEPGEN</h1>
   <span>Stamina Chart Generator</span>
 </header>
-
 <div class="main">
-  <!-- SIDEBAR PARAMS -->
   <div class="sidebar">
     <div>
-      <div class="section-label">Song Info</div>
-      <div class="field">
-        <label>Title</label>
-        <input type="text" id="songTitle" placeholder="Song Title"/>
-      </div>
-      <div class="field">
-        <label>Artist</label>
-        <input type="text" id="songArtist" placeholder="Artist Name"/>
-      </div>
+      <div class="sec">Song Info</div>
+      <div class="field"><label>Title</label><input type="text" id="songTitle" placeholder="Song Title"/></div>
+      <div class="field"><label>Artist</label><input type="text" id="songArtist" placeholder="Artist Name"/></div>
     </div>
-
     <div>
-      <div class="section-label">Art</div>
+      <div class="sec">Art</div>
       <div class="art-zone" id="artZone">
         <input type="file" id="artFile" accept="image/*"/>
-        <div id="artPreview">🖼 Drop banner/jacket image<br><span style="font-size:10px;color:#333">(or extracted from audio)</span></div>
+        <div id="artPreview">🖼 Drop banner / jacket image<br/><small style="font-size:10px;color:#2a2a3a">(or auto-extracted from audio)</small></div>
       </div>
     </div>
-
     <div>
-      <div class="section-label">Difficulty</div>
-      <div class="field">
-        <label>Min ITG Block <span id="diffMinVal">4</span></label>
-        <input type="range" id="diffMin" min="1" max="12" value="4" step="1"/>
-      </div>
-      <div class="field">
-        <label>Max ITG Block <span id="diffMaxVal">10</span></label>
-        <input type="range" id="diffMax" min="1" max="12" value="10" step="1"/>
-      </div>
-      <div class="field">
-        <label>Difficulties to generate</label>
+      <div class="sec">Difficulty</div>
+      <div class="field"><label>Min Block <span id="diffMinVal">4</span></label><input type="range" id="diffMin" min="1" max="12" value="4"/></div>
+      <div class="field"><label>Max Block <span id="diffMaxVal">10</span></label><input type="range" id="diffMax" min="1" max="12" value="10"/></div>
+      <div class="field"><label>Charts to generate</label>
         <select id="diffCount">
-          <option value="1">1 (Hard only)</option>
-          <option value="2">2 (Medium + Hard)</option>
-          <option value="3" selected>3 (Easy + Medium + Hard)</option>
+          <option value="1">1 — Hard only</option>
+          <option value="2">2 — Medium + Hard</option>
+          <option value="3" selected>3 — Easy + Medium + Hard</option>
         </select>
       </div>
+      <div id="diffPreview" style="margin-top:4px"><div class="diff-row" id="diffBadges"></div></div>
     </div>
-
     <div>
-      <div class="section-label">Foot Alternation</div>
-      <div class="toggle-row">
-        <label>Enforce alt feet (no jacks)</label>
-        <label class="toggle">
-          <input type="checkbox" id="enforceAlt" checked/>
-          <span class="slider-toggle"></span>
-        </label>
-      </div>
-      <div class="field">
-        <label>Max same-panel repeats <span id="jackTolVal">0</span></label>
-        <input type="range" id="jackTol" min="0" max="3" value="0" step="1"/>
-      </div>
-      <div class="toggle-row">
-        <label>Allow crossovers</label>
-        <label class="toggle">
-          <input type="checkbox" id="allowCross"/>
-          <span class="slider-toggle"></span>
-        </label>
-      </div>
+      <div class="sec">Foot Alternation</div>
+      <div class="tog-row"><label>Enforce alt feet (no jacks)</label><label class="toggle"><input type="checkbox" id="enforceAlt" checked/><span class="sl"></span></label></div>
+      <div class="field"><label>Max same-foot repeats <span id="jackTolVal">0</span></label><input type="range" id="jackTol" min="0" max="3" value="0"/></div>
+      <div class="tog-row"><label>Allow crossovers</label><label class="toggle"><input type="checkbox" id="allowCross"/><span class="sl"></span></label></div>
     </div>
-
     <div>
-      <div class="section-label">Stream / Run Rules</div>
-      <div class="field">
-        <label>Max run length (beats) <span id="maxRunVal">32</span></label>
-        <input type="range" id="maxRun" min="8" max="128" value="32" step="4"/>
-      </div>
-      <div class="field">
-        <label>Min break length (beats) <span id="minBreakVal">4</span></label>
-        <input type="range" id="minBreak" min="1" max="16" value="4" step="1"/>
-      </div>
-      <div class="field">
-        <label>Stream note subdivision</label>
+      <div class="sec">Stream Rules</div>
+      <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
+      <div class="field"><label>Min break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
+      <div class="field"><label>Subdivision</label>
         <select id="subdivision">
-          <option value="8">8th notes (slow streams)</option>
-          <option value="16" selected>16th notes (standard)</option>
+          <option value="8">8th notes</option>
+          <option value="16" selected>16th notes</option>
           <option value="mix">Mix 8th + 16th</option>
         </select>
       </div>
     </div>
-
     <div>
-      <div class="section-label">Timing</div>
-      <div class="field">
-        <label>Lead-in offset (seconds) <span id="offsetVal">1.0</span>s</label>
-        <input type="range" id="offset" min="0" max="5" value="1" step="0.5"/>
-      </div>
-      <div class="toggle-row">
-        <label>Energy-aware density</label>
-        <label class="toggle">
-          <input type="checkbox" id="energyAware" checked/>
-          <span class="slider-toggle"></span>
-        </label>
-      </div>
-      <div class="toggle-row">
-        <label>Force breaks in quiet sections</label>
-        <label class="toggle">
-          <input type="checkbox" id="forceBreaks" checked/>
-          <span class="slider-toggle"></span>
-        </label>
-      </div>
+      <div class="sec">Timing / Energy</div>
+      <div class="field"><label>Lead-in offset (s) <span id="offsetVal">1.0</span></label><input type="range" id="offset" min="0" max="5" value="1" step="0.5"/></div>
+      <div class="tog-row"><label>Energy-aware density</label><label class="toggle"><input type="checkbox" id="energyAware" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
     </div>
   </div>
-
-  <!-- MAIN CONTENT -->
   <div class="content">
-
-    <!-- UPLOAD -->
     <div class="upload-zone" id="uploadZone">
       <input type="file" id="audioFile" accept="audio/*"/>
       <div class="icon">🎵</div>
       <h2>DROP AUDIO FILE</h2>
       <p>MP3 · OGG · WAV · FLAC</p>
     </div>
-
-    <!-- SONG INFO BAR -->
     <div class="song-info" id="songInfoBar">
       <div class="song-art" id="songArtThumb">🎵</div>
       <div class="song-meta">
         <h3 id="infoTitle">—</h3>
         <p id="infoArtist">—</p>
-        <div class="progress-bar-wrap"><div class="progress-bar" id="analyzeProgress"></div></div>
+        <div class="prog-wrap"><div class="prog" id="analyzeProgress"></div></div>
       </div>
       <div class="bpm-badge" id="bpmBadge">— BPM</div>
     </div>
-
-    <!-- WAVEFORM -->
-    <div class="waveform-section" id="waveSection" style="display:none">
-      <div class="waveform-label">Waveform + Energy Curve</div>
-      <canvas id="waveCanvas" height="90"></canvas>
-      <canvas id="energyCanvas" height="60"></canvas>
+    <div class="wave-sec" id="waveSection">
+      <div class="wave-label">Waveform</div>
+      <canvas id="waveCanvas" height="80"></canvas>
+      <div class="wave-label" style="margin-top:4px">Energy Curve</div>
+      <canvas id="energyCanvas" height="55"></canvas>
     </div>
-
-    <!-- DIFFICULTY PREVIEW -->
-    <div id="diffPreview" style="display:none">
-      <div class="waveform-label" style="margin-bottom:6px">Charts to generate</div>
-      <div class="diff-row" id="diffBadges"></div>
-    </div>
-
-    <!-- LOG -->
-    <div class="log-box" id="log">Waiting for audio file...<br/></div>
-
-    <!-- GENERATE -->
+    <div class="log-box" id="log"><span style="color:var(--muted)">Waiting for audio...</span><br/></div>
     <button class="gen-btn" id="genBtn" disabled>⚡ GENERATE STEP FILE</button>
-
   </div>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 let audioBuffer = null;
-let audioFileName = '';
+let audioFileObj = null;
 let detectedBPM = 120;
 let energyCurve = [];
-let embeddedArt = null;   // base64 string
-let userArt = null;       // base64 string
+let embeddedArt = null;
+let userArt = null;
 
-// ─── Logging ──────────────────────────────────────────────────────────────────
-function log(msg, type='') {
+// ── Log ───────────────────────────────────────────────────────────────────────
+function log(msg, cls='') {
   const box = document.getElementById('log');
-  const line = document.createElement('div');
-  if (type) line.className = type;
-  line.textContent = '> ' + msg;
-  box.appendChild(line);
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = '> ' + msg;
+  box.appendChild(d);
   box.scrollTop = box.scrollHeight;
 }
+function clearLog() { document.getElementById('log').innerHTML = ''; }
 
-// ─── Slider display ───────────────────────────────────────────────────────────
-const sliders = [
-  ['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
-  ['jackTol','jackTolVal',''],['maxRun','maxRunVal',' beats'],
-  ['minBreak','minBreakVal',' beats'],['offset','offsetVal','s']
-];
-sliders.forEach(([id, valId, unit]) => {
-  const el = document.getElementById(id);
-  el.addEventListener('input', () => {
-    document.getElementById(valId).textContent = el.value + unit;
-    updateDiffPreview();
+// ── Sliders ───────────────────────────────────────────────────────────────────
+[['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],['jackTol','jackTolVal',''],
+ ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['offset','offsetVal','']
+].forEach(([id,vid,u])=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    document.getElementById(vid).textContent = document.getElementById(id).value + u;
+    updateDiffBadges();
   });
 });
-
-// ─── Art file input ───────────────────────────────────────────────────────────
-document.getElementById('artFile').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    userArt = ev.target.result;
-    showArt(userArt);
-  };
-  reader.readAsDataURL(f);
+['diffCount','subdivision'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', updateDiffBadges);
 });
 
-function showArt(dataUrl) {
-  const zone = document.getElementById('artPreview');
-  zone.innerHTML = `<img src="${dataUrl}" style="width:100%;max-height:120px;object-fit:cover;border-radius:4px"/>`;
-  const thumb = document.getElementById('songArtThumb');
-  thumb.innerHTML = `<img src="${dataUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:4px"/>`;
+// ── Art upload ────────────────────────────────────────────────────────────────
+document.getElementById('artFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev => { userArt = ev.target.result; showArt(userArt); };
+  r.readAsDataURL(f);
+});
+function showArt(src) {
+  document.getElementById('artPreview').innerHTML = `<img src="${src}" style="width:100%;max-height:110px;object-fit:cover;border-radius:4px"/>`;
+  document.getElementById('songArtThumb').innerHTML = `<img src="${src}"/>`;
 }
 
-// ─── Audio file drop / select ─────────────────────────────────────────────────
-const uploadZone = document.getElementById('uploadZone');
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault(); uploadZone.classList.remove('drag');
-  const f = e.dataTransfer.files[0];
-  if (f) handleAudioFile(f);
-});
-document.getElementById('audioFile').addEventListener('change', e => {
-  if (e.target.files[0]) handleAudioFile(e.target.files[0]);
-});
+// ── Upload zone drag ──────────────────────────────────────────────────────────
+const uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', e=>{ e.preventDefault(); uz.classList.add('drag'); });
+uz.addEventListener('dragleave', ()=>uz.classList.remove('drag'));
+uz.addEventListener('drop', e=>{ e.preventDefault(); uz.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) handleAudio(f); });
+document.getElementById('audioFile').addEventListener('change', e=>{ if(e.target.files[0]) handleAudio(e.target.files[0]); });
 
-async function handleAudioFile(file) {
-  audioFileName = file.name.replace(/\.[^.]+$/, '');
-  document.getElementById('songTitle').value = document.getElementById('songTitle').value || audioFileName;
+// ── Load + decode audio ───────────────────────────────────────────────────────
+async function handleAudio(file) {
+  audioFileObj = file;
+  clearLog();
   log('Loading: ' + file.name);
+  document.getElementById('genBtn').disabled = true;
 
-  // Try to extract ID3 art
+  const fname = file.name.replace(/\.[^.]+$/,'');
+  if (!document.getElementById('songTitle').value) document.getElementById('songTitle').value = fname;
+
+  // ID3 art
+  try { await extractID3Art(file); } catch(e) {}
+
+  // Decode
+  let arrayBuf;
+  try { arrayBuf = await file.arrayBuffer(); } catch(e){ log('Could not read file: '+e.message,'err'); return; }
+  const actx = new (window.AudioContext||window.webkitAudioContext)();
   try {
-    await tryExtractID3Art(file);
-  } catch(e) {}
+    audioBuffer = await actx.decodeAudioData(arrayBuf);
+  } catch(e) { log('Audio decode failed: '+e.message,'err'); return; }
 
-  // Decode audio
-  const arrayBuf = await file.arrayBuffer();
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  try {
-    audioBuffer = await ctx.decodeAudioData(arrayBuf);
-    log(`Decoded: ${audioBuffer.duration.toFixed(1)}s · ${audioBuffer.sampleRate}Hz`, 'ok');
-  } catch(e) {
-    log('Could not decode audio: ' + e.message, 'err');
-    return;
-  }
+  log(`Decoded: ${audioBuffer.duration.toFixed(1)}s at ${audioBuffer.sampleRate}Hz`, 'ok');
 
-  document.getElementById('songInfoBar').classList.add('visible');
-  document.getElementById('infoTitle').textContent = document.getElementById('songTitle').value || audioFileName;
+  document.getElementById('songInfoBar').classList.add('on');
+  document.getElementById('infoTitle').textContent = document.getElementById('songTitle').value || fname;
   document.getElementById('infoArtist').textContent = document.getElementById('songArtist').value || 'Unknown Artist';
+  setProgress(25);
 
-  setProgress(20);
-  log('Analyzing waveform...');
+  log('Analyzing energy...');
   computeEnergy();
-  setProgress(50);
+  setProgress(55);
+
   log('Detecting BPM...');
   detectedBPM = detectBPM();
   document.getElementById('bpmBadge').textContent = detectedBPM.toFixed(1) + ' BPM';
-  log(`Detected BPM: ${detectedBPM.toFixed(1)}`, 'ok');
-  setProgress(80);
+  log('BPM detected: ' + detectedBPM.toFixed(1), 'ok');
+  setProgress(85);
+
   drawWaveform();
   drawEnergy();
-  document.getElementById('waveSection').style.display = '';
+  document.getElementById('waveSection').style.display = 'flex';
   setProgress(100);
-  updateDiffPreview();
+  updateDiffBadges();
+
   document.getElementById('genBtn').disabled = false;
-  log('Ready to generate!', 'ok');
+  log('Ready — click Generate!', 'ok');
 }
 
-function setProgress(pct) {
-  document.getElementById('analyzeProgress').style.width = pct + '%';
-}
+function setProgress(p) { document.getElementById('analyzeProgress').style.width = p + '%'; }
 
-// ─── ID3 art extraction ───────────────────────────────────────────────────────
-async function tryExtractID3Art(file) {
-  const bytes = new Uint8Array(await file.slice(0, 200000).arrayBuffer());
-  // Look for APIC frame in ID3v2
-  const id3Header = String.fromCharCode(bytes[0], bytes[1], bytes[2]);
-  if (id3Header !== 'ID3') return;
-
-  // Find APIC
-  for (let i = 0; i < bytes.length - 10; i++) {
-    if (bytes[i]===0x41 && bytes[i+1]===0x50 && bytes[i+2]===0x49 && bytes[i+3]===0x43) {
-      // APIC frame found
-      const frameSize = (bytes[i+4]<<24)|(bytes[i+5]<<16)|(bytes[i+6]<<8)|bytes[i+7];
-      let offset = i + 10;
-      // skip text encoding byte
-      offset++;
-      // skip mime type (null-terminated)
-      while (offset < bytes.length && bytes[offset] !== 0) offset++;
-      offset++; // null
-      // skip picture type byte
-      offset++;
-      // skip description (null-terminated)
-      while (offset < bytes.length && bytes[offset] !== 0) offset++;
-      offset++; // null
-
-      const imgData = bytes.slice(offset, i + 10 + frameSize);
-      // detect mime
-      let mime = 'image/jpeg';
-      if (imgData[0]===0x89 && imgData[1]===0x50) mime = 'image/png';
-
-      const blob = new Blob([imgData], {type: mime});
-      const url = URL.createObjectURL(blob);
-      embeddedArt = await blobToBase64(blob);
-      showArt(url);
-      log('Embedded album art found!', 'ok');
+// ── ID3 album art ─────────────────────────────────────────────────────────────
+async function extractID3Art(file) {
+  const bytes = new Uint8Array(await file.slice(0, 300000).arrayBuffer());
+  if (bytes[0]!==0x49||bytes[1]!==0x44||bytes[2]!==0x33) return; // not ID3
+  for (let i=0; i<bytes.length-10; i++) {
+    if (bytes[i]===65&&bytes[i+1]===80&&bytes[i+2]===73&&bytes[i+3]===67) { // APIC
+      const fsize = (bytes[i+4]<<24)|(bytes[i+5]<<16)|(bytes[i+6]<<8)|bytes[i+7];
+      let o = i+10+1; // skip encoding byte
+      while (o<bytes.length && bytes[o]!==0) o++; o++; // skip mime + null
+      o++; // picture type
+      while (o<bytes.length && bytes[o]!==0) o++; o++; // skip desc + null
+      const img = bytes.slice(o, i+10+fsize);
+      const mime = (img[0]===0x89&&img[1]===0x50) ? 'image/png' : 'image/jpeg';
+      const blob = new Blob([img],{type:mime});
+      embeddedArt = await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); });
+      showArt(embeddedArt);
+      log('Album art extracted from file', 'ok');
       return;
     }
   }
 }
 
-function blobToBase64(blob) {
-  return new Promise(res => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.readAsDataURL(blob);
-  });
-}
-
-// ─── Energy curve ─────────────────────────────────────────────────────────────
+// ── Energy ────────────────────────────────────────────────────────────────────
 function computeEnergy() {
-  const data = audioBuffer.getChannelData(0);
-  const sr = audioBuffer.sampleRate;
-  const windowSize = Math.floor(sr * 0.1); // 100ms windows
+  const d = audioBuffer.getChannelData(0);
+  const ws = Math.floor(audioBuffer.sampleRate * 0.1);
   energyCurve = [];
-  for (let i = 0; i < data.length - windowSize; i += windowSize) {
-    let sum = 0;
-    for (let j = 0; j < windowSize; j++) sum += data[i+j] * data[i+j];
-    energyCurve.push(Math.sqrt(sum / windowSize));
+  for (let i=0; i<d.length-ws; i+=ws) {
+    let s=0; for(let j=0;j<ws;j++) s+=d[i+j]*d[i+j];
+    energyCurve.push(Math.sqrt(s/ws));
   }
-  // Normalize
-  const max = Math.max(...energyCurve);
-  if (max > 0) energyCurve = energyCurve.map(v => v / max);
+  const mx = Math.max(...energyCurve)||1;
+  energyCurve = energyCurve.map(v=>v/mx);
 }
 
-// ─── BPM detection (autocorrelation) ─────────────────────────────────────────
+// ── BPM (autocorrelation) ─────────────────────────────────────────────────────
 function detectBPM() {
-  const data = audioBuffer.getChannelData(0);
+  const d = audioBuffer.getChannelData(0);
   const sr = audioBuffer.sampleRate;
-  const sampleLen = Math.min(data.length, sr * 30); // use first 30s
+  const len = Math.min(d.length, sr*30);
   const step = 512;
-  const rmsFrames = [];
-  for (let i = 0; i < sampleLen - step; i += step) {
-    let s = 0;
-    for (let j = 0; j < step; j++) s += data[i+j]*data[i+j];
-    rmsFrames.push(Math.sqrt(s/step));
-  }
-
-  // Autocorrelation over plausible BPM range (60-200)
-  const minLag = Math.floor(60 / 200 * sr / step);
-  const maxLag = Math.floor(60 / 60 * sr / step);
-  let bestLag = minLag, bestCorr = -Infinity;
-
-  for (let lag = minLag; lag <= maxLag; lag++) {
-    let corr = 0;
-    for (let i = 0; i < rmsFrames.length - lag; i++) {
-      corr += rmsFrames[i] * rmsFrames[i + lag];
-    }
-    if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
-  }
-
-  const bpm = 60 / (bestLag * step / sr);
-  // Snap to reasonable range
-  let snapped = bpm;
-  if (snapped < 80) snapped *= 2;
-  if (snapped > 200) snapped /= 2;
-  return Math.round(snapped * 10) / 10;
+  const rms = [];
+  for(let i=0;i<len-step;i+=step){let s=0;for(let j=0;j<step;j++)s+=d[i+j]*d[i+j];rms.push(Math.sqrt(s/step));}
+  const minL = Math.floor(60/200*sr/step);
+  const maxL = Math.floor(60/60*sr/step);
+  let bestL=minL, bestC=-Infinity;
+  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<rms.length-lag;i++)c+=rms[i]*rms[i+lag];if(c>bestC){bestC=c;bestL=lag;}}
+  let bpm = 60/(bestL*step/sr);
+  if(bpm<80) bpm*=2; if(bpm>200) bpm/=2;
+  return Math.round(bpm*10)/10;
 }
 
-// ─── Canvas drawing ───────────────────────────────────────────────────────────
+// ── Canvases ──────────────────────────────────────────────────────────────────
 function drawWaveform() {
-  const canvas = document.getElementById('waveCanvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 800;
-  canvas.height = 90 * (window.devicePixelRatio || 1);
-  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
-  const W = canvas.offsetWidth, H = 90;
-  ctx.fillStyle = '#12121a';
-  ctx.fillRect(0,0,W,H);
-
-  const data = audioBuffer.getChannelData(0);
-  const step = Math.floor(data.length / W);
-  ctx.beginPath();
-  ctx.strokeStyle = '#00f0ff44';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < W; x++) {
-    let min=1, max=-1;
-    for (let j=0;j<step;j++){const v=data[x*step+j]||0;if(v<min)min=v;if(v>max)max=v;}
-    const yMin = (1 - max) / 2 * H;
-    const yMax = (1 - min) / 2 * H;
-    ctx.moveTo(x, yMin); ctx.lineTo(x, yMax);
-  }
-  ctx.stroke();
-
-  // Energy overlay
-  if (energyCurve.length > 0) {
-    ctx.beginPath();
-    ctx.strokeStyle = '#ff3cac88';
-    ctx.lineWidth = 2;
-    energyCurve.forEach((v, i) => {
-      const x = i / energyCurve.length * W;
-      const y = H - v * H * 0.9;
-      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-    });
-    ctx.stroke();
-  }
+  const cv = document.getElementById('waveCanvas');
+  const cx = cv.getContext('2d');
+  cv.width = cv.offsetWidth||800; cv.height = 80;
+  const W=cv.width, H=80;
+  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
+  const d = audioBuffer.getChannelData(0);
+  const step = Math.floor(d.length/W);
+  cx.strokeStyle='#00f0ff55'; cx.lineWidth=1; cx.beginPath();
+  for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const v=d[x*step+j]||0;if(v<mn)mn=v;if(v>mx)mx=v;}cx.moveTo(x,(1-mx)/2*H);cx.lineTo(x,(1-mn)/2*H);}
+  cx.stroke();
+  if(energyCurve.length){cx.strokeStyle='#ff3cac99';cx.lineWidth=2;cx.beginPath();energyCurve.forEach((v,i)=>{const x=i/energyCurve.length*W,y=H-v*H*.85;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();}
 }
-
 function drawEnergy() {
-  const canvas = document.getElementById('energyCanvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 800;
-  canvas.height = 60 * (window.devicePixelRatio || 1);
-  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
-  const W = canvas.offsetWidth, H = 60;
-  ctx.fillStyle = '#12121a';
-  ctx.fillRect(0,0,W,H);
-
-  if (!energyCurve.length) return;
-
-  // Smoothed energy
-  const smooth = [];
-  const win = 10;
-  for (let i = 0; i < energyCurve.length; i++) {
-    let s=0,c=0;
-    for(let j=Math.max(0,i-win);j<Math.min(energyCurve.length,i+win);j++){s+=energyCurve[j];c++;}
-    smooth.push(s/c);
-  }
-
-  // Fill under curve
-  const grad = ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'#7b2fff88');
-  grad.addColorStop(1,'#7b2fff00');
-  ctx.beginPath();
-  ctx.moveTo(0,H);
-  smooth.forEach((v,i)=>{
-    const x=i/smooth.length*W;
-    const y=H-v*H*0.9;
-    ctx.lineTo(x,y);
-  });
-  ctx.lineTo(W,H);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.strokeStyle='#7b2fff';
-  ctx.lineWidth=2;
-  smooth.forEach((v,i)=>{
-    const x=i/smooth.length*W;
-    const y=H-v*H*0.9;
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  });
-  ctx.stroke();
-
-  // Label
-  ctx.fillStyle='#5a5a7a';
-  ctx.font='9px Inter';
-  ctx.fillText('ENERGY', 6, 12);
+  const cv = document.getElementById('energyCanvas');
+  const cx = cv.getContext('2d');
+  cv.width = cv.offsetWidth||800; cv.height = 55;
+  const W=cv.width, H=55;
+  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
+  if(!energyCurve.length) return;
+  const sm=energyCurve.map((v,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-8);j<Math.min(a.length,i+8);j++){s+=a[j];c++;}return s/c;});
+  const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#7b2fff99');g.addColorStop(1,'#7b2fff00');
+  cx.beginPath();cx.moveTo(0,H);sm.forEach((v,i)=>{cx.lineTo(i/sm.length*W,H-v*H*.88);});cx.lineTo(W,H);cx.closePath();cx.fillStyle=g;cx.fill();
+  cx.beginPath();cx.strokeStyle='#7b2fff';cx.lineWidth=2;sm.forEach((v,i)=>{const x=i/sm.length*W,y=H-v*H*.88;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();
+  cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.fillText('ENERGY',5,12);
 }
 
-// ─── Difficulty preview ────────────────────────────────────────────────────────
-function updateDiffPreview() {
-  const min = parseInt(document.getElementById('diffMin').value);
-  const max = parseInt(document.getElementById('diffMax').value);
-  const count = parseInt(document.getElementById('diffCount').value);
-  const diffs = getDiffLevels(min, max, count);
-  const badges = document.getElementById('diffBadges');
-  badges.innerHTML = '';
-  const names = ['Easy','Medium','Hard'];
-  const cls = ['easy','med','hard'];
-  diffs.forEach((d,i) => {
-    const b = document.createElement('div');
-    b.className = `diff-badge ${cls[i] || 'hard'}`;
-    b.textContent = `${names[i] || 'Chart'} · Block ${d}`;
-    badges.appendChild(b);
-  });
-  document.getElementById('diffPreview').style.display = '';
+// ── Diff badges ───────────────────────────────────────────────────────────────
+function getDiffs() {
+  const mn=+document.getElementById('diffMin').value, mx=+document.getElementById('diffMax').value;
+  const n=+document.getElementById('diffCount').value;
+  if(n===1) return [mx];
+  if(n===2) return [Math.round((mn+mx)/2), mx];
+  return [mn, Math.round((mn+mx)/2), mx];
 }
-
-function getDiffLevels(min, max, count) {
-  if (count === 1) return [max];
-  if (count === 2) return [Math.round((min+max)/2), max];
-  return [min, Math.round((min+max)/2), max];
+function updateDiffBadges() {
+  const diffs = getDiffs();
+  const names=['Easy','Medium','Hard'], cls=['easy','med','hard'];
+  document.getElementById('diffBadges').innerHTML = diffs.map((d,i)=>`<div class="db ${cls[i]||'hard'}">${names[i]||'Chart'} · Block ${d}</div>`).join('');
 }
+updateDiffBadges();
 
-// ─── SM GENERATION ────────────────────────────────────────────────────────────
-// Panel layout: 0=Left, 1=Down, 2=Up, 3=Right (dance-single standard)
-// Foot assignment: Left/Down = Left foot, Up/Right = Right foot
-// Alternation: we track last panel used and ensure opposite foot next
-
-const LEFT_FOOT_PANELS = [0, 1];   // Left, Down
-const RIGHT_FOOT_PANELS = [2, 3];  // Up, Right
-
-function footOf(panel) {
-  return LEFT_FOOT_PANELS.includes(panel) ? 'L' : 'R';
-}
-
-function pickPanel(lastFoot, allowCross, jackTol, lastPanel, usedSameFoot) {
-  const enforceAlt = document.getElementById('enforceAlt').checked;
-  const tol = parseInt(document.getElementById('jackTol').value);
-
+// ── Foot logic ────────────────────────────────────────────────────────────────
+// Panels: 0=Left(L) 1=Down(L) 2=Up(R) 3=Right(R)
+function footOf(p){ return (p===0||p===1)?'L':'R'; }
+function pickPanel(lastFoot, sameFoot, lastPanel, enforceAlt, jackTol, allowCross) {
   let pool;
   if (enforceAlt) {
-    if (usedSameFoot < tol) {
-      // Can repeat same foot if under tolerance
-      pool = lastFoot === 'L' ? [...LEFT_FOOT_PANELS] : [...RIGHT_FOOT_PANELS];
-      // remove last panel to avoid jack on same panel
-      if (!tol) pool = pool.filter(p => p !== lastPanel);
+    if (sameFoot < jackTol) {
+      pool = lastFoot==='L' ? [0,1] : [2,3];
+      if (jackTol===0) pool = pool.filter(p=>p!==lastPanel);
     } else {
-      // Must switch feet
-      pool = lastFoot === 'L' ? [...RIGHT_FOOT_PANELS] : [...LEFT_FOOT_PANELS];
+      pool = lastFoot==='L' ? [2,3] : [0,1];
     }
   } else {
-    pool = [0,1,2,3].filter(p => p !== lastPanel);
+    pool = [0,1,2,3].filter(p=>p!==lastPanel);
   }
-
-  if (!allowCross) {
-    // Remove crossover panels (simplified: just use basic alternation)
-    pool = pool.filter(p => !(lastFoot==='L' && p===3) && !(lastFoot==='R' && p===0));
-    if (!pool.length) pool = lastFoot === 'L' ? [2] : [1];
-  }
-
-  if (!pool.length) pool = [0,1,2,3].filter(p=>p!==lastPanel);
-  return pool[Math.floor(Math.random() * pool.length)];
+  if (!allowCross) pool = pool.filter(p=>!(lastFoot==='L'&&p===3)&&!(lastFoot==='R'&&p===0));
+  if (!pool.length) pool = lastFoot==='L'?[2,3]:[0,1];
+  return pool[Math.floor(Math.random()*pool.length)];
 }
 
-function generateChart(difficulty, bpm, energyCurve, duration) {
-  const params = {
-    enforceAlt: document.getElementById('enforceAlt').checked,
-    jackTol: parseInt(document.getElementById('jackTol').value),
-    allowCross: document.getElementById('allowCross').checked,
-    maxRun: parseInt(document.getElementById('maxRun').value),
-    minBreak: parseInt(document.getElementById('minBreak').value),
-    subdivision: document.getElementById('subdivision').value,
-    offset: parseFloat(document.getElementById('offset').value),
-    energyAware: document.getElementById('energyAware').checked,
-    forceBreaks: document.getElementById('forceBreaks').checked,
-  };
+// ── Chart generation ──────────────────────────────────────────────────────────
+function generateChart(block, bpm, energy, duration) {
+  const enforceAlt = document.getElementById('enforceAlt').checked;
+  const jackTol    = +document.getElementById('jackTol').value;
+  const allowCross = document.getElementById('allowCross').checked;
+  const maxRun     = +document.getElementById('maxRun').value;
+  const minBreak   = +document.getElementById('minBreak').value;
+  const subdiv     = document.getElementById('subdivision').value;
+  const leadIn     = +document.getElementById('offset').value;
+  const energyOn   = document.getElementById('energyAware').checked;
+  const breaksOn   = document.getElementById('forceBreaks').checked;
 
-  // NPS target from difficulty: block 1=1nps, block 12=8nps roughly
-  const npsTarget = 1 + (difficulty - 1) * 0.65;
-  const beatDuration = 60 / bpm;
-  const totalBeats = Math.floor(duration / beatDuration);
-
-  // Subdivision: 16th = 4 rows per beat
-  const rowsPerBeat = params.subdivision === '8' ? 2 : 4;
-  const totalRows = totalBeats * rowsPerBeat;
-
-  // Build note array: index = row, value = panel (0-3) or -1 (empty)
+  const rpb = subdiv==='8' ? 2 : 4; // rows per beat
+  const beatDur = 60/bpm;
+  const totalBeats = Math.floor(duration/beatDur);
+  const totalRows = totalBeats*rpb;
   const notes = new Array(totalRows).fill(-1);
+  const leadBeats = Math.ceil(leadIn/beatDur);
 
-  // Energy per beat
-  const energyPerBeat = [];
-  for (let b = 0; b < totalBeats; b++) {
-    const t = b * beatDuration / duration;
-    const idx = Math.floor(t * energyCurve.length);
-    energyPerBeat.push(energyCurve[idx] || 0);
+  // Smooth energy per beat
+  const eBeat = [];
+  for(let b=0;b<totalBeats;b++){
+    const t=b*beatDur/duration;
+    const idx=Math.floor(t*energy.length);
+    eBeat.push(energy[Math.min(idx,energy.length-1)]||0);
   }
+  const sm=(arr,w=6)=>arr.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-w);j<Math.min(a.length,i+w);j++){s+=a[j];c++;}return s/c;});
+  const smoothE = sm(eBeat);
 
-  // Smooth energy
-  const smoothEnergy = energyPerBeat.map((v,i,a)=>{
-    const win=4;
-    let s=0,c=0;
-    for(let j=Math.max(0,i-win);j<Math.min(a.length,i+win);j++){s+=a[j];c++;}
-    return s/c;
-  });
+  let lastFoot='R', lastPanel=3, sameFoot=0;
+  let runLen=0, inBreak=false, breakLen=0;
 
-  // Place notes
-  let lastFoot = 'R';
-  let lastPanel = 3;
-  let sameFoot = 0;
-  let runLength = 0;
-  let inBreak = false;
-  let breakCount = 0;
+  for(let b=leadBeats;b<totalBeats;b++){
+    const e = energyOn ? smoothE[b] : 0.65;
 
-  // Lead-in: skip first N beats
-  const leadInBeats = Math.ceil(params.offset / beatDuration);
-
-  for (let beat = leadInBeats; beat < totalBeats; beat++) {
-    const energy = smoothEnergy[beat] || 0;
-    const energyFactor = params.energyAware ? energy : 0.7;
-
-    // Decide whether to be in a run or break
-    if (!inBreak) {
-      runLength++;
-      if (runLength >= params.maxRun || (params.forceBreaks && energy < 0.25 && runLength > 8)) {
-        inBreak = true;
-        breakCount = 0;
-        runLength = 0;
+    // Run/break state machine
+    if(!inBreak){
+      runLen++;
+      if(runLen>=maxRun || (breaksOn && e<0.22 && runLen>6)){
+        inBreak=true; breakLen=0; runLen=0;
       }
     } else {
-      breakCount++;
-      if (breakCount >= params.minBreak && (!params.forceBreaks || energy > 0.3)) {
-        inBreak = false;
-        runLength = 0;
+      breakLen++;
+      if(breakLen>=minBreak && (!breaksOn||e>0.28)){
+        inBreak=false; runLen=0;
       }
     }
+    if(inBreak) continue;
 
-    if (inBreak) continue;
+    // Density: higher block + energy = more notes this beat
+    const density = subdiv==='mix'
+      ? (e>0.5 ? rpb : Math.max(1,Math.floor(rpb/2)))
+      : Math.max(1, Math.round(e * rpb * (block/12) + rpb*(block/14)));
+    const clampedDensity = Math.min(density, rpb);
 
-    // How dense within this beat? Higher energy = more notes per beat
-    const maxNotesThisBeat = rowsPerBeat;
-    const densityTarget = Math.max(1, Math.round(energyFactor * maxNotesThisBeat * (difficulty / 12)));
+    // Pick which rows in this beat to fill
+    const rowStart = b*rpb;
+    const positions = [...Array(rpb).keys()];
+    const chosen = positions.sort(()=>Math.random()-.5).slice(0,clampedDensity).sort((a,z)=>a-z);
 
-    const rowStart = beat * rowsPerBeat;
-
-    if (params.subdivision === 'mix') {
-      // Mix: high energy uses 16ths, low uses 8ths
-      const use16 = energyFactor > 0.5;
-      const step = use16 ? 1 : 2;
-      for (let r = 0; r < rowsPerBeat; r += step) {
-        const row = rowStart + r;
-        if (row >= totalRows) break;
-        const panel = pickPanel(lastFoot, params.allowCross, params.jackTol, lastPanel, sameFoot);
-        const nextFoot = footOf(panel);
-        if (nextFoot === lastFoot) sameFoot++;
-        else sameFoot = 0;
-        lastFoot = nextFoot;
-        lastPanel = panel;
-        notes[row] = panel;
-      }
-    } else {
-      // Place densityTarget notes spread across rows in this beat
-      const positions = [];
-      for(let r=0;r<rowsPerBeat;r++) positions.push(r);
-      // pick positions
-      const chosen = positions.sort(()=>Math.random()-0.5).slice(0, densityTarget).sort((a,b)=>a-b);
-      for (const r of chosen) {
-        const row = rowStart + r;
-        if (row >= totalRows) continue;
-        const panel = pickPanel(lastFoot, params.allowCross, params.jackTol, lastPanel, sameFoot);
-        const nextFoot = footOf(panel);
-        if (nextFoot === lastFoot) sameFoot++;
-        else sameFoot = 0;
-        lastFoot = nextFoot;
-        lastPanel = panel;
-        notes[row] = panel;
-      }
+    for(const r of chosen){
+      const row=rowStart+r;
+      if(row>=totalRows) continue;
+      const panel = pickPanel(lastFoot, sameFoot, lastPanel, enforceAlt, jackTol, allowCross);
+      const nf = footOf(panel);
+      sameFoot = (nf===lastFoot) ? sameFoot+1 : 0;
+      lastFoot=nf; lastPanel=panel;
+      notes[row]=panel;
     }
   }
-
-  return notes;
+  return {notes, rpb};
 }
 
-function notesToMeasures(notes, rowsPerBeat) {
-  // SM measures = 4 beats = 4*rowsPerBeat rows
-  const rowsPerMeasure = 4 * rowsPerBeat;
-  const measures = [];
-  for (let i = 0; i < notes.length; i += rowsPerMeasure) {
-    const measure = notes.slice(i, i + rowsPerMeasure);
-    // Pad to full measure
-    while (measure.length < rowsPerMeasure) measure.push(-1);
-    measures.push(measure);
+// ── SM serialization ──────────────────────────────────────────────────────────
+function notesToSM(notes, rpb) {
+  const rpm = 4*rpb; // rows per measure
+  const measures=[];
+  for(let i=0;i<notes.length;i+=rpm){
+    const m=notes.slice(i,i+rpm);
+    while(m.length<rpm) m.push(-1);
+    measures.push(m);
   }
-  return measures;
+  return measures.map(m=>m.map(p=>{const r=['0','0','0','0'];if(p>=0)r[p]='1';return r.join('');}).join('\n')).join('\n,\n');
 }
 
-function renderMeasures(measures) {
-  return measures.map(m => {
-    const lines = m.map(panel => {
-      const row = ['0','0','0','0'];
-      if (panel >= 0) row[panel] = '1';
-      return row.join('');
-    });
-    return lines.join('\n');
-  }).join('\n,\n');
-}
-
-function buildSMFile(title, artist, bpm, offset, charts) {
-  const bpmStr = `0.000=${bpm.toFixed(3)}`;
-  const header = `#TITLE:${title};
+function buildSM(title, artist, bpm, offset, charts, audioExt) {
+  const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
+  const base = 5-charts.length;
+  const header =
+`#TITLE:${title};
 #SUBTITLE:;
 #ARTIST:${artist};
 #TITLETRANSLIT:;
@@ -1032,33 +480,105 @@ function buildSMFile(title, artist, bpm, offset, charts) {
 #BANNER:banner.png;
 #BACKGROUND:bg.png;
 #CDTITLE:;
-#MUSIC:song.mp3;
+#MUSIC:song.${audioExt};
 #OFFSET:-${offset.toFixed(6)};
 #SAMPLESTART:12.000;
 #SAMPLELENGTH:13.000;
 #SELECTABLE:YES;
-#BPMS:${bpmStr};
+#BPMS:0.000=${bpm.toFixed(3)};
 #STOPS:;
-#BGCHANGES:;
-#FGCHANGES:;
-
 `;
-
-  const diffNames = ['Beginner','Easy','Medium','Hard','Challenge'];
-  const chartBlocks = charts.map((c, i) => {
-    const diffName = diffNames[Math.min(i + (5 - charts.length), diffNames.length-1)];
-    return `#NOTES:
-     dance-single:
-     ITG StepGen:
-     ${diffName}:
-     ${c.block}:
-     0.000,0.000,0.000,0.000,0.000:
-${renderMeasures(c.measures)}
-;`;
+  const chartBlocks = charts.map((c,i)=>{
+    const name = diffNames[Math.min(base+i, diffNames.length-1)];
+    return `#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes,c.rpb)}\n;`;
   }).join('\n\n');
-
-  return header + chartBlocks;
+  return header + '\n' + chartBlocks;
 }
+
+// ── Image generation ──────────────────────────────────────────────────────────
+function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+async function makeImg(title, artist, w, h, artImg) {
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const cx=cv.getContext('2d');
+  if(artImg){ cx.drawImage(artImg,0,0,w,h); }
+  else {
+    const g=cx.createLinearGradient(0,0,w,h); g.addColorStop(0,'#0a0014'); g.addColorStop(1,'#000e1a');
+    cx.fillStyle=g; cx.fillRect(0,0,w,h);
+    cx.globalAlpha=.05; cx.fillStyle='#fff'; cx.font=`${Math.min(w,h)*.55}px sans-serif`; cx.textAlign='center'; cx.fillText('▼',w/2,h*.65); cx.globalAlpha=1;
+  }
+  const og=cx.createLinearGradient(0,h*.45,0,h); og.addColorStop(0,'rgba(0,0,0,0)'); og.addColorStop(1,'rgba(0,0,0,.85)');
+  cx.fillStyle=og; cx.fillRect(0,0,w,h);
+  const fs=Math.min(h==='banner'?22:Math.floor(w/title.length*1.6), w==='banner'?22:38);
+  const titleFs = w===418 ? Math.min(20,w/(title.length+2)*1.4) : Math.min(36,w/(title.length+2)*1.6);
+  cx.shadowColor='#000'; cx.shadowBlur=10;
+  cx.fillStyle='#fff'; cx.font=`bold ${titleFs}px sans-serif`; cx.textAlign='center';
+  cx.fillText(title, w/2, h-(w===418?20:55));
+  cx.font=`${titleFs*.62}px sans-serif`; cx.fillStyle='#aaaaee';
+  cx.fillText(artist, w/2, h-(w===418?4:28));
+  return new Promise(res=>cv.toBlob(res,'image/png'));
+}
+
+// ── GENERATE BUTTON ───────────────────────────────────────────────────────────
+document.getElementById('genBtn').addEventListener('click', async () => {
+  if(!audioBuffer){ log('No audio loaded!','err'); return; }
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled=true; btn.textContent='⏳ Generating...';
+
+  try {
+    const title  = document.getElementById('songTitle').value  || 'Unknown';
+    const artist = document.getElementById('songArtist').value || 'Unknown Artist';
+    const bpm    = detectedBPM;
+    const offset = +document.getElementById('offset').value;
+    const diffs  = getDiffs();
+    const ext    = audioFileObj ? audioFileObj.name.split('.').pop() : 'mp3';
+
+    log(`Generating ${diffs.length} chart(s): blocks ${diffs.join(', ')}`);
+
+    const charts = [];
+    for(const block of diffs){
+      log(`Building block ${block}...`);
+      const {notes, rpb} = generateChart(block, bpm, energyCurve, audioBuffer.duration);
+      const noteCount = notes.filter(n=>n>=0).length;
+      log(`  Block ${block}: ${noteCount} notes`, 'ok');
+      charts.push({block, notes, rpb});
+    }
+
+    log('Writing .sm file...');
+    const smText = buildSM(title, artist, bpm, offset, charts, ext);
+
+    log('Generating artwork...');
+    const artSrc = userArt || embeddedArt || null;
+    const artImg = artSrc ? await loadImg(artSrc) : null;
+
+    const bannerBlob = await makeImg(title, artist, 418, 164, artImg);
+    const bgBlob     = await makeImg(title, artist, 640, 480, artImg);
+    const jacketBlob = await makeImg(title, artist, 512, 512, artImg);
+
+    log('Packing ZIP...');
+    const zip = new JSZip();
+    const safe = title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
+    const folder = zip.folder(safe);
+    folder.file('song.sm', smText);
+    folder.file('banner.png', bannerBlob);
+    folder.file('bg.png',     bgBlob);
+    folder.file('jacket.png', jacketBlob);
+    if(audioFileObj) folder.file(`song.${ext}`, audioFileObj);
+
+    const zipBlob = await zip.generateAsync({type:'blob', compression:'DEFLATE'});
+
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a'); a.href=url; a.download=`${safe}.zip`; a.click();
+    URL.revokeObjectURL(url);
+
+    log(`✓ Downloaded "${safe}.zip" — drop the folder into your Songs directory`, 'ok');
+  } catch(err) {
+    log('Error: ' + err.message, 'err');
+    console.error(err);
+  }
+
+  btn.disabled=false; btn.textContent='⚡ GENERATE STEP FILE';
+});
 </script>
 </body>
 </html>

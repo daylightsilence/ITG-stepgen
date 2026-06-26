@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ITG Stamina Chart Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --border: #1e1e2e;
+    --accent: #00f0ff;
+    --accent2: #ff3cac;
+    --accent3: #7b2fff;
+    --text: #e0e0f0;
+    --muted: #5a5a7a;
+    --success: #00ff88;
+    --warn: #ffb800;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--panel);
+  }
+
+  header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  header span {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .arrows {
+    display: flex;
+    gap: 3px;
+    margin-left: auto;
+  }
+
+  .arrows div {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+  }
+
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 300px;
+    min-width: 300px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+
+  .field label {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .field label span { color: var(--accent); font-weight: 600; font-size: 13px; }
+
+  input[type=text], input[type=number], select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type=text]:focus, input[type=number]:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .toggle-row label { font-size: 12px; color: var(--muted); }
+
+  .toggle {
+    position: relative;
+    width: 38px; height: 20px;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .slider-toggle {
+    position: absolute; inset: 0;
+    background: var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .slider-toggle:before {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 3px; top: 3px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  .toggle input:checked + .slider-toggle { background: var(--accent3); }
+  .toggle input:checked + .slider-toggle:before {
+    transform: translateX(18px);
+    background: var(--accent);
+  }
+
+  /* MAIN CONTENT */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 24px;
+    gap: 20px;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(0,240,255,0.03); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+  .upload-zone .icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-zone h2 { font-family: 'Orbitron', monospace; font-size: 14px; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .upload-zone p { color: var(--muted); font-size: 12px; }
+
+  /* ART UPLOAD */
+  .art-zone {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted);
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .art-zone:hover { border-color: var(--accent2); }
+  .art-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .art-zone img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 4px; }
+
+  /* WAVEFORM */
+  .waveform-section { display: flex; flex-direction: column; gap: 8px; }
+  .waveform-label { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+  canvas { width: 100%; border-radius: 4px; display: block; background: var(--panel); border: 1px solid var(--border); }
+
+  /* LOG */
+  .log-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    min-height: 70px;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+
+  .log-box .err { color: var(--accent2); }
+  .log-box .ok { color: var(--success); }
+  .log-box .warn { color: var(--warn); }
+
+  /* GENERATE BUTTON */
+  .gen-btn {
+    background: linear-gradient(135deg, var(--accent3), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 14px 28px;
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    width: 100%;
+  }
+
+  .gen-btn:hover { opacity: 0.9; }
+  .gen-btn:active { transform: scale(0.98); }
+  .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* SONG INFO */
+  .song-info {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    display: none;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .song-info.visible { display: flex; }
+
+  .song-art {
+    width: 60px; height: 60px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .song-meta h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .song-meta p { font-size: 11px; color: var(--muted); }
+
+  .bpm-badge {
+    margin-left: auto;
+    background: rgba(0,240,255,0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .progress-bar-wrap {
+    background: var(--border);
+    border-radius: 4px;
+    height: 4px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  /* DIFFICULTY PREVIEW */
+  .diff-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .diff-badge {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  .diff-badge.easy { color: #00ff88; border-color: #00ff88; background: rgba(0,255,136,0.08); }
+  .diff-badge.med { color: #ffb800; border-color: #ffb800; background: rgba(255,184,0,0.08); }
+  .diff-badge.hard { color: #ff3cac; border-color: #ff3cac; background: rgba(255,60,172,0.08); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="arrows">
+    <div style="background:#3399ff"></div>
+    <div style="background:#ff3333"></div>
+    <div style="background:#ff3333"></div>
+    <div style="background:#3399ff"></div>
+  </div>
+  <h1>ITG STEPGEN</h1>
+  <span>Stamina Chart Generator</span>
+</header>
+
+<div class="main">
+  <!-- SIDEBAR PARAMS -->
+  <div class="sidebar">
+    <div>
+      <div class="section-label">Song Info</div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="songTitle" placeholder="Song Title"/>
+      </div>
+      <div class="field">
+        <label>Artist</label>
+        <input type="text" id="songArtist" placeholder="Artist Name"/>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Art</div>
+      <div class="art-zone" id="artZone">
+        <input type="file" id="artFile" accept="image/*"/>
+        <div id="artPreview">🖼 Drop banner/jacket image<br><span style="font-size:10px;color:#333">(or extracted from audio)</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Difficulty</div>
+      <div class="field">
+        <label>Min ITG Block <span id="diffMinVal">4</span></label>
+        <input type="range" id="diffMin" min="1" max="12" value="4" step="1"/>
+      </div>
+      <div class="field">
+        <label>Max ITG Block <span id="diffMaxVal">10</span></label>
+        <input type="range" id="diffMax" min="1" max="12" value="10" step="1"/>
+      </div>
+      <div class="field">
+        <label>Difficulties to generate</label>
+        <select id="diffCount">
+          <option value="1">1 (Hard only)</option>
+          <option value="2">2 (Medium + Hard)</option>
+          <option value="3" selected>3 (Easy + Medium + Hard)</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Foot Alternation</div>
+      <div class="toggle-row">
+        <label>Enforce alt feet (no jacks)</label>
+        <label class="toggle">
+          <input type="checkbox" id="enforceAlt" checked/>
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+      <div class="field">
+        <label>Max same-panel repeats <span id="jackTolVal">0</span></label>
+        <input type="range" id="jackTol" min="0" max="3" value="0" step="1"/>
+      </div>
+      <div class="toggle-row">
+        <label>Allow crossovers</label>
+        <label class="toggle">
+          <input type="checkbox" id="allowCross"/>
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Stream / Run Rules</div>
+      <div class="field">
+        <label>Max run length (beats) <span id="maxRunVal">32</span></label>
+        <input type="range" id="maxRun" min="8" max="128" value="32" step="4"/>
+      </div>
+      <div class="field">
+        <label>Min break length (beats) <span id="minBreakVal">4</span></label>
+        <input type="range" id="minBreak" min="1" max="16" value="4" step="1"/>
+      </div>
+      <div class="field">
+        <label>Stream note subdivision</label>
+        <select id="subdivision">
+          <option value="8">8th notes (slow streams)</option>
+          <option value="16" selected>16th notes (standard)</option>
+          <option value="mix">Mix 8th + 16th</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Timing</div>
+      <div class="field">
+        <label>Lead-in offset (seconds) <span id="offsetVal">1.0</span>s</label>
+        <input type="range" id="offset" min="0" max="5" value="1" step="0.5"/>
+      </div>
+      <div class="toggle-row">
+        <label>Energy-aware density</label>
+        <label class="toggle">
+          <input type="checkbox" id="energyAware" checked/>
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label>Force breaks in quiet sections</label>
+        <label class="toggle">
+          <input type="checkbox" id="forceBreaks" checked/>
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- UPLOAD -->
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="audioFile" accept="audio/*"/>
+      <div class="icon">🎵</div>
+      <h2>DROP AUDIO FILE</h2>
+      <p>MP3 · OGG · WAV · FLAC</p>
+    </div>
+
+    <!-- SONG INFO BAR -->
+    <div class="song-info" id="songInfoBar">
+      <div class="song-art" id="songArtThumb">🎵</div>
+      <div class="song-meta">
+        <h3 id="infoTitle">—</h3>
+        <p id="infoArtist">—</p>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="analyzeProgress"></div></div>
+      </div>
+      <div class="bpm-badge" id="bpmBadge">— BPM</div>
+    </div>
+
+    <!-- WAVEFORM -->
+    <div class="waveform-section" id="waveSection" style="display:none">
+      <div class="waveform-label">Waveform + Energy Curve</div>
+      <canvas id="waveCanvas" height="90"></canvas>
+      <canvas id="energyCanvas" height="60"></canvas>
+    </div>
+
+    <!-- DIFFICULTY PREVIEW -->
+    <div id="diffPreview" style="display:none">
+      <div class="waveform-label" style="margin-bottom:6px">Charts to generate</div>
+      <div class="diff-row" id="diffBadges"></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="log-box" id="log">Waiting for audio file...<br/></div>
+
+    <!-- GENERATE -->
+    <button class="gen-btn" id="genBtn" disabled>⚡ GENERATE STEP FILE</button>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let audioBuffer = null;
+let audioFileName = '';
+let detectedBPM = 120;
+let energyCurve = [];
+let embeddedArt = null;   // base64 string
+let userArt = null;       // base64 string
+
+// ─── Logging ──────────────────────────────────────────────────────────────────
+function log(msg, type='') {
+  const box = document.getElementById('log');
+  const line = document.createElement('div');
+  if (type) line.className = type;
+  line.textContent = '> ' + msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ─── Slider display ───────────────────────────────────────────────────────────
+const sliders = [
+  ['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
+  ['jackTol','jackTolVal',''],['maxRun','maxRunVal',' beats'],
+  ['minBreak','minBreakVal',' beats'],['offset','offsetVal','s']
+];
+sliders.forEach(([id, valId, unit]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    document.getElementById(valId).textContent = el.value + unit;
+    updateDiffPreview();
+  });
+});
+
+// ─── Art file input ───────────────────────────────────────────────────────────
+document.getElementById('artFile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    userArt = ev.target.result;
+    showArt(userArt);
+  };
+  reader.readAsDataURL(f);
+});
+
+function showArt(dataUrl) {
+  const zone = document.getElementById('artPreview');
+  zone.innerHTML = `<img src="${dataUrl}" style="width:100%;max-height:120px;object-fit:cover;border-radius:4px"/>`;
+  const thumb = document.getElementById('songArtThumb');
+  thumb.innerHTML = `<img src="${dataUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:4px"/>`;
+}
+
+// ─── Audio file drop / select ─────────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) handleAudioFile(f);
+});
+document.getElementById('audioFile').addEventListener('change', e => {
+  if (e.target.files[0]) handleAudioFile(e.target.files[0]);
+});
+
+async function handleAudioFile(file) {
+  audioFileName = file.name.replace(/\.[^.]+$/, '');
+  document.getElementById('songTitle').value = document.getElementById('songTitle').value || audioFileName;
+  log('Loading: ' + file.name);
+
+  // Try to extract ID3 art
+  try {
+    await tryExtractID3Art(file);
+  } catch(e) {}
+
+  // Decode audio
+  const arrayBuf = await file.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    audioBuffer = await ctx.decodeAudioData(arrayBuf);
+    log(`Decoded: ${audioBuffer.duration.toFixed(1)}s · ${audioBuffer.sampleRate}Hz`, 'ok');
+  } catch(e) {
+    log('Could not decode audio: ' + e.message, 'err');
+    return;
+  }
+
+  document.getElementById('songInfoBar').classList.add('visible');
+  document.getElementById('infoTitle').textContent = document.getElementById('songTitle').value || audioFileName;
+  document.getElementById('infoArtist').textContent = document.getElementById('songArtist').value || 'Unknown Artist';
+
+  setProgress(20);
+  log('Analyzing waveform...');
+  computeEnergy();
+  setProgress(50);
+  log('Detecting BPM...');
+  detectedBPM = detectBPM();
+  document.getElementById('bpmBadge').textContent = detectedBPM.toFixed(1) + ' BPM';
+  log(`Detected BPM: ${detectedBPM.toFixed(1)}`, 'ok');
+  setProgress(80);
+  drawWaveform();
+  drawEnergy();
+  document.getElementById('waveSection').style.display = '';
+  setProgress(100);
+  updateDiffPreview();
+  document.getElementById('genBtn').disabled = false;
+  log('Ready to generate!', 'ok');
+}
+
+function setProgress(pct) {
+  document.getElementById('analyzeProgress').style.width = pct + '%';
+}
+
+// ─── ID3 art extraction ───────────────────────────────────────────────────────
+async function tryExtractID3Art(file) {
+  const bytes = new Uint8Array(await file.slice(0, 200000).arrayBuffer());
+  // Look for APIC frame in ID3v2
+  const id3Header = String.fromCharCode(bytes[0], bytes[1], bytes[2]);
+  if (id3Header !== 'ID3') return;
+
+  // Find APIC
+  for (let i = 0; i < bytes.length - 10; i++) {
+    if (bytes[i]===0x41 && bytes[i+1]===0x50 && bytes[i+2]===0x49 && bytes[i+3]===0x43) {
+      // APIC frame found
+      const frameSize = (bytes[i+4]<<24)|(bytes[i+5]<<16)|(bytes[i+6]<<8)|bytes[i+7];
+      let offset = i + 10;
+      // skip text encoding byte
+      offset++;
+      // skip mime type (null-terminated)
+      while (offset < bytes.length && bytes[offset] !== 0) offset++;
+      offset++; // null
+      // skip picture type byte
+      offset++;
+      // skip description (null-terminated)
+      while (offset < bytes.length && bytes[offset] !== 0) offset++;
+      offset++; // null
+
+      const imgData = bytes.slice(offset, i + 10 + frameSize);
+      // detect mime
+      let mime = 'image/jpeg';
+      if (imgData[0]===0x89 && imgData[1]===0x50) mime = 'image/png';
+
+      const blob = new Blob([imgData], {type: mime});
+      const url = URL.createObjectURL(blob);
+      embeddedArt = await blobToBase64(blob);
+      showArt(url);
+      log('Embedded album art found!', 'ok');
+      return;
+    }
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.readAsDataURL(blob);
+  });
+}
+
+// ─── Energy curve ─────────────────────────────────────────────────────────────
+function computeEnergy() {
+  const data = audioBuffer.getChannelData(0);
+  const sr = audioBuffer.sampleRate;
+  const windowSize = Math.floor(sr * 0.1); // 100ms windows
+  energyCurve = [];
+  for (let i = 0; i < data.length - windowSize; i += windowSize) {
+    let sum = 0;
+    for (let j = 0; j < windowSize; j++) sum += data[i+j] * data[i+j];
+    energyCurve.push(Math.sqrt(sum / windowSize));
+  }
+  // Normalize
+  const max = Math.max(...energyCurve);
+  if (max > 0) energyCurve = energyCurve.map(v => v / max);
+}
+
+// ─── BPM detection (autocorrelation) ─────────────────────────────────────────
+function detectBPM() {
+  const data = audioBuffer.getChannelData(0);
+  const sr = audioBuffer.sampleRate;
+  const sampleLen = Math.min(data.length, sr * 30); // use first 30s
+  const step = 512;
+  const rmsFrames = [];
+  for (let i = 0; i < sampleLen - step; i += step) {
+    let s = 0;
+    for (let j = 0; j < step; j++) s += data[i+j]*data[i+j];
+    rmsFrames.push(Math.sqrt(s/step));
+  }
+
+  // Autocorrelation over plausible BPM range (60-200)
+  const minLag = Math.floor(60 / 200 * sr / step);
+  const maxLag = Math.floor(60 / 60 * sr / step);
+  let bestLag = minLag, bestCorr = -Infinity;
+
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let corr = 0;
+    for (let i = 0; i < rmsFrames.length - lag; i++) {
+      corr += rmsFrames[i] * rmsFrames[i + lag];
+    }
+    if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+  }
+
+  const bpm = 60 / (bestLag * step / sr);
+  // Snap to reasonable range
+  let snapped = bpm;
+  if (snapped < 80) snapped *= 2;
+  if (snapped > 200) snapped /= 2;
+  return Math.round(snapped * 10) / 10;
+}
+
+// ─── Canvas drawing ───────────────────────────────────────────────────────────
+function drawWaveform() {
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 800;
+  canvas.height = 90 * (window.devicePixelRatio || 1);
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+  const W = canvas.offsetWidth, H = 90;
+  ctx.fillStyle = '#12121a';
+  ctx.fillRect(0,0,W,H);
+
+  const data = audioBuffer.getChannelData(0);
+  const step = Math.floor(data.length / W);
+  ctx.beginPath();
+  ctx.strokeStyle = '#00f0ff44';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x++) {
+    let min=1, max=-1;
+    for (let j=0;j<step;j++){const v=data[x*step+j]||0;if(v<min)min=v;if(v>max)max=v;}
+    const yMin = (1 - max) / 2 * H;
+    const yMax = (1 - min) / 2 * H;
+    ctx.moveTo(x, yMin); ctx.lineTo(x, yMax);
+  }
+  ctx.stroke();
+
+  // Energy overlay
+  if (energyCurve.length > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#ff3cac88';
+    ctx.lineWidth = 2;
+    energyCurve.forEach((v, i) => {
+      const x = i / energyCurve.length * W;
+      const y = H - v * H * 0.9;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+}
+
+function drawEnergy() {
+  const canvas = document.getElementById('energyCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 800;
+  canvas.height = 60 * (window.devicePixelRatio || 1);
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+  const W = canvas.offsetWidth, H = 60;
+  ctx.fillStyle = '#12121a';
+  ctx.fillRect(0,0,W,H);
+
+  if (!energyCurve.length) return;
+
+  // Smoothed energy
+  const smooth = [];
+  const win = 10;
+  for (let i = 0; i < energyCurve.length; i++) {
+    let s=0,c=0;
+    for(let j=Math.max(0,i-win);j<Math.min(energyCurve.length,i+win);j++){s+=energyCurve[j];c++;}
+    smooth.push(s/c);
+  }
+
+  // Fill under curve
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#7b2fff88');
+  grad.addColorStop(1,'#7b2fff00');
+  ctx.beginPath();
+  ctx.moveTo(0,H);
+  smooth.forEach((v,i)=>{
+    const x=i/smooth.length*W;
+    const y=H-v*H*0.9;
+    ctx.lineTo(x,y);
+  });
+  ctx.lineTo(W,H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.strokeStyle='#7b2fff';
+  ctx.lineWidth=2;
+  smooth.forEach((v,i)=>{
+    const x=i/smooth.length*W;
+    const y=H-v*H*0.9;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle='#5a5a7a';
+  ctx.font='9px Inter';
+  ctx.fillText('ENERGY', 6, 12);
+}
+
+// ─── Difficulty preview ────────────────────────────────────────────────────────
+function updateDiffPreview() {
+  const min = parseInt(document.getElementById('diffMin').value);
+  const max = parseInt(document.getElementById('diffMax').value);
+  const count = parseInt(document.getElementById('diffCount').value);
+  const diffs = getDiffLevels(min, max, count);
+  const badges = document.getElementById('diffBadges');
+  badges.innerHTML = '';
+  const names = ['Easy','Medium','Hard'];
+  const cls = ['easy','med','hard'];
+  diffs.forEach((d,i) => {
+    const b = document.createElement('div');
+    b.className = `diff-badge ${cls[i] || 'hard'}`;
+    b.textContent = `${names[i] || 'Chart'} · Block ${d}`;
+    badges.appendChild(b);
+  });
+  document.getElementById('diffPreview').style.display = '';
+}
+
+function getDiffLevels(min, max, count) {
+  if (count === 1) return [max];
+  if (count === 2) return [Math.round((min+max)/2), max];
+  return [min, Math.round((min+max)/2), max];
+}
+
+// ─── SM GENERATION ────────────────────────────────────────────────────────────
+// Panel layout: 0=Left, 1=Down, 2=Up, 3=Right (dance-single standard)
+// Foot assignment: Left/Down = Left foot, Up/Right = Right foot
+// Alternation: we track last panel used and ensure opposite foot next
+
+const LEFT_FOOT_PANELS = [0, 1];   // Left, Down
+const RIGHT_FOOT_PANELS = [2, 3];  // Up, Right
+
+function footOf(panel) {
+  return LEFT_FOOT_PANELS.includes(panel) ? 'L' : 'R';
+}
+
+function pickPanel(lastFoot, allowCross, jackTol, lastPanel, usedSameFoot) {
+  const enforceAlt = document.getElementById('enforceAlt').checked;
+  const tol = parseInt(document.getElementById('jackTol').value);
+
+  let pool;
+  if (enforceAlt) {
+    if (usedSameFoot < tol) {
+      // Can repeat same foot if under tolerance
+      pool = lastFoot === 'L' ? [...LEFT_FOOT_PANELS] : [...RIGHT_FOOT_PANELS];
+      // remove last panel to avoid jack on same panel
+      if (!tol) pool = pool.filter(p => p !== lastPanel);
+    } else {
+      // Must switch feet
+      pool = lastFoot === 'L' ? [...RIGHT_FOOT_PANELS] : [...LEFT_FOOT_PANELS];
+    }
+  } else {
+    pool = [0,1,2,3].filter(p => p !== lastPanel);
+  }
+
+  if (!allowCross) {
+    // Remove crossover panels (simplified: just use basic alternation)
+    pool = pool.filter(p => !(lastFoot==='L' && p===3) && !(lastFoot==='R' && p===0));
+    if (!pool.length) pool = lastFoot === 'L' ? [2] : [1];
+  }
+
+  if (!pool.length) pool = [0,1,2,3].filter(p=>p!==lastPanel);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function generateChart(difficulty, bpm, energyCurve, duration) {
+  const params = {
+    enforceAlt: document.getElementById('enforceAlt').checked,
+    jackTol: parseInt(document.getElementById('jackTol').value),
+    allowCross: document.getElementById('allowCross').checked,
+    maxRun: parseInt(document.getElementById('maxRun').value),
+    minBreak: parseInt(document.getElementById('minBreak').value),
+    subdivision: document.getElementById('subdivision').value,
+    offset: parseFloat(document.getElementById('offset').value),
+    energyAware: document.getElementById('energyAware').checked,
+    forceBreaks: document.getElementById('forceBreaks').checked,
+  };
+
+  // NPS target from difficulty: block 1=1nps, block 12=8nps roughly
+  const npsTarget = 1 + (difficulty - 1) * 0.65;
+  const beatDuration = 60 / bpm;
+  const totalBeats = Math.floor(duration / beatDuration);
+
+  // Subdivision: 16th = 4 rows per beat
+  const rowsPerBeat = params.subdivision === '8' ? 2 : 4;
+  const totalRows = totalBeats * rowsPerBeat;
+
+  // Build note array: index = row, value = panel (0-3) or -1 (empty)
+  const notes = new Array(totalRows).fill(-1);
+
+  // Energy per beat
+  const energyPerBeat = [];
+  for (let b = 0; b < totalBeats; b++) {
+    const t = b * beatDuration / duration;
+    const idx = Math.floor(t * energyCurve.length);
+    energyPerBeat.push(energyCurve[idx] || 0);
+  }
+
+  // Smooth energy
+  const smoothEnergy = energyPerBeat.map((v,i,a)=>{
+    const win=4;
+    let s=0,c=0;
+    for(let j=Math.max(0,i-win);j<Math.min(a.length,i+win);j++){s+=a[j];c++;}
+    return s/c;
+  });
+
+  // Place notes
+  let lastFoot = 'R';
+  let lastPanel = 3;
+  let sameFoot = 0;
+  let runLength = 0;
+  let inBreak = false;
+  let breakCount = 0;
+
+  // Lead-in: skip first N beats
+  const leadInBeats = Math.ceil(params.offset / beatDuration);
+
+  for (let beat = leadInBeats; beat < totalBeats; beat++) {
+    const energy = smoothEnergy[beat] || 0;
+    const energyFactor = params.energyAware ? energy : 0.7;
+
+    // Decide whether to be in a run or break
+    if (!inBreak) {
+      runLength++;
+      if (runLength >= params.maxRun || (params.forceBreaks && energy < 0.25 && runLength > 8)) {
+        inBreak = true;
+        breakCount = 0;
+        runLength = 0;
+      }
+    } else {
+      breakCount++;
+      if (breakCount >= params.minBreak && (!params.forceBreaks || energy > 0.3)) {
+        inBreak = false;
+        runLength = 0;
+      }
+    }
+
+    if (inBreak) continue;
+
+    // How dense within this beat? Higher energy = more notes per beat
+    const maxNotesThisBeat = rowsPerBeat;
+    const densityTarget = Math.max(1, Math.round(energyFactor * maxNotesThisBeat * (difficulty / 12)));
+
+    const rowStart = beat * rowsPerBeat;
+
+    if (params.subdivision === 'mix') {
+      // Mix: high energy uses 16ths, low uses 8ths
+      const use16 = energyFactor > 0.5;
+      const step = use16 ? 1 : 2;
+      for (let r = 0; r < rowsPerBeat; r += step) {
+        const row = rowStart + r;
+        if (row >= totalRows) break;
+        const panel = pickPanel(lastFoot, params.allowCross, params.jackTol, lastPanel, sameFoot);
+        const nextFoot = footOf(panel);
+        if (nextFoot === lastFoot) sameFoot++;
+        else sameFoot = 0;
+        lastFoot = nextFoot;
+        lastPanel = panel;
+        notes[row] = panel;
+      }
+    } else {
+      // Place densityTarget notes spread across rows in this beat
+      const positions = [];
+      for(let r=0;r<rowsPerBeat;r++) positions.push(r);
+      // pick positions
+      const chosen = positions.sort(()=>Math.random()-0.5).slice(0, densityTarget).sort((a,b)=>a-b);
+      for (const r of chosen) {
+        const row = rowStart + r;
+        if (row >= totalRows) continue;
+        const panel = pickPanel(lastFoot, params.allowCross, params.jackTol, lastPanel, sameFoot);
+        const nextFoot = footOf(panel);
+        if (nextFoot === lastFoot) sameFoot++;
+        else sameFoot = 0;
+        lastFoot = nextFoot;
+        lastPanel = panel;
+        notes[row] = panel;
+      }
+    }
+  }
+
+  return notes;
+}
+
+function notesToMeasures(notes, rowsPerBeat) {
+  // SM measures = 4 beats = 4*rowsPerBeat rows
+  const rowsPerMeasure = 4 * rowsPerBeat;
+  const measures = [];
+  for (let i = 0; i < notes.length; i += rowsPerMeasure) {
+    const measure = notes.slice(i, i + rowsPerMeasure);
+    // Pad to full measure
+    while (measure.length < rowsPerMeasure) measure.push(-1);
+    measures.push(measure);
+  }
+  return measures;
+}
+
+function renderMeasures(measures) {
+  return measures.map(m => {
+    const lines = m.map(panel => {
+      const row = ['0','0','0','0'];
+      if (panel >= 0) row[panel] = '1';
+      return row.join('');
+    });
+    return lines.join('\n');
+  }).join('\n,\n');
+}
+
+function buildSMFile(title, artist, bpm, offset, charts) {
+  const bpmStr = `0.000=${bpm.toFixed(3)}`;
+  const header = `#TITLE:${title};
+#SUBTITLE:;
+#ARTIST:${artist};
+#TITLETRANSLIT:;
+#SUBTITLETRANSLIT:;
+#ARTISTTRANSLIT:;
+#GENRE:;
+#CREDIT:ITG StepGen;
+#BANNER:banner.png;
+#BACKGROUND:bg.png;
+#CDTITLE:;
+#MUSIC:song.mp3;
+#OFFSET:-${offset.toFixed(6)};
+#SAMPLESTART:12.000;
+#SAMPLELENGTH:13.000;
+#SELECTABLE:YES;
+#BPMS:${bpmStr};
+#STOPS:;
+#BGCHANGES:;
+#FGCHANGES:;
+
+`;
+
+  const diffNames = ['Beginner','Easy','Medium','Hard','Challenge'];
+  const chartBlocks = charts.map((c, i) => {
+    const diffName = diffNames[Math.min(i + (5 - charts.length), diffNames.length-1)];
+    return `#NOTES:
+     dance-single:
+     ITG StepGen:
+     ${diffName}:
+     ${c.block}:
+     0.000,0.000,0.000,0.000,0.000:
+${renderMeasures(c.measures)}
+;`;
+  }).join('\n\n');
+
+  return header + chartBlocks;
+}
+</script>
+</body>
+</html>

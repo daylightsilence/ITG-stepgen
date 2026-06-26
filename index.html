@@ -62,9 +62,15 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 .db.easy{color:#00ff88;border-color:#00ff88;background:rgba(0,255,136,.08);}
 .db.med{color:#ffb800;border-color:#ffb800;background:rgba(255,184,0,.08);}
 .db.hard{color:#ff3cac;border-color:#ff3cac;background:rgba(255,60,172,.08);}
-.pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;}
+.pat-tabs{display:flex;gap:4px;margin-bottom:8px;}
+.pat-tab{flex:1;padding:4px 0;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.06em;text-align:center;border-radius:4px;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s;user-select:none;}
+.pat-tab.active{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.18);}
+.pat-group-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 3px;padding-left:2px;}
+.pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
 .pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
 .pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
+.pat-chip.hidden{display:none;}
+.pat-group-label.hidden{display:none;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
 </head>
@@ -106,8 +112,17 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div>
       <div class="sec">Patterns</div>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Click to enable/disable. Active patterns are used during chart generation.</div>
-      <div class="pat-grid" id="patGrid"></div>
+      <div class="pat-tabs">
+        <div class="pat-tab active" id="tabBoth" onclick="setPatTab('both')">BOTH</div>
+        <div class="pat-tab" id="tabStamina" onclick="setPatTab('stamina')">STAMINA</div>
+        <div class="pat-tab" id="tabTech" onclick="setPatTab('tech')">TECH</div>
+      </div>
+      <div id="patContainer">
+        <div class="pat-group-label" id="labelStamina">— Stamina —</div>
+        <div class="pat-grid" id="patGridStamina"></div>
+        <div class="pat-group-label" id="labelTech" style="margin-top:8px">— Tech —</div>
+        <div class="pat-grid" id="patGridTech"></div>
+      </div>
     </div>
     <div>
       <div class="sec">Stream Rules</div>
@@ -155,70 +170,117 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 // L/D = left foot, U/R = right foot
 // ═══════════════════════════════════════════════════════════════════
 const PATTERNS = {
-  // ── Basic runs ────────────────────────────────────────────────
-  "Run L→R":       { seq: [0,1,2,3], cat:"stream", minDiff:1 },
-  "Run R→L":       { seq: [3,2,1,0], cat:"stream", minDiff:1 },
-  "Staircase Up":  { seq: [0,1,2,3,2,1], cat:"stream", minDiff:2 },
-  "Staircase Down":{ seq: [3,2,1,0,1,2], cat:"stream", minDiff:2 },
-  // ── Candles ───────────────────────────────────────────────────
-  "Candle A":      { seq: [2,0,1], cat:"candle", minDiff:3 },   // U L D
-  "Candle B":      { seq: [1,3,2], cat:"candle", minDiff:3 },   // D R U
-  "Candle C":      { seq: [0,2,1], cat:"candle", minDiff:3 },   // L U D — twisted
-  "Candle D":      { seq: [3,1,2], cat:"candle", minDiff:3 },   // R D U — twisted
-  // ── Crossovers ────────────────────────────────────────────────
-  "Crossover L":   { seq: [0,1,3,2], cat:"crossover", minDiff:4 }, // cross left over
-  "Crossover R":   { seq: [3,2,0,1], cat:"crossover", minDiff:4 }, // cross right over
-  "XO Candle L":   { seq: [0,1,3,1], cat:"crossover", minDiff:5 },
-  "XO Candle R":   { seq: [3,2,0,2], cat:"crossover", minDiff:5 },
-  // ── Gallops ───────────────────────────────────────────────────
-  "Gallop L":      { seq: [0,1,1,2], cat:"gallop", minDiff:3 },  // quick 16th then 8th feel
-  "Gallop R":      { seq: [3,2,2,1], cat:"gallop", minDiff:3 },
-  "Gallop Alt":    { seq: [0,1,2,1,3,2], cat:"gallop", minDiff:4 },
-  // ── Drills ────────────────────────────────────────────────────
-  "Drill LD":      { seq: [0,1,0,1,0,1], cat:"drill", minDiff:5 }, // L D L D L D
-  "Drill RU":      { seq: [3,2,3,2,3,2], cat:"drill", minDiff:5 }, // R U R U R U
-  "Drill LR":      { seq: [0,3,0,3,0,3], cat:"drill", minDiff:6 }, // wide drill
-  "Drill DU":      { seq: [1,2,1,2,1,2], cat:"drill", minDiff:4 }, // center drill
-  // ── Footswitches ──────────────────────────────────────────────
-  "Footswitch L":  { seq: [0,0,1,2], cat:"footswitch", minDiff:5 }, // double-step left
-  "Footswitch R":  { seq: [3,3,2,1], cat:"footswitch", minDiff:5 },
-  "FS Stream":     { seq: [1,0,1,2,3,2], cat:"footswitch", minDiff:6 },
-  // ── Side switches ─────────────────────────────────────────────
-  "Sideswitch L":  { seq: [0,1,0,2,0,1], cat:"sideswitch", minDiff:6 },
-  "Sideswitch R":  { seq: [3,2,3,1,3,2], cat:"sideswitch", minDiff:6 },
-  // ── Anchors ───────────────────────────────────────────────────
-  "Anchor L":      { seq: [0,2,0,1,0,3], cat:"anchor", minDiff:4 },
-  "Anchor R":      { seq: [3,1,3,2,3,0], cat:"anchor", minDiff:4 },
-  "Anchor D":      { seq: [1,0,1,2,1,3], cat:"anchor", minDiff:4 },
-  "Anchor U":      { seq: [2,3,2,1,2,0], cat:"anchor", minDiff:4 },
-  // ── Box patterns ──────────────────────────────────────────────
-  "Box CW":        { seq: [0,2,3,1], cat:"box", minDiff:3 }, // L U R D clockwise
-  "Box CCW":       { seq: [0,1,3,2], cat:"box", minDiff:3 }, // L D R U counter-CW
-  "Box Full":      { seq: [0,2,3,1,3,2,0,1], cat:"box", minDiff:5 },
-  // ── Spirals ───────────────────────────────────────────────────
-  "Spiral In":     { seq: [0,1,3,2,1,2], cat:"spiral", minDiff:5 },
-  "Spiral Out":    { seq: [1,2,0,3,2,1], cat:"spiral", minDiff:5 },
-  // ── Splits (used sparingly on higher blocks) ──────────────────
-  "Split LU":      { seq: [0,2,1,3], cat:"split", minDiff:7 },
-  "Split DR":      { seq: [1,3,0,2], cat:"split", minDiff:7 },
+  // ── Stamina: stream runs ───────────────────────────────────────
+  "Run L→R":        { seq:[0,1,2,3],           cat:"stream",      group:"stamina", minDiff:1 },
+  "Run R→L":        { seq:[3,2,1,0],           cat:"stream",      group:"stamina", minDiff:1 },
+  "Staircase Up":   { seq:[0,1,2,3,2,1],       cat:"stream",      group:"stamina", minDiff:2 },
+  "Staircase Down": { seq:[3,2,1,0,1,2],       cat:"stream",      group:"stamina", minDiff:2 },
+  "Run Alt 1":      { seq:[0,2,1,3],           cat:"stream",      group:"stamina", minDiff:2 },
+  "Run Alt 2":      { seq:[3,1,2,0],           cat:"stream",      group:"stamina", minDiff:2 },
+  // ── Stamina: box/spiral (body movement, no crossing) ──────────
+  "Box CW":         { seq:[0,2,3,1],           cat:"box",         group:"stamina", minDiff:3 },
+  "Box CCW":        { seq:[0,1,3,2],           cat:"box",         group:"stamina", minDiff:3 },
+  "Box Full":       { seq:[0,2,3,1,3,2,0,1],  cat:"box",         group:"stamina", minDiff:5 },
+  "Spiral In":      { seq:[0,1,3,2,1,2],       cat:"spiral",      group:"stamina", minDiff:4 },
+  "Spiral Out":     { seq:[1,2,0,3,2,1],       cat:"spiral",      group:"stamina", minDiff:4 },
+  // ── Stamina: gallops (rhythm accents) ─────────────────────────
+  "Gallop L":       { seq:[0,1,1,2],           cat:"gallop",      group:"stamina", minDiff:3 },
+  "Gallop R":       { seq:[3,2,2,1],           cat:"gallop",      group:"stamina", minDiff:3 },
+  "Gallop Alt":     { seq:[0,1,2,1,3,2],       cat:"gallop",      group:"stamina", minDiff:4 },
+  // ── Tech: candles (cross-body movement) ───────────────────────
+  "Candle A":       { seq:[2,0,1],             cat:"candle",      group:"tech",    minDiff:3 },
+  "Candle B":       { seq:[1,3,2],             cat:"candle",      group:"tech",    minDiff:3 },
+  "Candle C":       { seq:[0,2,1],             cat:"candle",      group:"tech",    minDiff:4 },
+  "Candle D":       { seq:[3,1,2],             cat:"candle",      group:"tech",    minDiff:4 },
+  // ── Tech: crossovers ──────────────────────────────────────────
+  "Crossover L":    { seq:[0,1,3,2],           cat:"crossover",   group:"tech",    minDiff:4 },
+  "Crossover R":    { seq:[3,2,0,1],           cat:"crossover",   group:"tech",    minDiff:4 },
+  "XO Candle L":    { seq:[0,1,3,1],           cat:"crossover",   group:"tech",    minDiff:5 },
+  "XO Candle R":    { seq:[3,2,0,2],           cat:"crossover",   group:"tech",    minDiff:5 },
+  // ── Tech: drills ──────────────────────────────────────────────
+  "Drill LD":       { seq:[0,1,0,1,0,1],       cat:"drill",       group:"tech",    minDiff:4 },
+  "Drill RU":       { seq:[3,2,3,2,3,2],       cat:"drill",       group:"tech",    minDiff:4 },
+  "Drill DU":       { seq:[1,2,1,2,1,2],       cat:"drill",       group:"tech",    minDiff:4 },
+  "Drill LR":       { seq:[0,3,0,3,0,3],       cat:"drill",       group:"tech",    minDiff:6 },
+  // ── Tech: footswitches ────────────────────────────────────────
+  "Footswitch L":   { seq:[0,0,1,2],           cat:"footswitch",  group:"tech",    minDiff:5 },
+  "Footswitch R":   { seq:[3,3,2,1],           cat:"footswitch",  group:"tech",    minDiff:5 },
+  "FS Stream":      { seq:[1,0,1,2,3,2],       cat:"footswitch",  group:"tech",    minDiff:6 },
+  // ── Tech: sideswitches & anchors ──────────────────────────────
+  "Sideswitch L":   { seq:[0,1,0,2,0,1],       cat:"sideswitch",  group:"tech",    minDiff:6 },
+  "Sideswitch R":   { seq:[3,2,3,1,3,2],       cat:"sideswitch",  group:"tech",    minDiff:6 },
+  "Anchor L":       { seq:[0,2,0,1,0,3],       cat:"anchor",      group:"tech",    minDiff:4 },
+  "Anchor R":       { seq:[3,1,3,2,3,0],       cat:"anchor",      group:"tech",    minDiff:4 },
+  "Anchor D":       { seq:[1,0,1,2,1,3],       cat:"anchor",      group:"tech",    minDiff:5 },
+  "Anchor U":       { seq:[2,3,2,1,2,0],       cat:"anchor",      group:"tech",    minDiff:5 },
+  // ── Tech: splits ──────────────────────────────────────────────
+  "Split LU":       { seq:[0,2,1,3],           cat:"split",       group:"tech",    minDiff:7 },
+  "Split DR":       { seq:[1,3,0,2],           cat:"split",       group:"tech",    minDiff:7 },
 };
 
 // Active pattern state
 const activePats = new Set(Object.keys(PATTERNS));
+let currentTab = 'both';
 
 // ── Build pattern chips UI ────────────────────────────────────────
-const grid = document.getElementById('patGrid');
-Object.keys(PATTERNS).forEach(name => {
-  const chip = document.createElement('div');
-  chip.className = 'pat-chip on';
-  chip.textContent = name;
-  chip.title = `Category: ${PATTERNS[name].cat} | Min block: ${PATTERNS[name].minDiff}`;
-  chip.addEventListener('click', () => {
-    if (activePats.has(name)) { activePats.delete(name); chip.classList.remove('on'); }
-    else { activePats.add(name); chip.classList.add('on'); }
+function buildPatChips() {
+  const gridS = document.getElementById('patGridStamina');
+  const gridT = document.getElementById('patGridTech');
+  gridS.innerHTML = ''; gridT.innerHTML = '';
+
+  Object.keys(PATTERNS).forEach(name => {
+    const p = PATTERNS[name];
+    const chip = document.createElement('div');
+    chip.className = 'pat-chip' + (activePats.has(name) ? ' on' : '');
+    chip.textContent = name;
+    chip.dataset.name = name;
+    chip.dataset.group = p.group;
+    chip.title = `${p.cat} | min block ${p.minDiff}`;
+    chip.addEventListener('click', () => {
+      if (activePats.has(name)) { activePats.delete(name); chip.classList.remove('on'); }
+      else { activePats.add(name); chip.classList.add('on'); }
+    });
+    (p.group === 'stamina' ? gridS : gridT).appendChild(chip);
   });
-  grid.appendChild(chip);
-});
+  applyTabFilter();
+}
+
+function setPatTab(tab) {
+  currentTab = tab;
+  ['both','stamina','tech'].forEach(t => {
+    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1))
+      .classList.toggle('active', t === tab);
+  });
+  applyTabFilter();
+}
+
+function applyTabFilter() {
+  // Show/hide group labels and chips based on current tab
+  const showStamina = currentTab === 'both' || currentTab === 'stamina';
+  const showTech    = currentTab === 'both' || currentTab === 'tech';
+
+  document.getElementById('labelStamina').classList.toggle('hidden', !showStamina);
+  document.getElementById('patGridStamina').classList.toggle('hidden', !showStamina);
+  document.getElementById('labelTech').classList.toggle('hidden', !showTech);
+  document.getElementById('patGridTech').classList.toggle('hidden', !showTech);
+
+  // When a group is hidden, also disable its patterns from generation
+  Object.keys(PATTERNS).forEach(name => {
+    const p = PATTERNS[name];
+    const shouldShow = (p.group === 'stamina' && showStamina) || (p.group === 'tech' && showTech);
+    // Re-add to activePats if group is shown and chip is toggled on
+    const chip = document.querySelector(`.pat-chip[data-name="${CSS.escape(name)}"]`);
+    if (!chip) return;
+    if (!shouldShow) {
+      // Temporarily remove from active pool but don't change chip visual
+      activePats.delete(name);
+    } else if (chip.classList.contains('on')) {
+      activePats.add(name);
+    }
+  });
+}
+
+buildPatChips();
 
 // ═══════════════════════════════════════════════════════════════════
 // STATE
@@ -352,151 +414,175 @@ updateDiffBadges();
 // CHART GENERATION - PATTERN-BASED ENGINE
 // ═══════════════════════════════════════════════════════════════════
 
-// Which foot hits a given panel?  L/D = left, U/R = right
+// ═══════════════════════════════════════════════════════════════════
+// CHART ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+// L/D panels = left foot, U/R panels = right foot
 function footOf(p){return(p===0||p===1)?'L':'R';}
 
-// Validate a pattern sequence for foot alternation
-// Returns true if each step alternates feet (allowing jackTol same-foot repeats)
-function validatePattern(seq, startFoot, jackTol){
-  let foot=startFoot,same=0;
+// End foot after playing a sequence from a given start foot
+function seqEndFoot(seq){return footOf(seq[seq.length-1]);}
+
+// Does a sequence strictly alternate feet from startFoot?
+function seqValid(seq, startFoot){
+  let f=startFoot;
   for(const p of seq){
-    const f=footOf(p);
-    if(f===foot){same++;if(same>jackTol)return false;}
-    else{same=0;foot=f;}
+    if(footOf(p)===f) return false; // same foot twice = jack = bad
+    f=footOf(p);
   }
   return true;
 }
 
-// Get the last foot used after playing a pattern
-function patternEndFoot(seq, startFoot){
-  let f=startFoot;
-  for(const p of seq)f=footOf(p);
-  return f;
+// Subdivision: how many 16th-rows per note at this energy level
+function rowStepForEnergy(e){
+  if(e<0.15) return 4;  // quarter notes (4th)
+  if(e<0.38) return 2;  // eighth notes (8th)
+  return 1;              // sixteenth notes (16th)
 }
 
-// Pick a suitable pattern given current context
-function pickPattern(block, lastFoot, energyLevel, jackTol, allowCross) {
-  // Get available patterns for this difficulty
+// ── Pattern pool filtered for context ────────────────────────────
+function getPool(block, lastFoot, energy, allowCross, recentPats) {
   let pool = [...activePats].filter(name => {
     const p = PATTERNS[name];
     if (p.minDiff > block) return false;
-    if (!allowCross && p.cat === 'crossover') return false;
-    if (!allowCross && p.cat === 'sideswitch') return false;
-    // Drills and footswitches need higher energy
-    if ((p.cat === 'drill' || p.cat === 'footswitch') && energyLevel < 0.5) return false;
-    // Splits only at high energy + high block
-    if (p.cat === 'split' && (energyLevel < 0.7 || block < 8)) return false;
+    if (!allowCross && (p.cat==='crossover'||p.cat==='sideswitch')) return false;
+    if ((p.cat==='drill'||p.cat==='footswitch') && energy < 0.45) return false;
+    if (p.cat==='split' && (energy < 0.65 || block < 8)) return false;
+    if (p.cat==='candle' && energy < 0.3) return false;
     return true;
   });
 
-  if (!pool.length) pool = ['Run L→R', 'Run R→L', 'Staircase Up', 'Staircase Down'].filter(n=>activePats.has(n));
-  if (!pool.length) pool = Object.keys(PATTERNS).slice(0,2);
+  if (!pool.length) {
+    // Absolute fallback: basic runs, ignore active filter
+    pool = Object.keys(PATTERNS).filter(n=>PATTERNS[n].cat==='stream'||PATTERNS[n].cat==='box');
+  }
 
-  // Prefer patterns that start on the opposite foot from lastFoot
-  const goodStart = pool.filter(name => {
-    const seq = PATTERNS[name].seq;
-    return footOf(seq[0]) !== lastFoot;
-  });
-  if (goodStart.length) pool = goodStart;
-
-  // Validate alternation
-  const valid = pool.filter(name => validatePattern(PATTERNS[name].seq, lastFoot, jackTol));
+  // Must be foot-valid from current lastFoot
+  const valid = pool.filter(name => seqValid(PATTERNS[name].seq, lastFoot));
   if (valid.length) pool = valid;
 
-  return pool[Math.floor(Math.random()*pool.length)];
-}
+  // Anti-repeat: exclude patterns used in last N picks
+  const fresh = pool.filter(name => !recentPats.includes(name));
+  if (fresh.length >= 2) pool = fresh;
 
-// ── Subdivision decision based on energy ─────────────────────────
-// Returns rows-per-beat for current energy level
-function subdivForEnergy(energy) {
-  if (energy < 0.18) return 1;   // 4th notes — very slow/silent
-  if (energy < 0.42) return 2;   // 8th notes — moderate
-  return 4;                       // 16th notes — active sections
+  // Prefer patterns from a different category than the last one used
+  const lastCat = recentPats.length ? PATTERNS[recentPats[recentPats.length-1]]?.cat : null;
+  if (lastCat) {
+    const diffCat = pool.filter(name => PATTERNS[name].cat !== lastCat);
+    if (diffCat.length >= 2) pool = diffCat;
+  }
+
+  return pool;
 }
 
 // ── Main chart generator ──────────────────────────────────────────
 function generateChart(block, bpm, energy, duration) {
-  const jackTol   = 0; // strict alt feet
-  const allowCross= document.getElementById('energyAware') && block >= 5; // crossovers only at higher blocks
-  const maxRun    = +document.getElementById('maxRun').value;
-  const minBreak  = +document.getElementById('minBreak').value;
-  const leadIn    = +document.getElementById('offset').value;
-  const energyOn  = document.getElementById('energyAware').checked;
-  const breaksOn  = document.getElementById('forceBreaks').checked;
+  const allowCross = block >= 6;
+  const maxRun     = +document.getElementById('maxRun').value;
+  const minBreak   = +document.getElementById('minBreak').value;
+  const leadIn     = +document.getElementById('offset').value;
+  const energyOn   = document.getElementById('energyAware').checked;
+  const breaksOn   = document.getElementById('forceBreaks').checked;
 
-  const beatDur = 60/bpm;
-  const totalBeats = Math.floor(duration/beatDur);
-  const leadBeats = Math.ceil(leadIn/beatDur);
+  const RPB = 4; // rows per beat at 16th resolution (always store at this)
+  const beatDur = 60 / bpm;
+  const totalBeats = Math.floor(duration / beatDur);
+  const totalRows  = totalBeats * RPB;
+  const leadBeats  = Math.ceil(leadIn / beatDur);
 
   // Smooth energy per beat
-  const eBeat=[];
-  for(let b=0;b<totalBeats;b++){const t=b*beatDur/duration;const idx=Math.floor(t*energy.length);eBeat.push(energy[Math.min(idx,energy.length-1)]||0);}
-  const smooth=(arr,w=8)=>arr.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-w);j<Math.min(a.length,i+w);j++){s+=a[j];c++;}return s/c;});
-  const smoothE=smooth(eBeat);
+  const eBeat = [];
+  for(let b=0;b<totalBeats;b++){
+    const idx=Math.floor(b/totalBeats*energy.length);
+    eBeat.push(energy[Math.min(idx,energy.length-1)]||0);
+  }
+  const smoothE = eBeat.map((_,i,a)=>{
+    let s=0,c=0;
+    for(let j=Math.max(0,i-10);j<Math.min(a.length,i+10);j++){s+=a[j];c++;}
+    return s/c;
+  });
 
-  // We'll store notes as {beat, subBeat, panel}  (subBeat: 0=quarter, 0/2=8th, 0/1/2/3=16th)
-  // Then convert to SM rows at the end at 16th resolution (4 rows/beat)
-  const noteList = []; // {row, panel}
-  const ROWS_PER_BEAT = 4; // always store at 16th resolution
-  const totalRows = totalBeats * ROWS_PER_BEAT;
+  // Output: flat 16th-resolution row array
+  const notes = new Array(totalRows).fill(-1);
 
-  let lastFoot = 'R';
-  let runLen = 0, inBreak = false, breakLen = 0;
-  let b = leadBeats;
+  // State
+  let currentRow = leadBeats * RPB;
+  let lastFoot = 'R';                  // foot that just stepped
+  let recentPats = [];                 // last 5 pattern names used
+  const RECENT_SIZE = 5;
 
-  while (b < totalBeats) {
-    const e = energyOn ? smoothE[b] : 0.65;
-    const eScaled = e; // 0-1
+  // Run/break tracking in beats
+  let runBeats  = 0;
+  let breakBeats = 0;
+  let inBreak   = false;
 
-    // Run/break state machine
-    if (!inBreak) {
-      if (runLen >= maxRun || (breaksOn && e < 0.2 && runLen > 4)) {
-        inBreak = true; breakLen = 0; runLen = 0; b++; continue;
+  // ── Helper: place one pattern's notes into the row array ─────
+  function placePattern(patName, startRow, rowStep) {
+    const seq = PATTERNS[patName].seq;
+    let foot = lastFoot;
+    let r = startRow;
+    for(let i=0;i<seq.length;i++){
+      const row = startRow + i * rowStep;
+      if(row >= totalRows) break;
+      // Skip if row already occupied (prevents stacking)
+      if(notes[row] === -1) notes[row] = seq[i];
+      foot = footOf(seq[i]);
+    }
+    // Track foot after pattern
+    lastFoot = seqEndFoot(seq);
+    // Track anti-repeat
+    recentPats.push(patName);
+    if(recentPats.length > RECENT_SIZE) recentPats.shift();
+    // Return rows consumed
+    return (seq.length - 1) * rowStep + 1;
+  }
+
+  // ── Main generation loop ──────────────────────────────────────
+  while(currentRow < totalRows) {
+    const beat = Math.floor(currentRow / RPB);
+    const e = energyOn ? smoothE[Math.min(beat, smoothE.length-1)] : 0.65;
+
+    // Decide break vs run
+    const beatE = e;
+    const wantsBreak = breaksOn && beatE < 0.2;
+
+    if(!inBreak) {
+      const hitMaxRun = runBeats >= maxRun;
+      if(hitMaxRun || wantsBreak) {
+        inBreak = true; breakBeats = 0; runBeats = 0;
+        // Advance by 1 beat of silence
+        currentRow += RPB; continue;
       }
     } else {
-      breakLen++;
-      if (breakLen >= minBreak && (!breaksOn || e > 0.25)) {
-        inBreak = false; runLen = 0;
-      } else { b++; continue; }
+      breakBeats++;
+      const doneBreak = breakBeats >= minBreak && (!breaksOn || e > 0.28);
+      if(!doneBreak){ currentRow += RPB; continue; }
+      inBreak = false; breakBeats = 0;
     }
 
-    // Pick subdivision for this beat based on energy
-    const rpb = energyOn ? subdivForEnergy(eScaled) : 4;
-    const rowStep = ROWS_PER_BEAT / rpb; // e.g. 4 for quarters, 2 for 8ths, 1 for 16ths
+    // Pick row step based on energy
+    const rowStep = energyOn ? rowStepForEnergy(e) : 1;
 
-    // Pick a pattern that fits within this subdivision chunk
-    const patName = pickPattern(block, lastFoot, eScaled, jackTol, block >= 6);
-    const pat = PATTERNS[patName];
-    const seq = pat.seq;
+    // Pick a pattern
+    const pool = getPool(block, lastFoot, e, allowCross, recentPats);
+    const patName = pool[Math.floor(Math.random() * pool.length)];
+    const seq = PATTERNS[patName].seq;
 
-    // Place pattern notes starting at beat b, using rowStep spacing
-    let row = b * ROWS_PER_BEAT;
-    let foot = lastFoot;
-    let placed = 0;
+    // How many rows will this pattern consume?
+    const rowsConsumed = (seq.length - 1) * rowStep + 1;
 
-    for (let si = 0; si < seq.length; si++) {
-      const noteRow = row + si * rowStep;
-      if (noteRow >= totalRows || Math.floor(noteRow / ROWS_PER_BEAT) >= totalBeats) break;
-      noteList.push({row: Math.round(noteRow), panel: seq[si]});
-      foot = footOf(seq[si]);
-      placed++;
-    }
+    // Place it
+    placePattern(patName, currentRow, rowStep);
 
-    lastFoot = foot;
-    runLen++;
+    // Advance current row by exactly what was consumed
+    currentRow += rowsConsumed;
 
-    // Advance beats consumed by this pattern
-    const beatsConsumed = Math.ceil(seq.length * rowStep / ROWS_PER_BEAT);
-    b += Math.max(1, beatsConsumed);
+    // Track run length in beats
+    runBeats += Math.ceil(rowsConsumed / RPB);
   }
 
-  // Convert noteList to flat array
-  const notes = new Array(totalRows).fill(-1);
-  for (const {row, panel} of noteList) {
-    if (row >= 0 && row < totalRows) notes[row] = panel;
-  }
-
-  return {notes, rpb: ROWS_PER_BEAT};
+  return {notes, rpb: RPB};
 }
 
 // ── SM serialization ──────────────────────────────────────────────

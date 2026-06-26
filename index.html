@@ -105,6 +105,14 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
   <div class="sidebar">
     <div>
       <div class="sec">Song Info</div>
+      <!-- Stamina mode toggle — prominent at top -->
+      <div style="background:rgba(0,240,255,.06);border:1px solid var(--accent);border-radius:5px;padding:8px 10px;margin-bottom:10px;">
+        <div class="tog-row" style="margin-bottom:0">
+          <label style="color:var(--accent);font-weight:600;font-size:12px">Stamina mode (runs on strong beat)</label>
+          <label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">OFF = melody-follow only (sparse steps)</div>
+      </div>
       <div class="field"><label>Title</label><input type="text" id="songTitle" placeholder="Song Title"/></div>
       <div class="field"><label>Artist</label><input type="text" id="songArtist" placeholder="Artist Name"/></div>
     </div>
@@ -175,6 +183,8 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
       <div class="field"><label>Min break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
       <div class="field"><label>Max break length (beats) <span id="maxBreakVal">16</span></label><input type="range" id="maxBreak" min="4" max="64" value="16" step="2"/></div>
+      <div class="field"><label>Melody threshold <span id="melodyThreshVal">30</span>%</label><input type="range" id="melodyThresh" min="5" max="60" value="30" step="5"/></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Energy below this % of average → melody section. Above → stream run.</div>
       <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
     </div>
     <div>
@@ -530,7 +540,8 @@ let embeddedArt = null, userArt = null;
 // ── Sliders ───────────────────────────────────────────────────────
 [['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
  ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['maxBreak','maxBreakVal',''],
- ['offset','offsetVal',''],['onsetSens','onsetSensVal',''],['repeatWin','repeatWinVal','']
+ ['offset','offsetVal',''],['onsetSens','onsetSensVal',''],['repeatWin','repeatWinVal',''],
+ ['melodyThresh','melodyThreshVal','%']
 ].forEach(([id,vid,u])=>{
   document.getElementById(id).addEventListener('input',()=>{
     document.getElementById(vid).textContent=document.getElementById(id).value+u;
@@ -680,128 +691,88 @@ function computeOnsets(){
   log('Onsets detected: '+onsetTimes.length,'ok');
 }
 
-// ── Section map: classify each beat as 'run', 'melody', or 'rest' ─
-// Called after computeEnergy and computeOnsets, before generate.
-// Returns array[beat] = 'run' | 'melody' | 'rest'
+// ── Section map ─────────────────────────────────────────────────────
+// staminaMode ON:  strong beat → run, below melodyThresh → melody, very quiet → rest
+// staminaMode OFF: everything → melody (onset-following only, no streams)
 function buildSectionMap(bpm, duration) {
+  const staminaMode  = document.getElementById('staminaMode').checked;
+  const melodyThresh = +document.getElementById('melodyThresh').value / 100; // e.g. 0.30
+  const forceBreaks  = document.getElementById('forceBreaks').checked;
+
   const beatDur    = 60 / bpm;
   const totalBeats = Math.floor(duration / beatDur);
-  const map        = new Array(totalBeats).fill('rest');
 
-  // ── Per-beat stats ────────────────────────────────────────────
-  // energy already smoothed in energyCurve (per 100ms window)
-  const windowsPerBeat = beatDur / 0.1; // energyCurve windows per beat
-
-  // Onset density per beat: how many onsets fall in each beat
-  const onsetDensity = new Array(totalBeats).fill(0);
-  for(const t of onsetTimes){
-    const b = Math.floor(t / beatDur);
-    if(b >= 0 && b < totalBeats) onsetDensity[b]++;
+  // If stamina mode is off → every beat is melody (sparse onset-following)
+  if(!staminaMode){
+    const map = new Array(totalBeats).fill('melody');
+    log('Stamina mode OFF — melody-follow throughout','warn');
+    return map;
   }
 
-  // Smooth onset density over ±2 beats
-  const smoothDensity = onsetDensity.map((_,i,a)=>{
-    let s=0,c=0;
-    for(let j=Math.max(0,i-2);j<=Math.min(a.length-1,i+2);j++){s+=a[j];c++;}
-    return s/c;
-  });
-
-  // Per-beat energy from energyCurve
+  // Per-beat RMS energy
+  const windowsPerBeat = beatDur / 0.1;
   const beatEnergy = [];
   for(let b=0;b<totalBeats;b++){
-    const idx0 = Math.floor(b * windowsPerBeat);
-    const idx1 = Math.floor((b+1) * windowsPerBeat);
+    const i0=Math.floor(b*windowsPerBeat), i1=Math.floor((b+1)*windowsPerBeat);
     let s=0,c=0;
-    for(let i=idx0;i<idx1&&i<energyCurve.length;i++){s+=energyCurve[i];c++;}
+    for(let i=i0;i<i1&&i<energyCurve.length;i++){s+=energyCurve[i];c++;}
     beatEnergy.push(c?s/c:0);
   }
 
-  // Smooth beat energy over ±4 beats
-  const smoothBeatE = beatEnergy.map((_,i,a)=>{
+  // Smooth ±3 beats
+  const smoothE = beatEnergy.map((_,i,a)=>{
     let s=0,c=0;
-    for(let j=Math.max(0,i-4);j<=Math.min(a.length-1,i+4);j++){s+=a[j];c++;}
+    for(let j=Math.max(0,i-3);j<=Math.min(a.length-1,i+3);j++){s+=a[j];c++;}
     return s/c;
   });
 
-  // Global thresholds
-  const avgE = smoothBeatE.reduce((a,b)=>a+b,0)/smoothBeatE.length || 0.3;
-  const avgD = smoothDensity.reduce((a,b)=>a+b,0)/smoothDensity.length || 1;
+  const avg = smoothE.reduce((a,b)=>a+b,0)/smoothE.length || 0.3;
 
-  // Onset consistency: for each beat, how regular is the inter-onset interval
-  // in the surrounding window? High consistency + high energy = stamina run.
-  // We approximate consistency by checking IOI variance in a ±4-beat window.
-  function onsetConsistency(centerBeat) {
-    const t0 = (centerBeat - 4) * beatDur;
-    const t1 = (centerBeat + 4) * beatDur;
-    const window = onsetTimes.filter(t => t >= t0 && t <= t1);
-    if(window.length < 3) return 0;
-    const iois = [];
-    for(let i=1;i<window.length;i++) iois.push(window[i]-window[i-1]);
-    const mean = iois.reduce((a,b)=>a+b,0)/iois.length;
-    const variance = iois.reduce((a,b)=>a+(b-mean)**2,0)/iois.length;
-    // Consistency = 1 when variance is 0, drops as variance grows
-    return Math.max(0, 1 - Math.sqrt(variance)/mean);
-  }
+  // Thresholds relative to average energy:
+  // - below melodyThresh% of avg → melody (follow the song lightly)
+  // - below 15% of avg → rest (real silence)
+  // - everything else → run (stamina stream)
+  const restThresh   = avg * 0.15;
+  const melodyAbsThresh = avg * melodyThresh;
 
-  // Classify each beat
+  const map = new Array(totalBeats).fill('run');
   for(let b=0;b<totalBeats;b++){
-    const e    = smoothBeatE[b];
-    const d    = smoothDensity[b];
-    const cons = onsetConsistency(b);
-
-    if(e < avgE * 0.4 && d < avgD * 0.3){
-      map[b] = 'rest';
-    } else if(e >= avgE * 0.75 && cons >= 0.5){
-      // High energy + consistent beat pattern → stamina run
-      map[b] = 'run';
-    } else {
-      // Energy present but irregular → melody following
+    const e = smoothE[b];
+    if(e <= restThresh){
+      map[b] = forceBreaks ? 'rest' : 'melody';
+    } else if(e <= melodyAbsThresh){
       map[b] = 'melody';
     }
+    // else: stays 'run'
   }
 
-  // Expand short run islands: a run section < 8 beats surrounded by melody
-  // gets downgraded to melody (too short to bother streaming)
-  let b = 0;
-  while(b < totalBeats){
-    if(map[b]==='run'){
-      let end = b;
-      while(end < totalBeats && map[end]==='run') end++;
-      if(end - b < 8){
-        for(let i=b;i<end;i++) map[i]='melody';
+  // Bridge single isolated non-run beats surrounded by runs
+  for(let b=1;b<totalBeats-1;b++){
+    if(map[b]!=='run' && map[b-1]==='run' && map[b+1]==='run') map[b]='run';
+  }
+
+  // Expand short melody islands (< 3 beats) inside runs → run
+  let b=0;
+  while(b<totalBeats){
+    if(map[b]==='melody'){
+      let end=b;
+      while(end<totalBeats && map[end]==='melody') end++;
+      const len=end-b;
+      if(len<3 && b>0 && end<totalBeats && map[b-1]==='run' && map[end]==='run'){
+        for(let i=b;i<end;i++) map[i]='run';
       }
-      b = end;
-    } else { b++; }
+      b=end;
+    } else b++;
   }
 
-  // Also merge run sections separated by ≤2 rest/melody beats into one run
-  b = 0;
-  while(b < totalBeats){
-    if(map[b]==='run'){
-      let runEnd = b;
-      while(runEnd < totalBeats && map[runEnd]==='run') runEnd++;
-      // Look ahead for another run
-      let gap = runEnd;
-      while(gap < totalBeats && gap < runEnd+3 && map[gap]!=='run') gap++;
-      if(gap < totalBeats && map[gap]==='run'){
-        for(let i=runEnd;i<gap;i++) map[i]='run';
-      }
-      b = runEnd;
-    } else { b++; }
-  }
-
-  const runCount    = map.filter(x=>x==='run').length;
-  const melodyCount = map.filter(x=>x==='melody').length;
-  const restCount   = map.filter(x=>x==='rest').length;
-  log(`Sections — run: ${runCount}b, melody: ${melodyCount}b, rest: ${restCount}b`, 'ok');
-
+  const rc=map.filter(x=>x==='run').length;
+  const mc=map.filter(x=>x==='melody').length;
+  const xc=map.filter(x=>x==='rest').length;
+  log(`Sections — run:${rc}b melody:${mc}b rest:${xc}b`,'ok');
   return map;
 }
 
-// ── BPM detection — onset interval histogram (ArrowVortex-inspired) ─
-// Fast JS-safe implementation of the gap-confidence approach.
-// Key steps: detect candidate intervals via onset IOI histogram,
-// then score each with a windowed wrap-histogram + offbeat bonus.
+
 function detectBPM(){
   const sr = audioBuffer.sampleRate;
 
@@ -1132,59 +1103,78 @@ function generateChart(block, bpm, energy, duration) {
     onsetsByBeat[b].push(o);
   }
 
-  let b = Math.ceil(leadIn/beatDur);
-  let runBeats=0, breakBeats=0, chainCount=0;
+  // ══════════════════════════════════════════════════════════════════
+  // MAIN GENERATION LOOP — stamina first
+  // Default behavior: STREAM. Only back off for quiet/melody sections.
+  // ══════════════════════════════════════════════════════════════════
+  let b         = Math.ceil(leadIn/beatDur);
+  let runBeats  = 0;
+  let breakBeats= 0;
+  let chainCount= 0;
 
   while(b < totalBeats){
     const section = getSection(b*RPB);
     const e       = smoothE[Math.min(b,smoothE.length-1)]||0;
 
+    // ── REST: be silent, but enforce max break cap ───────────────
     if(section==='rest'){
       breakBeats++;
-      // Max break: force a note if silent too long and there's an onset
       if(breakBeats >= maxBreak){
-        const bo = onsetsByBeat[b];
-        if(bo && bo.length) { placeNote(bo[0].row); breakBeats=0; }
-        else { placeNote(b*RPB); breakBeats=0; }
+        // Too long without steps — drop in a single note
+        placeNote(b*RPB);
+        breakBeats = 0;
       }
       runBeats=0; chainCount=0; b++; continue;
     }
 
+    // ── RUN: continuous 16th-note stream ─────────────────────────
     if(section==='run'){
-      if(runBeats>=maxRun){
+      // Mandatory break after maxRun beats
+      if(runBeats >= maxRun){
         breakBeats++;
-        if(breakBeats>=minBreak){ runBeats=0; breakBeats=0; chainCount=0; }
+        if(breakBeats >= minBreak){ runBeats=0; breakBeats=0; chainCount=0; }
         b++; continue;
       }
       breakBeats=0;
-      const startRow=b*RPB;
-      const patName=pickNext(e, chainCount);
-      // Row step based on difficulty: low block uses 8ths more, high block uses 16ths
+
+      const startRow = b*RPB;
+      const patName  = pickNext(e, chainCount);
+      const seq      = PATTERNS[patName].seq;
+
+      // Difficulty-scaled row step: harder = more 16ths
       const rowStep = (Math.random() < sixteenthProb) ? 1 : 2;
-      const consumed=placePattern(patName, startRow, rowStep);
+
+      // Place the pattern — it may span multiple beats
+      const consumed = placePattern(patName, startRow, rowStep);
       chainCount++;
       if(chainCount > chainTarget+1) chainCount=0;
-      const beatsUsed=Math.max(1,Math.ceil(consumed/RPB));
-      runBeats+=beatsUsed; b+=beatsUsed; continue;
+
+      const beatsUsed = Math.max(1, Math.ceil(consumed/RPB));
+      runBeats += beatsUsed;
+      b        += beatsUsed;
+      continue;
     }
 
-    // MELODY
+    // ── MELODY: sparse, onset-following ──────────────────────────
     runBeats=0; chainCount=0;
-    const beatOnsets=onsetsByBeat[b]||[];
-
-    if(!useOnsets || beatOnsets.length===0){
-      breakBeats++;
-      if(breakBeats>=maxBreak){ placeNote(b*RPB); breakBeats=0; }
-      b++; continue;
-    }
     breakBeats=0;
-    for(const {row,isRepeat} of beatOnsets){
-      if(isRepeat && doubleTapOn){
-        placeNote(row, lastPanel);
-        if(row+1<totalRows && notes[row+1]===-1) notes[row+1]=lastPanel;
-      } else {
-        placeNote(row);
+
+    const beatOnsets = onsetsByBeat[b]||[];
+
+    if(useOnsets && beatOnsets.length > 0){
+      // Place steps at detected onset positions
+      for(const {row,isRepeat} of beatOnsets){
+        if(isRepeat && doubleTapOn){
+          placeNote(row, lastPanel);
+          if(row+1<totalRows && notes[row+1]===-1) notes[row+1]=lastPanel;
+        } else {
+          placeNote(row);
+        }
       }
+    } else {
+      // No onset data → place a single note on the beat to keep
+      // the chart feeling alive (melody sections still have steps)
+      placeNote(b*RPB);
     }
     b++;
   }

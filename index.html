@@ -154,9 +154,13 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
         <label>Snap steps to melody onsets</label>
         <label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label>
       </div>
-      <div class="tog-row">
-        <label>Beat-only mode (quarter notes)</label>
-        <label class="toggle"><input type="checkbox" id="beatOnly"/><span class="sl"></span></label>
+      <div class="field">
+        <label>Snap resolution</label>
+        <select id="snapResolution">
+          <option value="16">16th notes (free)</option>
+          <option value="8">8th notes</option>
+          <option value="4">Quarter notes (beats only)</option>
+        </select>
       </div>
       <div class="tog-row">
         <label>Double tap on repeated notes</label>
@@ -794,105 +798,86 @@ function buildSectionMap(bpm, duration) {
   return map;
 }
 
-// ── BPM detection — ArrowVortex gap-confidence method ────────────
-// Ports Bram van de Wetering's "Non-causal Beat Tracking for Rhythm
-// Games" to JS. Uses onset times (already computed) as input.
-// Key idea: for each candidate interval (= beat period), wrap all
-// onsets modulo that interval and measure how tightly they cluster
-// using a Hamming-windowed scoring function. The interval with the
-// highest normalised score is the beat.
+// ── BPM detection — onset interval histogram (ArrowVortex-inspired) ─
+// Fast JS-safe implementation of the gap-confidence approach.
+// Key steps: detect candidate intervals via onset IOI histogram,
+// then score each with a windowed wrap-histogram + offbeat bonus.
 function detectBPM(){
   const sr = audioBuffer.sampleRate;
 
-  if(!onsetTimes || onsetTimes.length < 2){
-    log('Too few onsets for BPM detection, falling back','warn');
+  if(!onsetTimes || onsetTimes.length < 4){
+    log('Too few onsets, defaulting to 120 BPM','warn');
     return 120;
   }
 
-  // Convert onset times → sample positions with uniform strength=1
-  const onsets = onsetTimes.map(t => Math.round(t * sr));
+  // Work in centiseconds (sr/100) for manageable integer arithmetic
+  const CS    = sr / 100;   // samples per centisecond
+  const onsetCS = onsetTimes.map(t => Math.round(t * 100)); // onset times in cs
 
-  const MIN_BPM = 60,  MAX_BPM = 220;
-  const minInterval = Math.round(sr * 60 / MAX_BPM);
-  const maxInterval = Math.round(sr * 60 / MIN_BPM);
+  // BPM range 60–220 → period range in centiseconds
+  const MIN_BPM = 60, MAX_BPM = 220;
+  const minPeriod = Math.round(6000 / MAX_BPM);  // cs
+  const maxPeriod = Math.round(6000 / MIN_BPM);  // cs
 
-  // Hamming window for gap confidence (length = windowSize samples)
-  const WINDOW_SIZE = 2048;
-  const HALF_WIN    = WINDOW_SIZE >> 1;
-  const hammingWin  = new Float32Array(WINDOW_SIZE);
-  for(let i=0;i<WINDOW_SIZE;i++)
-    hammingWin[i] = 0.54 - 0.46*Math.cos(2*Math.PI*i/(WINDOW_SIZE-1));
+  // Build inter-onset-interval (IOI) histogram — count how often each
+  // gap between nearby onsets matches each candidate period.
+  // This is O(N * lookahead) — fast.
+  const LOOKAHEAD = 8;  // compare each onset to the next 8
+  const histSize  = maxPeriod + 1;
+  const hist      = new Float32Array(histSize);
 
-  // Score one candidate interval: wrap onsets, build histogram,
-  // slide Hamming window over it, return max peak + offbeat bonus
-  function scoreInterval(interval){
-    // Downsample for speed: reduce by 4
-    const DS      = 4;
-    const redInt  = interval >> 2;  // reduced interval
-    const hist    = new Float32Array(redInt);
-
-    for(const pos of onsets){
-      const p = (pos % interval) >> 2;
-      if(p < redInt) hist[p] += 1;
-    }
-
-    // Slide Hamming window, find max confidence
-    const hw = WINDOW_SIZE >> 2;  // half-window in downsampled space
-    let best = 0;
-    for(let i=0; i<redInt; i++){
-      let area = 0;
-      // convolve histogram around position i with Hamming window
-      for(let d=-hw; d<hw; d++){
-        const p = ((i+d) % redInt + redInt) % redInt;
-        const wi = d + hw;
-        if(wi>=0 && wi<WINDOW_SIZE) area += hist[p] * hammingWin[wi];
+  for(let i=0; i<onsetCS.length; i++){
+    for(let j=i+1; j<=Math.min(i+LOOKAHEAD, onsetCS.length-1); j++){
+      let gap = onsetCS[j] - onsetCS[i];
+      // Fold multiples back into range: a gap of 2× the period
+      // means we hit every other beat — still valid evidence.
+      while(gap > maxPeriod) gap = Math.round(gap / 2);
+      if(gap >= minPeriod && gap <= maxPeriod){
+        // Weight closer pairs more strongly
+        const weight = 1.0 / (j - i);
+        hist[gap] += weight;
       }
-      // offbeat bonus: add 50% weight for offbeat position
-      const ob = (i + (redInt>>1)) % redInt;
-      let offArea = 0;
-      for(let d=-hw; d<hw; d++){
-        const p = ((ob+d) % redInt + redInt) % redInt;
-        const wi = d + hw;
-        if(wi>=0 && wi<WINDOW_SIZE) offArea += hist[p] * hammingWin[wi];
-      }
-      const total = area + offArea * 0.5;
-      if(total > best) best = total;
-    }
-    return best;
-  }
-
-  // Coarse pass: evaluate every 10 samples in the interval range
-  const STEP   = 10;
-  const coarse = [];
-  for(let iv=minInterval; iv<=maxInterval; iv+=STEP){
-    coarse.push({iv, score: scoreInterval(iv)});
-  }
-
-  // Find top candidates (score > 40% of max)
-  const maxScore = Math.max(...coarse.map(c=>c.score));
-  const threshold= maxScore * 0.4;
-  const candidates = coarse.filter(c=>c.score>=threshold);
-
-  // Fine pass: refine each candidate ±STEP
-  let bestScore = 0, bestInterval = minInterval;
-  for(const {iv} of candidates){
-    const lo = Math.max(minInterval, iv-STEP);
-    const hi = Math.min(maxInterval, iv+STEP);
-    for(let interval=lo; interval<=hi; interval++){
-      const s = scoreInterval(interval);
-      if(s > bestScore){ bestScore=s; bestInterval=interval; }
     }
   }
 
-  let bpm = sr * 60 / bestInterval;
+  // Smooth histogram with a small Gaussian (±3cs window)
+  const smoothed = new Float32Array(histSize);
+  const GWIN = 3;
+  const gsig  = 1.5;
+  for(let p=minPeriod; p<=maxPeriod; p++){
+    let s=0, w=0;
+    for(let d=-GWIN; d<=GWIN; d++){
+      const q=p+d;
+      if(q<0||q>=histSize) continue;
+      const gw=Math.exp(-(d*d)/(2*gsig*gsig));
+      s+=hist[q]*gw; w+=gw;
+    }
+    smoothed[p]=w>0?s/w:0;
+  }
 
-  // Octave correction: prefer range 80-180, avoid doubling/halving errors
+  // Score each candidate period with an offbeat bonus:
+  // a good beat period also has many onsets at period/2 offset
+  let bestScore=-1, bestPeriod=minPeriod;
+  for(let p=minPeriod; p<=maxPeriod; p++){
+    let score = smoothed[p];
+    // Add half-weight score from half-period (offbeat support)
+    const half = Math.round(p / 2);
+    if(half >= 1 && half < histSize) score += smoothed[half] * 0.5;
+    // Subtract aliasing penalty: if period/2 scores better, penalise
+    if(half >= minPeriod && smoothed[half] > smoothed[p] * 1.5) score *= 0.6;
+    if(score > bestScore){ bestScore=score; bestPeriod=p; }
+  }
+
+  // Convert centisecond period → BPM
+  let bpm = 6000 / bestPeriod;
+
+  // Octave correction: stay in 80–175 range
   while(bpm < 80)  bpm *= 2;
-  while(bpm > 180) bpm /= 2;
+  while(bpm > 175) bpm /= 2;
 
-  // Round to nearest integer when very close (mirrors ArrowVortex RoundBPMValues)
+  // Round to integer if within 0.75 BPM
   const rounded = Math.round(bpm);
-  if(Math.abs(bpm - rounded) < 0.5) bpm = rounded;
+  if(Math.abs(bpm - rounded) < 0.75) bpm = rounded;
 
   return Math.round(bpm * 10) / 10;
 }
@@ -1048,7 +1033,7 @@ function generateChart(block, bpm, energy, duration) {
   const leadIn      = +document.getElementById('offset').value;
   const breaksOn    = document.getElementById('forceBreaks').checked;
   const useOnsets   = document.getElementById('onsetSnap').checked;
-  const beatOnly    = document.getElementById('beatOnly').checked;
+  const snapRes     = +document.getElementById('snapResolution').value; // 4, 8, or 16
   const doubleTapOn = document.getElementById('doubleTap').checked;
   const repeatWinMs = +document.getElementById('repeatWin').value / 1000;
 
@@ -1122,9 +1107,14 @@ function generateChart(block, bpm, energy, duration) {
     for(const t of onsetTimes){
       if(t<leadIn) continue;
       let row;
-      if(beatOnly){
+      if(snapRes === 4){
+        // Quarter note snap
         row = Math.round((t-leadIn)/beatDur) * RPB;
+      } else if(snapRes === 8){
+        // 8th note snap
+        row = Math.round((t-leadIn)/(beatDur/2)) * 2;
       } else {
+        // 16th note snap — free
         row = Math.round((t-leadIn)/rowDur);
       }
       if(row<leadRows||row>=totalRows) continue;

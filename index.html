@@ -6,28 +6,24 @@
 <title>ITG StepGen</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
-:root {
-  --bg:#0a0a0f; --panel:#12121a; --border:#1e1e2e;
-  --accent:#00f0ff; --accent2:#ff3cac; --accent3:#7b2fff;
-  --text:#e0e0f0; --muted:#5a5a7a; --success:#00ff88; --warn:#ffb800;
-}
+:root{--bg:#0a0a0f;--panel:#12121a;--border:#1e1e2e;--accent:#00f0ff;--accent2:#ff3cac;--accent3:#7b2fff;--text:#e0e0f0;--muted:#5a5a7a;--success:#00ff88;--warn:#ffb800;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100dvh;display:flex;flex-direction:column;}
-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--panel);}
+header{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--panel);}
 header h1{font-family:'Orbitron',monospace;font-size:17px;font-weight:900;letter-spacing:.12em;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 header span{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
 .arrows{display:flex;gap:3px;margin-left:auto;}
 .arrows div{width:13px;height:13px;border-radius:2px;}
 .main{display:flex;flex:1;overflow:hidden;}
-.sidebar{width:290px;min-width:290px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:18px 14px;display:flex;flex-direction:column;gap:18px;}
-.sec{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
-.field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.sidebar{width:295px;min-width:295px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:16px 13px;display:flex;flex-direction:column;gap:16px;}
+.sec{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:7px;}
 .field label{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
 .field label span{color:var(--accent);font-weight:600;}
-input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 9px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;width:100%;outline:none;transition:border-color .2s;}
+input[type=text],select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 9px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;width:100%;outline:none;transition:border-color .2s;}
 input[type=text]:focus,select:focus{border-color:var(--accent);}
 input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
-.tog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.tog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
 .tog-row label{font-size:12px;color:var(--muted);}
 .toggle{position:relative;width:36px;height:20px;}
 .toggle input{opacity:0;width:0;height:0;}
@@ -35,44 +31,41 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .sl:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:var(--muted);border-radius:50%;transition:.2s;}
 .toggle input:checked+.sl{background:var(--accent3);}
 .toggle input:checked+.sl:before{transform:translateX(16px);background:var(--accent);}
-.content{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:20px;gap:16px;}
-.upload-zone{border:2px dashed var(--border);border-radius:8px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:18px;gap:14px;}
+.upload-zone{border:2px dashed var(--border);border-radius:8px;padding:28px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(0,240,255,.03);}
 .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.upload-zone .icon{font-size:32px;margin-bottom:8px;}
-.upload-zone h2{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:.1em;margin-bottom:4px;}
+.upload-zone .icon{font-size:30px;margin-bottom:7px;}
+.upload-zone h2{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:.1em;margin-bottom:3px;}
 .upload-zone p{color:var(--muted);font-size:11px;}
-.art-zone{border:1px dashed var(--border);border-radius:5px;padding:12px;text-align:center;cursor:pointer;font-size:11px;color:var(--muted);position:relative;transition:border-color .2s;}
+.art-zone{border:1px dashed var(--border);border-radius:5px;padding:10px;text-align:center;cursor:pointer;font-size:11px;color:var(--muted);position:relative;transition:border-color .2s;}
 .art-zone:hover{border-color:var(--accent2);}
 .art-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.song-info{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px;display:none;gap:12px;align-items:center;}
+.song-info{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:11px;display:none;gap:11px;align-items:center;}
 .song-info.on{display:flex;}
-.song-art{width:56px;height:56px;border-radius:4px;background:var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;}
+.song-art{width:52px;height:52px;border-radius:4px;background:var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;}
 .song-art img{width:100%;height:100%;object-fit:cover;}
 .song-meta h3{font-size:13px;font-weight:600;margin-bottom:2px;}
 .song-meta p{font-size:11px;color:var(--muted);}
-.bpm-badge{margin-left:auto;background:rgba(0,240,255,.1);border:1px solid var(--accent);color:var(--accent);font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:6px 10px;border-radius:4px;white-space:nowrap;}
-.prog-wrap{background:var(--border);border-radius:4px;height:3px;overflow:hidden;margin-top:5px;}
+.bpm-badge{margin-left:auto;background:rgba(0,240,255,.1);border:1px solid var(--accent);color:var(--accent);font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:5px 9px;border-radius:4px;white-space:nowrap;}
+.prog-wrap{background:var(--border);border-radius:4px;height:3px;overflow:hidden;margin-top:4px;}
 .prog{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s;}
-.wave-sec{display:flex;flex-direction:column;gap:6px;display:none;}
+.wave-sec{flex-direction:column;gap:5px;display:none;}
 .wave-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
 canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border:1px solid var(--border);}
-.log-box{background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-family:'Courier New',monospace;font-size:11px;color:var(--accent);min-height:65px;max-height:110px;overflow-y:auto;line-height:1.7;}
-.log-box .err{color:var(--accent2);}
-.log-box .ok{color:var(--success);}
-.log-box .warn{color:var(--warn);}
+.log-box{background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:9px 11px;font-family:'Courier New',monospace;font-size:11px;color:var(--accent);min-height:60px;max-height:100px;overflow-y:auto;line-height:1.7;}
+.log-box .err{color:var(--accent2);}.log-box .ok{color:var(--success);}.log-box .warn{color:var(--warn);}
 .gen-btn{background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;border-radius:6px;padding:13px 24px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:.12em;cursor:pointer;transition:opacity .2s,transform .1s;width:100%;}
-.gen-btn:hover{opacity:.9;}
-.gen-btn:active{transform:scale(.98);}
-.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+.gen-btn:hover{opacity:.9;}.gen-btn:active{transform:scale(.98);}.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
 .diff-row{display:flex;gap:6px;flex-wrap:wrap;}
 .db{font-family:'Orbitron',monospace;font-size:10px;padding:3px 7px;border-radius:3px;border:1px solid;}
 .db.easy{color:#00ff88;border-color:#00ff88;background:rgba(0,255,136,.08);}
 .db.med{color:#ffb800;border-color:#ffb800;background:rgba(255,184,0,.08);}
 .db.hard{color:#ff3cac;border-color:#ff3cac;background:rgba(255,60,172,.08);}
-::-webkit-scrollbar{width:4px;}
-::-webkit-scrollbar-track{background:var(--bg);}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;}
+.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
+.pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
 </head>
 <body>
@@ -93,9 +86,9 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div>
       <div class="sec">Art</div>
-      <div class="art-zone" id="artZone">
+      <div class="art-zone">
         <input type="file" id="artFile" accept="image/*"/>
-        <div id="artPreview">🖼 Drop banner / jacket image<br/><small style="font-size:10px;color:#2a2a3a">(or auto-extracted from audio)</small></div>
+        <div id="artPreview">🖼 Drop banner/jacket image<br/><small style="font-size:10px;color:#2a2a3a">(or auto-extracted from audio)</small></div>
       </div>
     </div>
     <div>
@@ -109,31 +102,23 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
           <option value="3" selected>3 — Easy + Medium + Hard</option>
         </select>
       </div>
-      <div id="diffPreview" style="margin-top:4px"><div class="diff-row" id="diffBadges"></div></div>
+      <div class="diff-row" id="diffBadges" style="margin-top:4px"></div>
     </div>
     <div>
-      <div class="sec">Foot Alternation</div>
-      <div class="tog-row"><label>Enforce alt feet (no jacks)</label><label class="toggle"><input type="checkbox" id="enforceAlt" checked/><span class="sl"></span></label></div>
-      <div class="field"><label>Max same-foot repeats <span id="jackTolVal">0</span></label><input type="range" id="jackTol" min="0" max="3" value="0"/></div>
-      <div class="tog-row"><label>Allow crossovers</label><label class="toggle"><input type="checkbox" id="allowCross"/><span class="sl"></span></label></div>
+      <div class="sec">Patterns</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Click to enable/disable. Active patterns are used during chart generation.</div>
+      <div class="pat-grid" id="patGrid"></div>
     </div>
     <div>
       <div class="sec">Stream Rules</div>
       <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
       <div class="field"><label>Min break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
-      <div class="field"><label>Subdivision</label>
-        <select id="subdivision">
-          <option value="8">8th notes</option>
-          <option value="16" selected>16th notes</option>
-          <option value="mix">Mix 8th + 16th</option>
-        </select>
-      </div>
-    </div>
-    <div>
-      <div class="sec">Timing / Energy</div>
-      <div class="field"><label>Lead-in offset (s) <span id="offsetVal">1.0</span></label><input type="range" id="offset" min="0" max="5" value="1" step="0.5"/></div>
       <div class="tog-row"><label>Energy-aware density</label><label class="toggle"><input type="checkbox" id="energyAware" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
+    </div>
+    <div>
+      <div class="sec">Timing</div>
+      <div class="field"><label>Lead-in offset (s) <span id="offsetVal">1.0</span></label><input type="range" id="offset" min="0" max="5" value="1" step="0.5"/></div>
     </div>
   </div>
   <div class="content">
@@ -145,7 +130,7 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div class="song-info" id="songInfoBar">
       <div class="song-art" id="songArtThumb">🎵</div>
-      <div class="song-meta">
+      <div class="song-meta" style="flex:1">
         <h3 id="infoTitle">—</h3>
         <p id="infoArtist">—</p>
         <div class="prog-wrap"><div class="prog" id="analyzeProgress"></div></div>
@@ -153,10 +138,9 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="bpm-badge" id="bpmBadge">— BPM</div>
     </div>
     <div class="wave-sec" id="waveSection">
-      <div class="wave-label">Waveform</div>
+      <div class="wave-label">Waveform + Energy</div>
       <canvas id="waveCanvas" height="80"></canvas>
-      <div class="wave-label" style="margin-top:4px">Energy Curve</div>
-      <canvas id="energyCanvas" height="55"></canvas>
+      <canvas id="energyCanvas" height="50"></canvas>
     </div>
     <div class="log-box" id="log"><span style="color:var(--muted)">Waiting for audio...</span><br/></div>
     <button class="gen-btn" id="genBtn" disabled>⚡ GENERATE STEP FILE</button>
@@ -164,420 +148,437 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-// ── State ─────────────────────────────────────────────────────────────────────
-let audioBuffer = null;
-let audioFileObj = null;
-let detectedBPM = 120;
-let energyCurve = [];
-let embeddedArt = null;
-let userArt = null;
+// ═══════════════════════════════════════════════════════════════════
+// PATTERN LIBRARY
+// Each pattern is a sequence of panels: 0=L 1=D 2=U 3=R
+// Patterns are designed to alternate feet correctly
+// L/D = left foot, U/R = right foot
+// ═══════════════════════════════════════════════════════════════════
+const PATTERNS = {
+  // ── Basic runs ────────────────────────────────────────────────
+  "Run L→R":       { seq: [0,1,2,3], cat:"stream", minDiff:1 },
+  "Run R→L":       { seq: [3,2,1,0], cat:"stream", minDiff:1 },
+  "Staircase Up":  { seq: [0,1,2,3,2,1], cat:"stream", minDiff:2 },
+  "Staircase Down":{ seq: [3,2,1,0,1,2], cat:"stream", minDiff:2 },
+  // ── Candles ───────────────────────────────────────────────────
+  "Candle A":      { seq: [2,0,1], cat:"candle", minDiff:3 },   // U L D
+  "Candle B":      { seq: [1,3,2], cat:"candle", minDiff:3 },   // D R U
+  "Candle C":      { seq: [0,2,1], cat:"candle", minDiff:3 },   // L U D — twisted
+  "Candle D":      { seq: [3,1,2], cat:"candle", minDiff:3 },   // R D U — twisted
+  // ── Crossovers ────────────────────────────────────────────────
+  "Crossover L":   { seq: [0,1,3,2], cat:"crossover", minDiff:4 }, // cross left over
+  "Crossover R":   { seq: [3,2,0,1], cat:"crossover", minDiff:4 }, // cross right over
+  "XO Candle L":   { seq: [0,1,3,1], cat:"crossover", minDiff:5 },
+  "XO Candle R":   { seq: [3,2,0,2], cat:"crossover", minDiff:5 },
+  // ── Gallops ───────────────────────────────────────────────────
+  "Gallop L":      { seq: [0,1,1,2], cat:"gallop", minDiff:3 },  // quick 16th then 8th feel
+  "Gallop R":      { seq: [3,2,2,1], cat:"gallop", minDiff:3 },
+  "Gallop Alt":    { seq: [0,1,2,1,3,2], cat:"gallop", minDiff:4 },
+  // ── Drills ────────────────────────────────────────────────────
+  "Drill LD":      { seq: [0,1,0,1,0,1], cat:"drill", minDiff:5 }, // L D L D L D
+  "Drill RU":      { seq: [3,2,3,2,3,2], cat:"drill", minDiff:5 }, // R U R U R U
+  "Drill LR":      { seq: [0,3,0,3,0,3], cat:"drill", minDiff:6 }, // wide drill
+  "Drill DU":      { seq: [1,2,1,2,1,2], cat:"drill", minDiff:4 }, // center drill
+  // ── Footswitches ──────────────────────────────────────────────
+  "Footswitch L":  { seq: [0,0,1,2], cat:"footswitch", minDiff:5 }, // double-step left
+  "Footswitch R":  { seq: [3,3,2,1], cat:"footswitch", minDiff:5 },
+  "FS Stream":     { seq: [1,0,1,2,3,2], cat:"footswitch", minDiff:6 },
+  // ── Side switches ─────────────────────────────────────────────
+  "Sideswitch L":  { seq: [0,1,0,2,0,1], cat:"sideswitch", minDiff:6 },
+  "Sideswitch R":  { seq: [3,2,3,1,3,2], cat:"sideswitch", minDiff:6 },
+  // ── Anchors ───────────────────────────────────────────────────
+  "Anchor L":      { seq: [0,2,0,1,0,3], cat:"anchor", minDiff:4 },
+  "Anchor R":      { seq: [3,1,3,2,3,0], cat:"anchor", minDiff:4 },
+  "Anchor D":      { seq: [1,0,1,2,1,3], cat:"anchor", minDiff:4 },
+  "Anchor U":      { seq: [2,3,2,1,2,0], cat:"anchor", minDiff:4 },
+  // ── Box patterns ──────────────────────────────────────────────
+  "Box CW":        { seq: [0,2,3,1], cat:"box", minDiff:3 }, // L U R D clockwise
+  "Box CCW":       { seq: [0,1,3,2], cat:"box", minDiff:3 }, // L D R U counter-CW
+  "Box Full":      { seq: [0,2,3,1,3,2,0,1], cat:"box", minDiff:5 },
+  // ── Spirals ───────────────────────────────────────────────────
+  "Spiral In":     { seq: [0,1,3,2,1,2], cat:"spiral", minDiff:5 },
+  "Spiral Out":    { seq: [1,2,0,3,2,1], cat:"spiral", minDiff:5 },
+  // ── Splits (used sparingly on higher blocks) ──────────────────
+  "Split LU":      { seq: [0,2,1,3], cat:"split", minDiff:7 },
+  "Split DR":      { seq: [1,3,0,2], cat:"split", minDiff:7 },
+};
 
-// ── Log ───────────────────────────────────────────────────────────────────────
-function log(msg, cls='') {
-  const box = document.getElementById('log');
-  const d = document.createElement('div');
-  if (cls) d.className = cls;
-  d.textContent = '> ' + msg;
-  box.appendChild(d);
-  box.scrollTop = box.scrollHeight;
-}
-function clearLog() { document.getElementById('log').innerHTML = ''; }
+// Active pattern state
+const activePats = new Set(Object.keys(PATTERNS));
 
-// ── Sliders ───────────────────────────────────────────────────────────────────
-[['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],['jackTol','jackTolVal',''],
+// ── Build pattern chips UI ────────────────────────────────────────
+const grid = document.getElementById('patGrid');
+Object.keys(PATTERNS).forEach(name => {
+  const chip = document.createElement('div');
+  chip.className = 'pat-chip on';
+  chip.textContent = name;
+  chip.title = `Category: ${PATTERNS[name].cat} | Min block: ${PATTERNS[name].minDiff}`;
+  chip.addEventListener('click', () => {
+    if (activePats.has(name)) { activePats.delete(name); chip.classList.remove('on'); }
+    else { activePats.add(name); chip.classList.add('on'); }
+  });
+  grid.appendChild(chip);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let audioBuffer = null, audioFileObj = null;
+let detectedBPM = 120, energyCurve = [];
+let embeddedArt = null, userArt = null;
+
+// ── Sliders ───────────────────────────────────────────────────────
+[['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
  ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['offset','offsetVal','']
 ].forEach(([id,vid,u])=>{
   document.getElementById(id).addEventListener('input',()=>{
-    document.getElementById(vid).textContent = document.getElementById(id).value + u;
+    document.getElementById(vid).textContent=document.getElementById(id).value+u;
     updateDiffBadges();
   });
 });
-['diffCount','subdivision'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', updateDiffBadges);
-});
+document.getElementById('diffCount').addEventListener('change',updateDiffBadges);
 
-// ── Art upload ────────────────────────────────────────────────────────────────
-document.getElementById('artFile').addEventListener('change', e=>{
-  const f = e.target.files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = ev => { userArt = ev.target.result; showArt(userArt); };
-  r.readAsDataURL(f);
+// ── Logging ───────────────────────────────────────────────────────
+function log(msg,cls=''){const b=document.getElementById('log');const d=document.createElement('div');if(cls)d.className=cls;d.textContent='> '+msg;b.appendChild(d);b.scrollTop=b.scrollHeight;}
+function clearLog(){document.getElementById('log').innerHTML='';}
+
+// ── Art upload ────────────────────────────────────────────────────
+document.getElementById('artFile').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>{userArt=ev.target.result;showArt(userArt);};r.readAsDataURL(f);
 });
-function showArt(src) {
-  document.getElementById('artPreview').innerHTML = `<img src="${src}" style="width:100%;max-height:110px;object-fit:cover;border-radius:4px"/>`;
-  document.getElementById('songArtThumb').innerHTML = `<img src="${src}"/>`;
+function showArt(src){
+  document.getElementById('artPreview').innerHTML=`<img src="${src}" style="width:100%;max-height:100px;object-fit:cover;border-radius:4px"/>`;
+  document.getElementById('songArtThumb').innerHTML=`<img src="${src}"/>`;
 }
 
-// ── Upload zone drag ──────────────────────────────────────────────────────────
-const uz = document.getElementById('uploadZone');
-uz.addEventListener('dragover', e=>{ e.preventDefault(); uz.classList.add('drag'); });
-uz.addEventListener('dragleave', ()=>uz.classList.remove('drag'));
-uz.addEventListener('drop', e=>{ e.preventDefault(); uz.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) handleAudio(f); });
-document.getElementById('audioFile').addEventListener('change', e=>{ if(e.target.files[0]) handleAudio(e.target.files[0]); });
+// ── Audio upload ──────────────────────────────────────────────────
+const uz=document.getElementById('uploadZone');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag');});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleAudio(f);});
+document.getElementById('audioFile').addEventListener('change',e=>{if(e.target.files[0])handleAudio(e.target.files[0]);});
 
-// ── Load + decode audio ───────────────────────────────────────────────────────
-async function handleAudio(file) {
-  audioFileObj = file;
-  clearLog();
-  log('Loading: ' + file.name);
-  document.getElementById('genBtn').disabled = true;
-
-  const fname = file.name.replace(/\.[^.]+$/,'');
-  if (!document.getElementById('songTitle').value) document.getElementById('songTitle').value = fname;
-
-  // ID3 art
-  try { await extractID3Art(file); } catch(e) {}
-
-  // Decode
-  let arrayBuf;
-  try { arrayBuf = await file.arrayBuffer(); } catch(e){ log('Could not read file: '+e.message,'err'); return; }
-  const actx = new (window.AudioContext||window.webkitAudioContext)();
-  try {
-    audioBuffer = await actx.decodeAudioData(arrayBuf);
-  } catch(e) { log('Audio decode failed: '+e.message,'err'); return; }
-
-  log(`Decoded: ${audioBuffer.duration.toFixed(1)}s at ${audioBuffer.sampleRate}Hz`, 'ok');
-
+async function handleAudio(file){
+  audioFileObj=file;clearLog();log('Loading: '+file.name);
+  document.getElementById('genBtn').disabled=true;
+  const fname=file.name.replace(/\.[^.]+$/,'');
+  if(!document.getElementById('songTitle').value)document.getElementById('songTitle').value=fname;
+  try{await extractID3Art(file);}catch(e){}
+  let ab; try{ab=await file.arrayBuffer();}catch(e){log('Read failed: '+e.message,'err');return;}
+  const actx=new(window.AudioContext||window.webkitAudioContext)();
+  try{audioBuffer=await actx.decodeAudioData(ab);}catch(e){log('Decode failed: '+e.message,'err');return;}
+  log(`Decoded: ${audioBuffer.duration.toFixed(1)}s`,'ok');
   document.getElementById('songInfoBar').classList.add('on');
-  document.getElementById('infoTitle').textContent = document.getElementById('songTitle').value || fname;
-  document.getElementById('infoArtist').textContent = document.getElementById('songArtist').value || 'Unknown Artist';
-  setProgress(25);
-
-  log('Analyzing energy...');
-  computeEnergy();
-  setProgress(55);
-
-  log('Detecting BPM...');
-  detectedBPM = detectBPM();
-  document.getElementById('bpmBadge').textContent = detectedBPM.toFixed(1) + ' BPM';
-  log('BPM detected: ' + detectedBPM.toFixed(1), 'ok');
-  setProgress(85);
-
-  drawWaveform();
-  drawEnergy();
-  document.getElementById('waveSection').style.display = 'flex';
-  setProgress(100);
-  updateDiffBadges();
-
-  document.getElementById('genBtn').disabled = false;
-  log('Ready — click Generate!', 'ok');
+  document.getElementById('infoTitle').textContent=document.getElementById('songTitle').value||fname;
+  document.getElementById('infoArtist').textContent=document.getElementById('songArtist').value||'Unknown Artist';
+  setP(25);log('Analyzing energy...');computeEnergy();setP(55);
+  log('Detecting BPM...');detectedBPM=detectBPM();
+  document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
+  log('BPM: '+detectedBPM.toFixed(1),'ok');setP(90);
+  drawWaveform();drawEnergy();document.getElementById('waveSection').style.display='flex';setP(100);
+  updateDiffBadges();document.getElementById('genBtn').disabled=false;log('Ready!','ok');
 }
+function setP(p){document.getElementById('analyzeProgress').style.width=p+'%';}
 
-function setProgress(p) { document.getElementById('analyzeProgress').style.width = p + '%'; }
-
-// ── ID3 album art ─────────────────────────────────────────────────────────────
-async function extractID3Art(file) {
-  const bytes = new Uint8Array(await file.slice(0, 300000).arrayBuffer());
-  if (bytes[0]!==0x49||bytes[1]!==0x44||bytes[2]!==0x33) return; // not ID3
-  for (let i=0; i<bytes.length-10; i++) {
-    if (bytes[i]===65&&bytes[i+1]===80&&bytes[i+2]===73&&bytes[i+3]===67) { // APIC
-      const fsize = (bytes[i+4]<<24)|(bytes[i+5]<<16)|(bytes[i+6]<<8)|bytes[i+7];
-      let o = i+10+1; // skip encoding byte
-      while (o<bytes.length && bytes[o]!==0) o++; o++; // skip mime + null
-      o++; // picture type
-      while (o<bytes.length && bytes[o]!==0) o++; o++; // skip desc + null
-      const img = bytes.slice(o, i+10+fsize);
-      const mime = (img[0]===0x89&&img[1]===0x50) ? 'image/png' : 'image/jpeg';
-      const blob = new Blob([img],{type:mime});
-      embeddedArt = await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); });
-      showArt(embeddedArt);
-      log('Album art extracted from file', 'ok');
-      return;
+// ── ID3 art ───────────────────────────────────────────────────────
+async function extractID3Art(file){
+  const b=new Uint8Array(await file.slice(0,300000).arrayBuffer());
+  if(b[0]!==73||b[1]!==68||b[2]!==51)return;
+  for(let i=0;i<b.length-10;i++){
+    if(b[i]===65&&b[i+1]===80&&b[i+2]===73&&b[i+3]===67){
+      const fs=(b[i+4]<<24)|(b[i+5]<<16)|(b[i+6]<<8)|b[i+7];
+      let o=i+11;while(o<b.length&&b[o]!==0)o++;o++;o++;while(o<b.length&&b[o]!==0)o++;o++;
+      const img=b.slice(o,i+10+fs);
+      const mime=(img[0]===0x89&&img[1]===0x50)?'image/png':'image/jpeg';
+      const blob=new Blob([img],{type:mime});
+      embeddedArt=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(blob);});
+      showArt(embeddedArt);log('Album art found in file','ok');return;
     }
   }
 }
 
-// ── Energy ────────────────────────────────────────────────────────────────────
-function computeEnergy() {
-  const d = audioBuffer.getChannelData(0);
-  const ws = Math.floor(audioBuffer.sampleRate * 0.1);
-  energyCurve = [];
-  for (let i=0; i<d.length-ws; i+=ws) {
-    let s=0; for(let j=0;j<ws;j++) s+=d[i+j]*d[i+j];
-    energyCurve.push(Math.sqrt(s/ws));
-  }
-  const mx = Math.max(...energyCurve)||1;
-  energyCurve = energyCurve.map(v=>v/mx);
+// ── Energy analysis ───────────────────────────────────────────────
+function computeEnergy(){
+  const d=audioBuffer.getChannelData(0),ws=Math.floor(audioBuffer.sampleRate*.1);
+  energyCurve=[];
+  for(let i=0;i<d.length-ws;i+=ws){let s=0;for(let j=0;j<ws;j++)s+=d[i+j]*d[i+j];energyCurve.push(Math.sqrt(s/ws));}
+  const mx=Math.max(...energyCurve)||1;energyCurve=energyCurve.map(v=>v/mx);
 }
 
-// ── BPM (autocorrelation) ─────────────────────────────────────────────────────
-function detectBPM() {
-  const d = audioBuffer.getChannelData(0);
-  const sr = audioBuffer.sampleRate;
-  const len = Math.min(d.length, sr*30);
-  const step = 512;
-  const rms = [];
+// ── BPM ───────────────────────────────────────────────────────────
+function detectBPM(){
+  const d=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate,len=Math.min(d.length,sr*30),step=512,rms=[];
   for(let i=0;i<len-step;i+=step){let s=0;for(let j=0;j<step;j++)s+=d[i+j]*d[i+j];rms.push(Math.sqrt(s/step));}
-  const minL = Math.floor(60/200*sr/step);
-  const maxL = Math.floor(60/60*sr/step);
-  let bestL=minL, bestC=-Infinity;
-  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<rms.length-lag;i++)c+=rms[i]*rms[i+lag];if(c>bestC){bestC=c;bestL=lag;}}
-  let bpm = 60/(bestL*step/sr);
-  if(bpm<80) bpm*=2; if(bpm>200) bpm/=2;
-  return Math.round(bpm*10)/10;
+  const minL=Math.floor(60/200*sr/step),maxL=Math.floor(60/60*sr/step);let bL=minL,bC=-Infinity;
+  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<rms.length-lag;i++)c+=rms[i]*rms[i+lag];if(c>bC){bC=c;bL=lag;}}
+  let bpm=60/(bL*step/sr);if(bpm<80)bpm*=2;if(bpm>200)bpm/=2;return Math.round(bpm*10)/10;
 }
 
-// ── Canvases ──────────────────────────────────────────────────────────────────
-function drawWaveform() {
-  const cv = document.getElementById('waveCanvas');
-  const cx = cv.getContext('2d');
-  cv.width = cv.offsetWidth||800; cv.height = 80;
-  const W=cv.width, H=80;
-  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
-  const d = audioBuffer.getChannelData(0);
-  const step = Math.floor(d.length/W);
-  cx.strokeStyle='#00f0ff55'; cx.lineWidth=1; cx.beginPath();
-  for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const v=d[x*step+j]||0;if(v<mn)mn=v;if(v>mx)mx=v;}cx.moveTo(x,(1-mx)/2*H);cx.lineTo(x,(1-mn)/2*H);}
-  cx.stroke();
-  if(energyCurve.length){cx.strokeStyle='#ff3cac99';cx.lineWidth=2;cx.beginPath();energyCurve.forEach((v,i)=>{const x=i/energyCurve.length*W,y=H-v*H*.85;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();}
+// ── Canvases ──────────────────────────────────────────────────────
+function drawWaveform(){
+  const cv=document.getElementById('waveCanvas'),cx=cv.getContext('2d');
+  cv.width=cv.offsetWidth||800;cv.height=80;const W=cv.width,H=80;
+  cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
+  const d=audioBuffer.getChannelData(0),step=Math.floor(d.length/W);
+  cx.strokeStyle='#00f0ff44';cx.lineWidth=1;cx.beginPath();
+  for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const v=d[x*step+j]||0;if(v<mn)mn=v;if(v>mx)mx=v;}cx.moveTo(x,(1-mx)/2*H);cx.lineTo(x,(1-mn)/2*H);}cx.stroke();
+  if(energyCurve.length){cx.strokeStyle='#ff3cac88';cx.lineWidth=2;cx.beginPath();energyCurve.forEach((v,i)=>{const x=i/energyCurve.length*W,y=H-v*H*.8;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();}
 }
-function drawEnergy() {
-  const cv = document.getElementById('energyCanvas');
-  const cx = cv.getContext('2d');
-  cv.width = cv.offsetWidth||800; cv.height = 55;
-  const W=cv.width, H=55;
-  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
-  if(!energyCurve.length) return;
-  const sm=energyCurve.map((v,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-8);j<Math.min(a.length,i+8);j++){s+=a[j];c++;}return s/c;});
-  const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#7b2fff99');g.addColorStop(1,'#7b2fff00');
-  cx.beginPath();cx.moveTo(0,H);sm.forEach((v,i)=>{cx.lineTo(i/sm.length*W,H-v*H*.88);});cx.lineTo(W,H);cx.closePath();cx.fillStyle=g;cx.fill();
-  cx.beginPath();cx.strokeStyle='#7b2fff';cx.lineWidth=2;sm.forEach((v,i)=>{const x=i/sm.length*W,y=H-v*H*.88;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();
-  cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.fillText('ENERGY',5,12);
+function drawEnergy(){
+  const cv=document.getElementById('energyCanvas'),cx=cv.getContext('2d');
+  cv.width=cv.offsetWidth||800;cv.height=50;const W=cv.width,H=50;
+  cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
+  if(!energyCurve.length)return;
+  const sm=energyCurve.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-8);j<Math.min(a.length,i+8);j++){s+=a[j];c++;}return s/c;});
+  const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#7b2fff88');g.addColorStop(1,'#7b2fff00');
+  cx.beginPath();cx.moveTo(0,H);sm.forEach((v,i)=>cx.lineTo(i/sm.length*W,H-v*H*.85));cx.lineTo(W,H);cx.closePath();cx.fillStyle=g;cx.fill();
+  cx.beginPath();cx.strokeStyle='#7b2fff';cx.lineWidth=2;sm.forEach((v,i)=>{const x=i/sm.length*W,y=H-v*H*.85;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();
+  cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.fillText('ENERGY',5,11);
 }
 
-// ── Diff badges ───────────────────────────────────────────────────────────────
-function getDiffs() {
-  const mn=+document.getElementById('diffMin').value, mx=+document.getElementById('diffMax').value;
-  const n=+document.getElementById('diffCount').value;
-  if(n===1) return [mx];
-  if(n===2) return [Math.round((mn+mx)/2), mx];
-  return [mn, Math.round((mn+mx)/2), mx];
+// ── Diff badges ───────────────────────────────────────────────────
+function getDiffs(){
+  const mn=+document.getElementById('diffMin').value,mx=+document.getElementById('diffMax').value,n=+document.getElementById('diffCount').value;
+  if(n===1)return[mx];if(n===2)return[Math.round((mn+mx)/2),mx];return[mn,Math.round((mn+mx)/2),mx];
 }
-function updateDiffBadges() {
-  const diffs = getDiffs();
-  const names=['Easy','Medium','Hard'], cls=['easy','med','hard'];
-  document.getElementById('diffBadges').innerHTML = diffs.map((d,i)=>`<div class="db ${cls[i]||'hard'}">${names[i]||'Chart'} · Block ${d}</div>`).join('');
+function updateDiffBadges(){
+  const diffs=getDiffs(),names=['Easy','Medium','Hard'],cls=['easy','med','hard'];
+  document.getElementById('diffBadges').innerHTML=diffs.map((d,i)=>`<div class="db ${cls[i]||'hard'}">${names[i]} · Blk ${d}</div>`).join('');
 }
 updateDiffBadges();
 
-// ── Foot logic ────────────────────────────────────────────────────────────────
-// Panels: 0=Left(L) 1=Down(L) 2=Up(R) 3=Right(R)
-function footOf(p){ return (p===0||p===1)?'L':'R'; }
-function pickPanel(lastFoot, sameFoot, lastPanel, enforceAlt, jackTol, allowCross) {
-  let pool;
-  if (enforceAlt) {
-    if (sameFoot < jackTol) {
-      pool = lastFoot==='L' ? [0,1] : [2,3];
-      if (jackTol===0) pool = pool.filter(p=>p!==lastPanel);
-    } else {
-      pool = lastFoot==='L' ? [2,3] : [0,1];
-    }
-  } else {
-    pool = [0,1,2,3].filter(p=>p!==lastPanel);
+// ═══════════════════════════════════════════════════════════════════
+// CHART GENERATION - PATTERN-BASED ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+// Which foot hits a given panel?  L/D = left, U/R = right
+function footOf(p){return(p===0||p===1)?'L':'R';}
+
+// Validate a pattern sequence for foot alternation
+// Returns true if each step alternates feet (allowing jackTol same-foot repeats)
+function validatePattern(seq, startFoot, jackTol){
+  let foot=startFoot,same=0;
+  for(const p of seq){
+    const f=footOf(p);
+    if(f===foot){same++;if(same>jackTol)return false;}
+    else{same=0;foot=f;}
   }
-  if (!allowCross) pool = pool.filter(p=>!(lastFoot==='L'&&p===3)&&!(lastFoot==='R'&&p===0));
-  if (!pool.length) pool = lastFoot==='L'?[2,3]:[0,1];
+  return true;
+}
+
+// Get the last foot used after playing a pattern
+function patternEndFoot(seq, startFoot){
+  let f=startFoot;
+  for(const p of seq)f=footOf(p);
+  return f;
+}
+
+// Pick a suitable pattern given current context
+function pickPattern(block, lastFoot, energyLevel, jackTol, allowCross) {
+  // Get available patterns for this difficulty
+  let pool = [...activePats].filter(name => {
+    const p = PATTERNS[name];
+    if (p.minDiff > block) return false;
+    if (!allowCross && p.cat === 'crossover') return false;
+    if (!allowCross && p.cat === 'sideswitch') return false;
+    // Drills and footswitches need higher energy
+    if ((p.cat === 'drill' || p.cat === 'footswitch') && energyLevel < 0.5) return false;
+    // Splits only at high energy + high block
+    if (p.cat === 'split' && (energyLevel < 0.7 || block < 8)) return false;
+    return true;
+  });
+
+  if (!pool.length) pool = ['Run L→R', 'Run R→L', 'Staircase Up', 'Staircase Down'].filter(n=>activePats.has(n));
+  if (!pool.length) pool = Object.keys(PATTERNS).slice(0,2);
+
+  // Prefer patterns that start on the opposite foot from lastFoot
+  const goodStart = pool.filter(name => {
+    const seq = PATTERNS[name].seq;
+    return footOf(seq[0]) !== lastFoot;
+  });
+  if (goodStart.length) pool = goodStart;
+
+  // Validate alternation
+  const valid = pool.filter(name => validatePattern(PATTERNS[name].seq, lastFoot, jackTol));
+  if (valid.length) pool = valid;
+
   return pool[Math.floor(Math.random()*pool.length)];
 }
 
-// ── Chart generation ──────────────────────────────────────────────────────────
-function generateChart(block, bpm, energy, duration) {
-  const enforceAlt = document.getElementById('enforceAlt').checked;
-  const jackTol    = +document.getElementById('jackTol').value;
-  const allowCross = document.getElementById('allowCross').checked;
-  const maxRun     = +document.getElementById('maxRun').value;
-  const minBreak   = +document.getElementById('minBreak').value;
-  const subdiv     = document.getElementById('subdivision').value;
-  const leadIn     = +document.getElementById('offset').value;
-  const energyOn   = document.getElementById('energyAware').checked;
-  const breaksOn   = document.getElementById('forceBreaks').checked;
+// ── Subdivision decision based on energy ─────────────────────────
+// Returns rows-per-beat for current energy level
+function subdivForEnergy(energy) {
+  if (energy < 0.18) return 1;   // 4th notes — very slow/silent
+  if (energy < 0.42) return 2;   // 8th notes — moderate
+  return 4;                       // 16th notes — active sections
+}
 
-  const rpb = subdiv==='8' ? 2 : 4; // rows per beat
+// ── Main chart generator ──────────────────────────────────────────
+function generateChart(block, bpm, energy, duration) {
+  const jackTol   = 0; // strict alt feet
+  const allowCross= document.getElementById('energyAware') && block >= 5; // crossovers only at higher blocks
+  const maxRun    = +document.getElementById('maxRun').value;
+  const minBreak  = +document.getElementById('minBreak').value;
+  const leadIn    = +document.getElementById('offset').value;
+  const energyOn  = document.getElementById('energyAware').checked;
+  const breaksOn  = document.getElementById('forceBreaks').checked;
+
   const beatDur = 60/bpm;
   const totalBeats = Math.floor(duration/beatDur);
-  const totalRows = totalBeats*rpb;
-  const notes = new Array(totalRows).fill(-1);
   const leadBeats = Math.ceil(leadIn/beatDur);
 
   // Smooth energy per beat
-  const eBeat = [];
-  for(let b=0;b<totalBeats;b++){
-    const t=b*beatDur/duration;
-    const idx=Math.floor(t*energy.length);
-    eBeat.push(energy[Math.min(idx,energy.length-1)]||0);
-  }
-  const sm=(arr,w=6)=>arr.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-w);j<Math.min(a.length,i+w);j++){s+=a[j];c++;}return s/c;});
-  const smoothE = sm(eBeat);
+  const eBeat=[];
+  for(let b=0;b<totalBeats;b++){const t=b*beatDur/duration;const idx=Math.floor(t*energy.length);eBeat.push(energy[Math.min(idx,energy.length-1)]||0);}
+  const smooth=(arr,w=8)=>arr.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-w);j<Math.min(a.length,i+w);j++){s+=a[j];c++;}return s/c;});
+  const smoothE=smooth(eBeat);
 
-  let lastFoot='R', lastPanel=3, sameFoot=0;
-  let runLen=0, inBreak=false, breakLen=0;
+  // We'll store notes as {beat, subBeat, panel}  (subBeat: 0=quarter, 0/2=8th, 0/1/2/3=16th)
+  // Then convert to SM rows at the end at 16th resolution (4 rows/beat)
+  const noteList = []; // {row, panel}
+  const ROWS_PER_BEAT = 4; // always store at 16th resolution
+  const totalRows = totalBeats * ROWS_PER_BEAT;
 
-  for(let b=leadBeats;b<totalBeats;b++){
+  let lastFoot = 'R';
+  let runLen = 0, inBreak = false, breakLen = 0;
+  let b = leadBeats;
+
+  while (b < totalBeats) {
     const e = energyOn ? smoothE[b] : 0.65;
+    const eScaled = e; // 0-1
 
     // Run/break state machine
-    if(!inBreak){
-      runLen++;
-      if(runLen>=maxRun || (breaksOn && e<0.22 && runLen>6)){
-        inBreak=true; breakLen=0; runLen=0;
+    if (!inBreak) {
+      if (runLen >= maxRun || (breaksOn && e < 0.2 && runLen > 4)) {
+        inBreak = true; breakLen = 0; runLen = 0; b++; continue;
       }
     } else {
       breakLen++;
-      if(breakLen>=minBreak && (!breaksOn||e>0.28)){
-        inBreak=false; runLen=0;
-      }
+      if (breakLen >= minBreak && (!breaksOn || e > 0.25)) {
+        inBreak = false; runLen = 0;
+      } else { b++; continue; }
     }
-    if(inBreak) continue;
 
-    // Density: higher block + energy = more notes this beat
-    const density = subdiv==='mix'
-      ? (e>0.5 ? rpb : Math.max(1,Math.floor(rpb/2)))
-      : Math.max(1, Math.round(e * rpb * (block/12) + rpb*(block/14)));
-    const clampedDensity = Math.min(density, rpb);
+    // Pick subdivision for this beat based on energy
+    const rpb = energyOn ? subdivForEnergy(eScaled) : 4;
+    const rowStep = ROWS_PER_BEAT / rpb; // e.g. 4 for quarters, 2 for 8ths, 1 for 16ths
 
-    // Pick which rows in this beat to fill
-    const rowStart = b*rpb;
-    const positions = [...Array(rpb).keys()];
-    const chosen = positions.sort(()=>Math.random()-.5).slice(0,clampedDensity).sort((a,z)=>a-z);
+    // Pick a pattern that fits within this subdivision chunk
+    const patName = pickPattern(block, lastFoot, eScaled, jackTol, block >= 6);
+    const pat = PATTERNS[patName];
+    const seq = pat.seq;
 
-    for(const r of chosen){
-      const row=rowStart+r;
-      if(row>=totalRows) continue;
-      const panel = pickPanel(lastFoot, sameFoot, lastPanel, enforceAlt, jackTol, allowCross);
-      const nf = footOf(panel);
-      sameFoot = (nf===lastFoot) ? sameFoot+1 : 0;
-      lastFoot=nf; lastPanel=panel;
-      notes[row]=panel;
+    // Place pattern notes starting at beat b, using rowStep spacing
+    let row = b * ROWS_PER_BEAT;
+    let foot = lastFoot;
+    let placed = 0;
+
+    for (let si = 0; si < seq.length; si++) {
+      const noteRow = row + si * rowStep;
+      if (noteRow >= totalRows || Math.floor(noteRow / ROWS_PER_BEAT) >= totalBeats) break;
+      noteList.push({row: Math.round(noteRow), panel: seq[si]});
+      foot = footOf(seq[si]);
+      placed++;
     }
+
+    lastFoot = foot;
+    runLen++;
+
+    // Advance beats consumed by this pattern
+    const beatsConsumed = Math.ceil(seq.length * rowStep / ROWS_PER_BEAT);
+    b += Math.max(1, beatsConsumed);
   }
-  return {notes, rpb};
+
+  // Convert noteList to flat array
+  const notes = new Array(totalRows).fill(-1);
+  for (const {row, panel} of noteList) {
+    if (row >= 0 && row < totalRows) notes[row] = panel;
+  }
+
+  return {notes, rpb: ROWS_PER_BEAT};
 }
 
-// ── SM serialization ──────────────────────────────────────────────────────────
-function notesToSM(notes, rpb) {
-  const rpm = 4*rpb; // rows per measure
+// ── SM serialization ──────────────────────────────────────────────
+function notesToSM(notes){
+  const rpm=16; // 4 rows/beat × 4 beats/measure at 16th resolution
   const measures=[];
   for(let i=0;i<notes.length;i+=rpm){
-    const m=notes.slice(i,i+rpm);
-    while(m.length<rpm) m.push(-1);
-    measures.push(m);
+    const m=notes.slice(i,i+rpm);while(m.length<rpm)m.push(-1);measures.push(m);
   }
   return measures.map(m=>m.map(p=>{const r=['0','0','0','0'];if(p>=0)r[p]='1';return r.join('');}).join('\n')).join('\n,\n');
 }
 
-function buildSM(title, artist, bpm, offset, charts, audioExt) {
+function buildSM(title,artist,bpm,offset,charts,ext){
   const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
-  const base = 5-charts.length;
-  const header =
-`#TITLE:${title};
-#SUBTITLE:;
-#ARTIST:${artist};
-#TITLETRANSLIT:;
-#SUBTITLETRANSLIT:;
-#ARTISTTRANSLIT:;
-#GENRE:;
-#CREDIT:ITG StepGen;
-#BANNER:banner.png;
-#BACKGROUND:bg.png;
-#CDTITLE:;
-#MUSIC:song.${audioExt};
-#OFFSET:-${offset.toFixed(6)};
-#SAMPLESTART:12.000;
-#SAMPLELENGTH:13.000;
-#SELECTABLE:YES;
-#BPMS:0.000=${bpm.toFixed(3)};
-#STOPS:;
-`;
-  const chartBlocks = charts.map((c,i)=>{
-    const name = diffNames[Math.min(base+i, diffNames.length-1)];
-    return `#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes,c.rpb)}\n;`;
-  }).join('\n\n');
-  return header + '\n' + chartBlocks;
+  const base=5-charts.length;
+  const hdr=`#TITLE:${title};\n#SUBTITLE:;\n#ARTIST:${artist};\n#TITLETRANSLIT:;\n#SUBTITLETRANSLIT:;\n#ARTISTTRANSLIT:;\n#GENRE:;\n#CREDIT:ITG StepGen;\n#BANNER:banner.png;\n#BACKGROUND:bg.png;\n#CDTITLE:;\n#MUSIC:song.${ext};\n#OFFSET:-${offset.toFixed(6)};\n#SAMPLESTART:12.000;\n#SAMPLELENGTH:13.000;\n#SELECTABLE:YES;\n#BPMS:0.000=${bpm.toFixed(3)};\n#STOPS:;\n\n`;
+  const cblocks=charts.map((c,i)=>{const name=diffNames[Math.min(base+i,4)];return`#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes)}\n;`;}).join('\n\n');
+  return hdr+cblocks;
 }
 
-// ── Image generation ──────────────────────────────────────────────────────────
-function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
-async function makeImg(title, artist, w, h, artImg) {
-  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-  const cx=cv.getContext('2d');
-  if(artImg){ cx.drawImage(artImg,0,0,w,h); }
-  else {
-    const g=cx.createLinearGradient(0,0,w,h); g.addColorStop(0,'#0a0014'); g.addColorStop(1,'#000e1a');
-    cx.fillStyle=g; cx.fillRect(0,0,w,h);
-    cx.globalAlpha=.05; cx.fillStyle='#fff'; cx.font=`${Math.min(w,h)*.55}px sans-serif`; cx.textAlign='center'; cx.fillText('▼',w/2,h*.65); cx.globalAlpha=1;
-  }
-  const og=cx.createLinearGradient(0,h*.45,0,h); og.addColorStop(0,'rgba(0,0,0,0)'); og.addColorStop(1,'rgba(0,0,0,.85)');
-  cx.fillStyle=og; cx.fillRect(0,0,w,h);
-  const fs=Math.min(h==='banner'?22:Math.floor(w/title.length*1.6), w==='banner'?22:38);
-  const titleFs = w===418 ? Math.min(20,w/(title.length+2)*1.4) : Math.min(36,w/(title.length+2)*1.6);
-  cx.shadowColor='#000'; cx.shadowBlur=10;
-  cx.fillStyle='#fff'; cx.font=`bold ${titleFs}px sans-serif`; cx.textAlign='center';
-  cx.fillText(title, w/2, h-(w===418?20:55));
-  cx.font=`${titleFs*.62}px sans-serif`; cx.fillStyle='#aaaaee';
-  cx.fillText(artist, w/2, h-(w===418?4:28));
+// ── Image generation ──────────────────────────────────────────────
+function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
+async function makeImg(title,artist,w,h,artImg){
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');
+  if(artImg){cx.drawImage(artImg,0,0,w,h);}
+  else{const g=cx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0a0014');g.addColorStop(1,'#000e1a');cx.fillStyle=g;cx.fillRect(0,0,w,h);cx.globalAlpha=.05;cx.fillStyle='#fff';cx.font=`${Math.min(w,h)*.55}px sans-serif`;cx.textAlign='center';cx.fillText('▼',w/2,h*.65);cx.globalAlpha=1;}
+  const og=cx.createLinearGradient(0,h*.45,0,h);og.addColorStop(0,'rgba(0,0,0,0)');og.addColorStop(1,'rgba(0,0,0,.85)');cx.fillStyle=og;cx.fillRect(0,0,w,h);
+  const tfs=Math.min(w===418?20:34,w/(title.length+2)*1.5);
+  cx.shadowColor='#000';cx.shadowBlur=10;cx.fillStyle='#fff';cx.font=`bold ${tfs}px sans-serif`;cx.textAlign='center';cx.fillText(title,w/2,h-(w===418?19:52));
+  cx.font=`${tfs*.62}px sans-serif`;cx.fillStyle='#aaaaee';cx.fillText(artist,w/2,h-(w===418?4:27));
   return new Promise(res=>cv.toBlob(res,'image/png'));
 }
 
-// ── GENERATE BUTTON ───────────────────────────────────────────────────────────
-document.getElementById('genBtn').addEventListener('click', async () => {
-  if(!audioBuffer){ log('No audio loaded!','err'); return; }
-
-  const btn = document.getElementById('genBtn');
-  btn.disabled=true; btn.textContent='⏳ Generating...';
-
-  try {
-    const title  = document.getElementById('songTitle').value  || 'Unknown';
-    const artist = document.getElementById('songArtist').value || 'Unknown Artist';
-    const bpm    = detectedBPM;
-    const offset = +document.getElementById('offset').value;
-    const diffs  = getDiffs();
-    const ext    = audioFileObj ? audioFileObj.name.split('.').pop() : 'mp3';
+// ── GENERATE BUTTON ───────────────────────────────────────────────
+document.getElementById('genBtn').addEventListener('click', async()=>{
+  if(!audioBuffer){log('No audio loaded!','err');return;}
+  const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='⏳ Generating...';
+  try{
+    const title=document.getElementById('songTitle').value||'Unknown';
+    const artist=document.getElementById('songArtist').value||'Unknown Artist';
+    const bpm=detectedBPM;
+    const offset=+document.getElementById('offset').value;
+    const diffs=getDiffs();
+    const ext=audioFileObj?audioFileObj.name.split('.').pop():'mp3';
 
     log(`Generating ${diffs.length} chart(s): blocks ${diffs.join(', ')}`);
-
-    const charts = [];
+    const charts=[];
     for(const block of diffs){
       log(`Building block ${block}...`);
-      const {notes, rpb} = generateChart(block, bpm, energyCurve, audioBuffer.duration);
-      const noteCount = notes.filter(n=>n>=0).length;
-      log(`  Block ${block}: ${noteCount} notes`, 'ok');
-      charts.push({block, notes, rpb});
+      const {notes,rpb}=generateChart(block,bpm,energyCurve,audioBuffer.duration);
+      const nc=notes.filter(n=>n>=0).length;
+      log(`  Block ${block}: ${nc} notes placed`,'ok');
+      charts.push({block,notes,rpb});
     }
 
-    log('Writing .sm file...');
-    const smText = buildSM(title, artist, bpm, offset, charts, ext);
+    log('Writing .sm...');
+    const smText=buildSM(title,artist,bpm,offset,charts,ext);
 
     log('Generating artwork...');
-    const artSrc = userArt || embeddedArt || null;
-    const artImg = artSrc ? await loadImg(artSrc) : null;
-
-    const bannerBlob = await makeImg(title, artist, 418, 164, artImg);
-    const bgBlob     = await makeImg(title, artist, 640, 480, artImg);
-    const jacketBlob = await makeImg(title, artist, 512, 512, artImg);
+    const artSrc=userArt||embeddedArt||null;
+    const artImg=artSrc?await loadImg(artSrc):null;
+    const bannerBlob=await makeImg(title,artist,418,164,artImg);
+    const bgBlob=await makeImg(title,artist,640,480,artImg);
+    const jacketBlob=await makeImg(title,artist,512,512,artImg);
 
     log('Packing ZIP...');
-    const zip = new JSZip();
-    const safe = title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
-    const folder = zip.folder(safe);
-    folder.file('song.sm', smText);
-    folder.file('banner.png', bannerBlob);
-    folder.file('bg.png',     bgBlob);
-    folder.file('jacket.png', jacketBlob);
-    if(audioFileObj) folder.file(`song.${ext}`, audioFileObj);
+    const zip=new JSZip();
+    const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
+    const folder=zip.folder(safe);
+    folder.file('song.sm',smText);
+    folder.file('banner.png',bannerBlob);
+    folder.file('bg.png',bgBlob);
+    folder.file('jacket.png',jacketBlob);
+    if(audioFileObj)folder.file(`song.${ext}`,audioFileObj);
 
-    const zipBlob = await zip.generateAsync({type:'blob', compression:'DEFLATE'});
-
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement('a'); a.href=url; a.download=`${safe}.zip`; a.click();
+    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+    const url=URL.createObjectURL(zipBlob);
+    const a=document.createElement('a');a.href=url;a.download=`${safe}.zip`;a.click();
     URL.revokeObjectURL(url);
-
-    log(`✓ Downloaded "${safe}.zip" — drop the folder into your Songs directory`, 'ok');
-  } catch(err) {
-    log('Error: ' + err.message, 'err');
-    console.error(err);
-  }
-
-  btn.disabled=false; btn.textContent='⚡ GENERATE STEP FILE';
+    log(`✓ Downloaded "${safe}.zip" — drop folder into Songs/`,'ok');
+  }catch(err){log('Error: '+err.message,'err');console.error(err);}
+  btn.disabled=false;btn.textContent='⚡ GENERATE STEP FILE';
 });
 </script>
 </body>

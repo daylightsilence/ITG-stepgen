@@ -65,7 +65,10 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 .pat-tabs{display:flex;gap:4px;margin-bottom:8px;}
 .pat-tab{flex:1;padding:4px 0;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.06em;text-align:center;border-radius:4px;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s;user-select:none;}
 .pat-tab.active{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.18);}
-.pat-group-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 3px;padding-left:2px;}
+.pat-group-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 3px;padding-left:2px;display:flex;justify-content:space-between;align-items:center;}
+.grp-tog{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:.06em;padding:2px 6px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+.grp-tog:hover{border-color:var(--accent2);color:var(--accent2);}
+.grp-tog.all-on{border-color:var(--accent3);color:var(--accent3);}
 .pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
 .pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
 .pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
@@ -118,17 +121,35 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
         <div class="pat-tab" id="tabTech" onclick="setPatTab('tech')">TECH</div>
       </div>
       <div id="patContainer">
-        <div class="pat-group-label" id="labelStamina">— Stamina —</div>
+        <div class="pat-group-label" id="labelStamina">
+          <span>— Stamina —</span>
+          <button class="grp-tog" id="togStamina" onclick="toggleGroup('stamina')">ALL OFF</button>
+        </div>
         <div class="pat-grid" id="patGridStamina"></div>
-        <div class="pat-group-label" id="labelTech" style="margin-top:8px">— Tech —</div>
+        <div class="pat-group-label" id="labelTech" style="margin-top:8px">
+          <span>— Tech —</span>
+          <button class="grp-tog" id="togTech" onclick="toggleGroup('tech')">ALL OFF</button>
+        </div>
         <div class="pat-grid" id="patGridTech"></div>
       </div>
+    </div>
+    <div>
+      <div class="sec">Melody Sync</div>
+      <div class="tog-row">
+        <label>Snap steps to melody onsets</label>
+        <label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label>
+      </div>
+      <div class="tog-row">
+        <label>Double tap on repeated notes</label>
+        <label class="toggle"><input type="checkbox" id="doubleTap" checked/><span class="sl"></span></label>
+      </div>
+      <div class="field"><label>Onset sensitivity <span id="onsetSensVal">0.4</span></label><input type="range" id="onsetSens" min="0.1" max="0.9" value="0.4" step="0.05"/></div>
+      <div class="field"><label>Repeat window (ms) <span id="repeatWinVal">200</span></label><input type="range" id="repeatWin" min="50" max="500" value="200" step="25"/></div>
     </div>
     <div>
       <div class="sec">Stream Rules</div>
       <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
       <div class="field"><label>Min break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
-      <div class="tog-row"><label>Energy-aware density</label><label class="toggle"><input type="checkbox" id="energyAware" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
     </div>
     <div>
@@ -280,18 +301,36 @@ function applyTabFilter() {
   });
 }
 
+function toggleGroup(group) {
+  const chips = document.querySelectorAll(`.pat-chip[data-group="${group}"]`);
+  const btn   = document.getElementById('tog' + group.charAt(0).toUpperCase() + group.slice(1));
+  // Check if all are currently on
+  const allOn = [...chips].every(c => c.classList.contains('on'));
+  chips.forEach(chip => {
+    const name = chip.dataset.name;
+    if(allOn){
+      activePats.delete(name); chip.classList.remove('on');
+    } else {
+      activePats.add(name); chip.classList.add('on');
+    }
+  });
+  btn.textContent = allOn ? 'ALL ON'  : 'ALL OFF';
+  btn.classList.toggle('all-on', !allOn);
+}
+
 buildPatChips();
 
 // ═══════════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════════
 let audioBuffer = null, audioFileObj = null;
-let detectedBPM = 120, energyCurve = [];
+let detectedBPM = 120, energyCurve = [], onsetTimes = [], sectionMap = [];
 let embeddedArt = null, userArt = null;
 
 // ── Sliders ───────────────────────────────────────────────────────
 [['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
- ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['offset','offsetVal','']
+ ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['offset','offsetVal',''],
+ ['onsetSens','onsetSensVal',''],['repeatWin','repeatWinVal','']
 ].forEach(([id,vid,u])=>{
   document.getElementById(id).addEventListener('input',()=>{
     document.getElementById(vid).textContent=document.getElementById(id).value+u;
@@ -334,10 +373,12 @@ async function handleAudio(file){
   document.getElementById('songInfoBar').classList.add('on');
   document.getElementById('infoTitle').textContent=document.getElementById('songTitle').value||fname;
   document.getElementById('infoArtist').textContent=document.getElementById('songArtist').value||'Unknown Artist';
-  setP(25);log('Analyzing energy...');computeEnergy();setP(55);
+  setP(25);log('Analyzing energy...');computeEnergy();setP(45);
+  log('Detecting onsets...');computeOnsets();setP(65);
   log('Detecting BPM...');detectedBPM=detectBPM();
   document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
-  log('BPM: '+detectedBPM.toFixed(1),'ok');setP(90);
+  log('BPM: '+detectedBPM.toFixed(1),'ok');setP(80);
+  log('Mapping sections...');sectionMap=buildSectionMap(detectedBPM,audioBuffer.duration);setP(90);
   drawWaveform();drawEnergy();document.getElementById('waveSection').style.display='flex';setP(100);
   updateDiffBadges();document.getElementById('genBtn').disabled=false;log('Ready!','ok');
 }
@@ -366,6 +407,226 @@ function computeEnergy(){
   energyCurve=[];
   for(let i=0;i<d.length-ws;i+=ws){let s=0;for(let j=0;j<ws;j++)s+=d[i+j]*d[i+j];energyCurve.push(Math.sqrt(s/ws));}
   const mx=Math.max(...energyCurve)||1;energyCurve=energyCurve.map(v=>v/mx);
+}
+
+// ── Onset detection via spectral flux ────────────────────────────
+// Divides audio into FFT frames, measures how much the spectrum
+// increases frame-to-frame (flux). Peaks = note onsets.
+function computeOnsets(){
+  const sr   = audioBuffer.sampleRate;
+  const data = audioBuffer.getChannelData(0);
+  const FFT_SIZE  = 1024;
+  const HOP       = 512;   // 50% overlap
+  const HALF      = FFT_SIZE / 2;
+
+  // Simple DFT magnitude per frame (real-signal, only positive freqs)
+  function fftMag(frame) {
+    const mag = new Float32Array(HALF);
+    for (let k = 0; k < HALF; k++) {
+      let re = 0, im = 0;
+      for (let n = 0; n < FFT_SIZE; n++) {
+        const angle = -2 * Math.PI * k * n / FFT_SIZE;
+        re += frame[n] * Math.cos(angle);
+        im += frame[n] * Math.sin(angle);
+      }
+      mag[k] = Math.sqrt(re*re + im*im);
+    }
+    return mag;
+  }
+
+  // Use OfflineAudioContext + AnalyserNode for efficient FFT
+  // Build frame list manually using Web Audio API's getFloatTimeDomainData
+  // Since we can't use real OfflineAudioContext easily here, use a fast
+  // approximation: half-wave rectified spectral flux on energy bands
+
+  const BAND_SIZE = 64; // samples per energy band
+  const numFrames = Math.floor((data.length - FFT_SIZE) / HOP);
+  const flux = new Float32Array(numFrames);
+
+  let prevMags = new Float32Array(HALF);
+
+  // Hann window
+  const hann = new Float32Array(FFT_SIZE);
+  for(let i=0;i<FFT_SIZE;i++) hann[i]=0.5*(1-Math.cos(2*Math.PI*i/FFT_SIZE));
+
+  // For speed, use a coarser approach: split spectrum into 8 bands,
+  // measure RMS per band per hop frame, compute half-wave rectified flux
+  const NUM_BANDS = 8;
+  const BAND_BINS = Math.floor(HALF / NUM_BANDS);
+  let prevBands = new Float32Array(NUM_BANDS);
+  const frameFlux = [];
+  const frameTimes = [];
+
+  for(let f=0; f<numFrames; f++){
+    const start = f * HOP;
+    const bands = new Float32Array(NUM_BANDS);
+    // For each band, compute RMS of windowed samples in that freq region
+    // Approximate: use time-domain windowed energy in sub-segments
+    for(let b=0; b<NUM_BANDS; b++){
+      const segStart = start + Math.floor(b * FFT_SIZE / NUM_BANDS);
+      const segEnd   = segStart + Math.floor(FFT_SIZE / NUM_BANDS);
+      let s = 0, cnt = 0;
+      for(let i=segStart; i<segEnd && i<data.length; i++){
+        s += data[i]*data[i]; cnt++;
+      }
+      bands[b] = cnt ? Math.sqrt(s/cnt) : 0;
+    }
+
+    // Half-wave rectified spectral flux: sum of positive differences
+    let fluxVal = 0;
+    for(let b=0; b<NUM_BANDS; b++){
+      const diff = bands[b] - prevBands[b];
+      if(diff > 0) fluxVal += diff;
+    }
+    prevBands = bands;
+    frameFlux.push(fluxVal);
+    frameTimes.push(start / sr);
+  }
+
+  // Normalize flux
+  const maxFlux = Math.max(...frameFlux) || 1;
+  const normFlux = frameFlux.map(v => v / maxFlux);
+
+  // Peak picking: local maxima above adaptive threshold
+  const sensitivity = +document.getElementById('onsetSens').value;
+  const WINDOW = 10; // local window for threshold
+  onsetTimes = [];
+
+  for(let i=1; i<normFlux.length-1; i++){
+    const v = normFlux[i];
+    // Local mean threshold
+    let sum=0, cnt=0;
+    for(let j=Math.max(0,i-WINDOW); j<Math.min(normFlux.length,i+WINDOW); j++){sum+=normFlux[j];cnt++;}
+    const localMean = sum/cnt;
+    const threshold = localMean + sensitivity;
+
+    if(v > threshold && v > normFlux[i-1] && v > normFlux[i+1]){
+      // Suppress duplicates within 40ms
+      const t = frameTimes[i];
+      if(!onsetTimes.length || t - onsetTimes[onsetTimes.length-1] > 0.04){
+        onsetTimes.push(t);
+      }
+    }
+  }
+  log(`Onsets detected: ${onsetTimes.length}`,'ok');
+}
+
+// ── Section map: classify each beat as 'run', 'melody', or 'rest' ─
+// Called after computeEnergy and computeOnsets, before generate.
+// Returns array[beat] = 'run' | 'melody' | 'rest'
+function buildSectionMap(bpm, duration) {
+  const beatDur    = 60 / bpm;
+  const totalBeats = Math.floor(duration / beatDur);
+  const map        = new Array(totalBeats).fill('rest');
+
+  // ── Per-beat stats ────────────────────────────────────────────
+  // energy already smoothed in energyCurve (per 100ms window)
+  const windowsPerBeat = beatDur / 0.1; // energyCurve windows per beat
+
+  // Onset density per beat: how many onsets fall in each beat
+  const onsetDensity = new Array(totalBeats).fill(0);
+  for(const t of onsetTimes){
+    const b = Math.floor(t / beatDur);
+    if(b >= 0 && b < totalBeats) onsetDensity[b]++;
+  }
+
+  // Smooth onset density over ±2 beats
+  const smoothDensity = onsetDensity.map((_,i,a)=>{
+    let s=0,c=0;
+    for(let j=Math.max(0,i-2);j<=Math.min(a.length-1,i+2);j++){s+=a[j];c++;}
+    return s/c;
+  });
+
+  // Per-beat energy from energyCurve
+  const beatEnergy = [];
+  for(let b=0;b<totalBeats;b++){
+    const idx0 = Math.floor(b * windowsPerBeat);
+    const idx1 = Math.floor((b+1) * windowsPerBeat);
+    let s=0,c=0;
+    for(let i=idx0;i<idx1&&i<energyCurve.length;i++){s+=energyCurve[i];c++;}
+    beatEnergy.push(c?s/c:0);
+  }
+
+  // Smooth beat energy over ±4 beats
+  const smoothBeatE = beatEnergy.map((_,i,a)=>{
+    let s=0,c=0;
+    for(let j=Math.max(0,i-4);j<=Math.min(a.length-1,i+4);j++){s+=a[j];c++;}
+    return s/c;
+  });
+
+  // Global thresholds
+  const avgE = smoothBeatE.reduce((a,b)=>a+b,0)/smoothBeatE.length || 0.3;
+  const avgD = smoothDensity.reduce((a,b)=>a+b,0)/smoothDensity.length || 1;
+
+  // Onset consistency: for each beat, how regular is the inter-onset interval
+  // in the surrounding window? High consistency + high energy = stamina run.
+  // We approximate consistency by checking IOI variance in a ±4-beat window.
+  function onsetConsistency(centerBeat) {
+    const t0 = (centerBeat - 4) * beatDur;
+    const t1 = (centerBeat + 4) * beatDur;
+    const window = onsetTimes.filter(t => t >= t0 && t <= t1);
+    if(window.length < 3) return 0;
+    const iois = [];
+    for(let i=1;i<window.length;i++) iois.push(window[i]-window[i-1]);
+    const mean = iois.reduce((a,b)=>a+b,0)/iois.length;
+    const variance = iois.reduce((a,b)=>a+(b-mean)**2,0)/iois.length;
+    // Consistency = 1 when variance is 0, drops as variance grows
+    return Math.max(0, 1 - Math.sqrt(variance)/mean);
+  }
+
+  // Classify each beat
+  for(let b=0;b<totalBeats;b++){
+    const e    = smoothBeatE[b];
+    const d    = smoothDensity[b];
+    const cons = onsetConsistency(b);
+
+    if(e < avgE * 0.4 && d < avgD * 0.3){
+      map[b] = 'rest';
+    } else if(e >= avgE * 0.75 && cons >= 0.5){
+      // High energy + consistent beat pattern → stamina run
+      map[b] = 'run';
+    } else {
+      // Energy present but irregular → melody following
+      map[b] = 'melody';
+    }
+  }
+
+  // Expand short run islands: a run section < 8 beats surrounded by melody
+  // gets downgraded to melody (too short to bother streaming)
+  let b = 0;
+  while(b < totalBeats){
+    if(map[b]==='run'){
+      let end = b;
+      while(end < totalBeats && map[end]==='run') end++;
+      if(end - b < 8){
+        for(let i=b;i<end;i++) map[i]='melody';
+      }
+      b = end;
+    } else { b++; }
+  }
+
+  // Also merge run sections separated by ≤2 rest/melody beats into one run
+  b = 0;
+  while(b < totalBeats){
+    if(map[b]==='run'){
+      let runEnd = b;
+      while(runEnd < totalBeats && map[runEnd]==='run') runEnd++;
+      // Look ahead for another run
+      let gap = runEnd;
+      while(gap < totalBeats && gap < runEnd+3 && map[gap]!=='run') gap++;
+      if(gap < totalBeats && map[gap]==='run'){
+        for(let i=runEnd;i<gap;i++) map[i]='run';
+      }
+      b = runEnd;
+    } else { b++; }
+  }
+
+  const runCount    = map.filter(x=>x==='run').length;
+  const melodyCount = map.filter(x=>x==='melody').length;
+  const restCount   = map.filter(x=>x==='rest').length;
+  log(`Sections — run: ${runCount}b, melody: ${melodyCount}b, rest: ${restCount}b`, 'ok');
+
+  return map;
 }
 
 // ── BPM ───────────────────────────────────────────────────────────
@@ -476,22 +737,25 @@ function getPool(block, lastFoot, energy, allowCross, recentPats) {
   return pool;
 }
 
-// ── Main chart generator ──────────────────────────────────────────
+// ── Main chart generator — hybrid section-aware ───────────────────
 function generateChart(block, bpm, energy, duration) {
-  const allowCross = block >= 6;
-  const maxRun     = +document.getElementById('maxRun').value;
-  const minBreak   = +document.getElementById('minBreak').value;
-  const leadIn     = +document.getElementById('offset').value;
-  const energyOn   = document.getElementById('energyAware').checked;
-  const breaksOn   = document.getElementById('forceBreaks').checked;
+  const allowCross  = block >= 6;
+  const maxRun      = +document.getElementById('maxRun').value;
+  const minBreak    = +document.getElementById('minBreak').value;
+  const leadIn      = +document.getElementById('offset').value;
+  const breaksOn    = document.getElementById('forceBreaks').checked;
+  const useOnsets   = document.getElementById('onsetSnap').checked;
+  const doubleTapOn = document.getElementById('doubleTap').checked;
+  const repeatWinMs = +document.getElementById('repeatWin').value / 1000;
 
-  const RPB = 4; // rows per beat at 16th resolution (always store at this)
-  const beatDur = 60 / bpm;
+  const RPB      = 4;
+  const beatDur  = 60 / bpm;
+  const rowDur   = beatDur / RPB;
   const totalBeats = Math.floor(duration / beatDur);
   const totalRows  = totalBeats * RPB;
-  const leadBeats  = Math.ceil(leadIn / beatDur);
+  const leadRows   = Math.ceil(leadIn / rowDur);
 
-  // Smooth energy per beat
+  // Per-beat energy
   const eBeat = [];
   for(let b=0;b<totalBeats;b++){
     const idx=Math.floor(b/totalBeats*energy.length);
@@ -503,86 +767,126 @@ function generateChart(block, bpm, energy, duration) {
     return s/c;
   });
 
-  // Output: flat 16th-resolution row array
-  const notes = new Array(totalRows).fill(-1);
-
-  // State
-  let currentRow = leadBeats * RPB;
-  let lastFoot = 'R';                  // foot that just stepped
-  let recentPats = [];                 // last 5 pattern names used
+  const notes   = new Array(totalRows).fill(-1);
+  let lastFoot  = 'R';
+  let lastPanel = 3;
+  let recentPats = [];
   const RECENT_SIZE = 5;
 
-  // Run/break tracking in beats
-  let runBeats  = 0;
-  let breakBeats = 0;
-  let inBreak   = false;
+  function getE(row){ const b=Math.floor(row/RPB); return smoothE[Math.min(b,smoothE.length-1)]||0; }
+  function getSection(row){ const b=Math.floor(row/RPB); return sectionMap[Math.min(b,sectionMap.length-1)]||'melody'; }
 
-  // ── Helper: place one pattern's notes into the row array ─────
-  function placePattern(patName, startRow, rowStep) {
-    const seq = PATTERNS[patName].seq;
-    let foot = lastFoot;
-    let r = startRow;
-    for(let i=0;i<seq.length;i++){
-      const row = startRow + i * rowStep;
-      if(row >= totalRows) break;
-      // Skip if row already occupied (prevents stacking)
-      if(notes[row] === -1) notes[row] = seq[i];
-      foot = footOf(seq[i]);
-    }
-    // Track foot after pattern
-    lastFoot = seqEndFoot(seq);
-    // Track anti-repeat
-    recentPats.push(patName);
-    if(recentPats.length > RECENT_SIZE) recentPats.shift();
-    // Return rows consumed
-    return (seq.length - 1) * rowStep + 1;
-  }
-
-  // ── Main generation loop ──────────────────────────────────────
-  while(currentRow < totalRows) {
-    const beat = Math.floor(currentRow / RPB);
-    const e = energyOn ? smoothE[Math.min(beat, smoothE.length-1)] : 0.65;
-
-    // Decide break vs run
-    const beatE = e;
-    const wantsBreak = breaksOn && beatE < 0.2;
-
-    if(!inBreak) {
-      const hitMaxRun = runBeats >= maxRun;
-      if(hitMaxRun || wantsBreak) {
-        inBreak = true; breakBeats = 0; runBeats = 0;
-        // Advance by 1 beat of silence
-        currentRow += RPB; continue;
-      }
+  // ── Place a single note, enforcing alt feet ───────────────────
+  function placeNote(row, forcePanel){
+    if(row<0||row>=totalRows||notes[row]!==-1) return;
+    let panel;
+    if(forcePanel!==undefined){
+      panel=forcePanel;
     } else {
-      breakBeats++;
-      const doneBreak = breakBeats >= minBreak && (!breaksOn || e > 0.28);
-      if(!doneBreak){ currentRow += RPB; continue; }
-      inBreak = false; breakBeats = 0;
+      const pool = lastFoot==='L'?[2,3]:[0,1];
+      const filtered = pool.filter(p=>p!==lastPanel);
+      panel = filtered.length ? filtered[Math.floor(Math.random()*filtered.length)] : pool[0];
     }
-
-    // Pick row step based on energy
-    const rowStep = energyOn ? rowStepForEnergy(e) : 1;
-
-    // Pick a pattern
-    const pool = getPool(block, lastFoot, e, allowCross, recentPats);
-    const patName = pool[Math.floor(Math.random() * pool.length)];
-    const seq = PATTERNS[patName].seq;
-
-    // How many rows will this pattern consume?
-    const rowsConsumed = (seq.length - 1) * rowStep + 1;
-
-    // Place it
-    placePattern(patName, currentRow, rowStep);
-
-    // Advance current row by exactly what was consumed
-    currentRow += rowsConsumed;
-
-    // Track run length in beats
-    runBeats += Math.ceil(rowsConsumed / RPB);
+    notes[row]=panel; lastFoot=footOf(panel); lastPanel=panel;
   }
 
-  return {notes, rpb: RPB};
+  // ── Place a full pattern ──────────────────────────────────────
+  function placePattern(patName, startRow, rowStep){
+    const seq=PATTERNS[patName].seq;
+    for(let i=0;i<seq.length;i++){
+      const r=startRow+i*rowStep;
+      if(r>=totalRows) break;
+      if(notes[r]===-1) notes[r]=seq[i];
+    }
+    lastFoot=seqEndFoot(seq); lastPanel=seq[seq.length-1];
+    recentPats.push(patName);
+    if(recentPats.length>RECENT_SIZE) recentPats.shift();
+    return (seq.length-1)*rowStep+1;
+  }
+
+  // ── Snap onset times to rows ──────────────────────────────────
+  const onsetRows=[];
+  if(useOnsets && onsetTimes.length>0){
+    let prevT=-999;
+    for(const t of onsetTimes){
+      if(t<leadIn) continue;
+      const row=Math.round((t-leadIn)/rowDur);
+      if(row<leadRows||row>=totalRows) continue;
+      const isRepeat=(t-prevT)<repeatWinMs;
+      onsetRows.push({row,isRepeat,time:t});
+      prevT=t;
+    }
+  }
+  // Index onset rows by beat for fast lookup
+  const onsetsByBeat={};
+  for(const o of onsetRows){
+    const b=Math.floor(o.row/RPB);
+    if(!onsetsByBeat[b]) onsetsByBeat[b]=[];
+    onsetsByBeat[b].push(o);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MAIN LOOP — beat by beat, driven by sectionMap
+  // ═══════════════════════════════════════════════════════════════
+  let b = Math.ceil(leadIn/beatDur);
+  let runStreak=0, breakStreak=0;
+
+  while(b < totalBeats){
+    const section = getSection(b*RPB);
+    const e       = smoothE[Math.min(b,smoothE.length-1)]||0;
+
+    // ── REST section: silence ───────────────────────────────────
+    if(section==='rest'){
+      runStreak=0; breakStreak=0; b++; continue;
+    }
+
+    // ── RUN section: continuous 16th-note stream ────────────────
+    if(section==='run'){
+      // Check if we've hit the max run cap
+      if(runStreak>=maxRun){
+        // Force a short break even inside a run section
+        breakStreak++;
+        if(breakStreak>=minBreak){ runStreak=0; breakStreak=0; }
+        b++; continue;
+      }
+      breakStreak=0;
+
+      // Fill this beat with a 16th pattern flowing from last position
+      const startRow=b*RPB;
+      const pool=getPool(block,lastFoot,e,allowCross,recentPats);
+      const patName=pool[Math.floor(Math.random()*pool.length)];
+      const seq=PATTERNS[patName].seq;
+
+      // Use 16th note spacing (rowStep=1) — stamina runs are always 16ths
+      placePattern(patName, startRow, 1);
+      runStreak += Math.ceil(PATTERNS[patName].seq.length / RPB) || 1;
+      b += Math.max(1, Math.ceil(PATTERNS[patName].seq.length / RPB));
+      continue;
+    }
+
+    // ── MELODY section: onset-snapped or sparse ─────────────────
+    runStreak=0;
+    const beatOnsets = onsetsByBeat[b] || [];
+
+    if(!useOnsets || beatOnsets.length===0){
+      // No onsets this beat — skip (natural break)
+      b++; continue;
+    }
+
+    // Place notes at each onset in this beat
+    for(const {row,isRepeat} of beatOnsets){
+      if(isRepeat && doubleTapOn){
+        // Double tap: same panel twice in quick succession
+        placeNote(row, lastPanel);
+        if(row+1<totalRows && notes[row+1]===-1) notes[row+1]=lastPanel;
+      } else {
+        placeNote(row);
+      }
+    }
+    b++;
+  }
+
+  return {notes, rpb:RPB};
 }
 
 // ── SM serialization ──────────────────────────────────────────────

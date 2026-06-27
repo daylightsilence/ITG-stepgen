@@ -682,71 +682,74 @@ function computeEnergy(){
 // Divides audio into FFT frames, measures how much the spectrum
 // increases frame-to-frame (flux). Peaks = note onsets.
 function computeOnsets(){
-  const sr      = audioBuffer.sampleRate;
-  const rawData = audioBuffer.getChannelData(0);
-  // Cap to first 90s — enough for reliable onset/BPM detection, much faster
-  const MAX_SAMPLES = Math.min(rawData.length, sr * 90);
-  const data    = rawData.subarray(0, MAX_SAMPLES);
-  const HOP     = 512;   // larger hop = fewer frames = faster (was 256)
-  const WIN     = 1024;
+  const sr   = audioBuffer.sampleRate;
+  const raw  = audioBuffer.getChannelData(0);
   const sensitivity = +document.getElementById('onsetSens').value;
 
-  // Hann window
-  const hann = new Float32Array(WIN);
-  for(let i=0;i<WIN;i++) hann[i]=0.5*(1-Math.cos(2*Math.PI*i/WIN));
+  // Only analyse first 60s — more than enough for patterns
+  const USE     = Math.min(raw.length, sr * 60);
+  // Downsample to ~11025 Hz equivalent by stepping every 4 samples
+  // This cuts the loop count by 4× with negligible quality loss
+  const DS      = 4;
+  const HOP     = 512;          // hop in original samples
+  const WIN     = 1024;
+  const dsHOP   = HOP / DS;    // hops in downsampled space
+  const numHops = Math.floor((USE - WIN) / HOP);
 
-  // 8 frequency subbands (was 16) — still accurate, 2x faster
-  const NUM_BANDS = 8;
-  const WEIGHTS   = [2.0,1.8,1.5,1.2,1.0,0.7,0.4,0.2];
-  const numHops   = Math.floor((data.length - WIN) / HOP);
-  const prevBands = new Float32Array(NUM_BANDS);
-  const fluxArr   = new Float32Array(numHops);
-  const hopTimes  = new Float32Array(numHops);
+  // 6 subbands weighted to bass (where stamina beats live)
+  const NUM_BANDS = 6;
+  const WEIGHTS   = [2.5, 2.0, 1.5, 1.0, 0.5, 0.2];
+  const bandSize  = Math.floor(WIN / DS / NUM_BANDS);
 
-  for(let h=0; h<numHops; h++){
-    const start = h*HOP;
-    hopTimes[h] = start/sr;
-    const bands = new Float32Array(NUM_BANDS);
-    for(let b=0; b<NUM_BANDS; b++){
-      const sStart = start + Math.floor(b*WIN/NUM_BANDS);
-      const sEnd   = Math.min(sStart + Math.floor(WIN/NUM_BANDS), data.length);
-      let s=0, cnt=sEnd-sStart;
-      for(let i=sStart; i<sEnd; i++){
-        const wi = i - start;
-        const w  = (wi>=0 && wi<WIN) ? hann[wi] : 1;
-        s += (data[i]*w)**2;
-      }
-      bands[b] = cnt>0 ? Math.sqrt(s/cnt)*WEIGHTS[b] : 0;
+  const flux    = new Float32Array(numHops);
+  const times   = new Float32Array(numHops);
+  const prev    = new Float32Array(NUM_BANDS);
+
+  for(let h = 0; h < numHops; h++){
+    const base = h * HOP;
+    times[h]   = base / sr;
+    const cur  = new Float32Array(NUM_BANDS);
+
+    for(let b = 0; b < NUM_BANDS; b++){
+      const s0 = base + b * (WIN / NUM_BANDS);
+      const s1 = s0  + (WIN / NUM_BANDS);
+      let rms  = 0;
+      // Step by DS to downsample inline
+      for(let i = s0; i < s1 && i < USE; i += DS)
+        rms += raw[i] * raw[i];
+      cur[b] = Math.sqrt(rms / ((s1 - s0) / DS)) * WEIGHTS[b];
     }
-    let flux=0;
-    for(let b=0;b<NUM_BANDS;b++){
-      const diff=bands[b]-prevBands[b];
-      if(diff>0) flux+=diff;
-      prevBands[b]=bands[b];
+
+    let f = 0;
+    for(let b = 0; b < NUM_BANDS; b++){
+      const d = cur[b] - prev[b];
+      if(d > 0) f += d;
+      prev[b] = cur[b];
     }
-    fluxArr[h]=flux;
+    flux[h] = f;
   }
 
   // Adaptive peak picking
-  const PWIN    = 20;
-  const MIN_GAP = Math.max(1, Math.round(0.05*sr/HOP));
-  const maxFlux = Math.max(...fluxArr) || 1;
+  const PWIN    = 12;
+  const MIN_GAP = Math.max(1, Math.round(0.06 * sr / HOP));
+  const maxF    = Math.max(...flux) || 1;
   onsetTimes    = [];
   let lastHop   = -MIN_GAP;
 
-  for(let i=1; i<numHops-1; i++){
-    const v=fluxArr[i];
-    let sum=0,cnt=0;
-    for(let j=Math.max(0,i-PWIN);j<Math.min(numHops,i+PWIN);j++){sum+=fluxArr[j];cnt++;}
-    const threshold=(sum/cnt)+sensitivity*maxFlux*0.5;
-    if(v>threshold && v>fluxArr[i-1] && v>fluxArr[i+1] && i-lastHop>=MIN_GAP){
-      onsetTimes.push(hopTimes[i]);
-      lastHop=i;
+  for(let i = 1; i < numHops - 1; i++){
+    const v = flux[i];
+    let sum = 0, cnt = 0;
+    for(let j = Math.max(0,i-PWIN); j < Math.min(numHops,i+PWIN); j++){
+      sum += flux[j]; cnt++;
+    }
+    const thr = (sum/cnt) + sensitivity * maxF * 0.45;
+    if(v > thr && v > flux[i-1] && v > flux[i+1] && i - lastHop >= MIN_GAP){
+      onsetTimes.push(times[i]);
+      lastHop = i;
     }
   }
-  log('Onsets detected: '+onsetTimes.length,'ok');
+  log('Onsets: ' + onsetTimes.length, 'ok');
 }
-
 // ── Section map ─────────────────────────────────────────────────────
 // staminaMode ON:  strong beat → run, below melodyThresh → melody, very quiet → rest
 // staminaMode OFF: everything → melody (onset-following only, no streams)
@@ -1355,156 +1358,98 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
 });
 </script>
 </body>
-</html>// ── BPM detection — intense-section focused ──────────────────────
-// Key insight: BPM is easiest to read from the most rhythmically
-// active parts of the song — where the beat is loudest and most
-// consistent. We identify those sections first, then run onset IOI
-// analysis only on those windows, then verify with autocorrelation.
+</html>// ── BPM detection — fast two-stage ──────────────────────────────
+// Stage 1: IOI histogram on onsets from intense windows (~instant)
+// Stage 2: narrow autocorrelation verify on 10s downsampled slice
 function detectBPM(){
   const sr   = audioBuffer.sampleRate;
-  const data = audioBuffer.getChannelData(0);
-  const dur  = audioBuffer.duration;
+  const raw  = audioBuffer.getChannelData(0);
 
-  // ── Step 1: Find intense sections via energy ──────────────────
-  // Compute RMS in 500ms windows, find top 30% by energy
-  const WIN_S  = 1.0;  // 1s windows — fewer to compute
-  const WIN    = Math.floor(WIN_S * sr);
-  // Cap to 90s of audio for speed (same data computeOnsets used)
-  const MAX_S  = Math.min(data.length, sr * 90);
-  const numWin = Math.floor(MAX_S / WIN);
-  const winRMS = new Float32Array(numWin);
-  for(let i=0;i<numWin;i++){
-    let s=0;
-    const end=Math.min((i+1)*WIN,MAX_S);
-    for(let j=i*WIN;j<end;j++) s+=data[j]*data[j];
-    winRMS[i]=Math.sqrt(s/(end-i*WIN));
+  // ── Energy windows: find top 30% ──────────────────────────────
+  const W_S   = 1.0;
+  const W_N   = Math.floor(W_S * sr);
+  const USE   = Math.min(raw.length, sr * 60);
+  const nWin  = Math.floor(USE / W_N);
+  const wRMS  = new Float32Array(nWin);
+  // Step by 8 to compute window RMS faster
+  for(let i = 0; i < nWin; i++){
+    let s = 0, cnt = 0;
+    for(let j = i*W_N; j < (i+1)*W_N && j < USE; j += 8){ s += raw[j]*raw[j]; cnt++; }
+    wRMS[i] = cnt ? Math.sqrt(s/cnt) : 0;
   }
-  // Sort to find 70th percentile threshold
-  const sorted=[...winRMS].sort((a,b)=>b-a);
-  const thresh70=sorted[Math.floor(sorted.length*0.3)]||0;
+  const sorted = [...wRMS].sort((a,b) => b-a);
+  const thresh = sorted[Math.floor(sorted.length * 0.3)] || 0;
 
-  // ── Step 2: Filter onsets to only intense windows ─────────────
-  // Use our existing onsetTimes if available
-  let intenseOnsets=[];
-  if(onsetTimes && onsetTimes.length>=4){
-    intenseOnsets=onsetTimes.filter(t=>{
-      const w=Math.floor(t/WIN_S);
-      return w>=0 && w<numWin && winRMS[w]>=thresh70;
-    });
-    // Fall back to all onsets if intense filter left too few
-    if(intenseOnsets.length<8) intenseOnsets=onsetTimes;
-    log(`BPM using ${intenseOnsets.length}/${onsetTimes.length} onsets from intense sections`,'ok');
-  }
+  // ── Stage 1: IOI on intense onsets ────────────────────────────
+  const intense = (onsetTimes && onsetTimes.length >= 4)
+    ? onsetTimes.filter(t => {
+        const w = Math.floor(t / W_S);
+        return w >= 0 && w < nWin && wRMS[w] >= thresh;
+      })
+    : (onsetTimes || []);
 
-  // ── Step 3: IOI histogram on filtered onsets ──────────────────
-  if(intenseOnsets.length>=4){
-    const onsetCS=intenseOnsets.map(t=>Math.round(t*100));
-    const MIN_BPM=60,MAX_BPM=220;
-    const minP=Math.round(6000/MAX_BPM);
-    const maxP=Math.round(6000/MIN_BPM);
+  const src = intense.length >= 4 ? intense : (onsetTimes || []);
 
-    const hist=new Float32Array(maxP+1);
-    const LOOK=12;
-    for(let i=0;i<onsetCS.length;i++){
-      for(let j=i+1;j<Math.min(i+LOOK,onsetCS.length);j++){
-        let gap=onsetCS[j]-onsetCS[i];
-        if(gap<=0) continue;
-        const wt=1.0/(j-i);
-        // Fold into range
-        let g=gap;
-        while(g>maxP) g=Math.round(g/2);
-        while(g<minP&&g>0) g=Math.round(g*2);
-        if(g>=minP&&g<=maxP) hist[g]+=wt;
-        // Half-weight double-time
-        let g2=gap*2;
-        while(g2>maxP) g2=Math.round(g2/2);
-        if(g2>=minP&&g2<=maxP) hist[g2]+=wt*0.4;
+  let bpmIOI = 120;
+  if(src.length >= 4){
+    const cs  = src.map(t => Math.round(t * 100));
+    const MIN_BPM = 60, MAX_BPM = 220;
+    const minP = Math.round(6000/MAX_BPM);
+    const maxP = Math.round(6000/MIN_BPM);
+    const hist = new Float32Array(maxP + 1);
+
+    for(let i = 0; i < cs.length; i++){
+      for(let j = i+1; j < Math.min(i+10, cs.length); j++){
+        let gap = cs[j] - cs[i];
+        if(gap <= 0) continue;
+        const wt = 1.0 / (j - i);
+        let g = gap;
+        while(g > maxP) g = Math.round(g/2);
+        while(g < minP && g > 0) g = Math.round(g*2);
+        if(g >= minP && g <= maxP) hist[g] += wt;
       }
     }
 
-    // Gaussian smooth ±4cs
-    const sm=new Float32Array(maxP+1);
-    for(let p=minP;p<=maxP;p++){
-      let s=0,w=0;
-      for(let d=-4;d<=4;d++){
-        const q=p+d;
-        if(q<0||q>maxP) continue;
-        const gw=Math.exp(-(d*d)/8);
-        s+=hist[q]*gw; w+=gw;
-      }
-      sm[p]=w?s/w:0;
+    // 3-point smooth + score
+    let bestScore = -1, bestP = minP;
+    for(let p = minP; p <= maxP; p++){
+      const sm = (hist[Math.max(minP,p-1)] + hist[p]*2 + hist[Math.min(maxP,p+1)]) / 4;
+      let score = sm;
+      const half = Math.round(p/2);
+      if(half >= minP) score += hist[half] * 0.4;
+      const bpmH = 6000/p;
+      if(bpmH >= 120 && bpmH <= 175) score *= 1.12;
+      if(score > bestScore){ bestScore = score; bestP = p; }
     }
-
-    // Score: fundamental + offbeat bonus + stamina prior (120-180)
-    let bestScore=-1,bestP=minP;
-    for(let p=minP;p<=maxP;p++){
-      const bpmH=6000/p;
-      let score=sm[p];
-      const half=Math.round(p/2);
-      if(half>=minP) score+=sm[half]*0.5;
-      const dbl=p*2;
-      if(dbl<=maxP&&sm[dbl]>sm[p]*1.3) score*=0.7;
-      if(bpmH>=120&&bpmH<=180) score*=1.15; // stamina range prior
-      if(score>bestScore){bestScore=score;bestP=p;}
-    }
-
-    let bpmOnset=6000/bestP;
-    while(bpmOnset<80)  bpmOnset*=2;
-    while(bpmOnset>185) bpmOnset/=2;
-
-    // ── Step 4: Autocorrelation verification on intense audio ────
-    // Concatenate RMS frames from intense windows only
-    const STEP=1024; // larger step = fewer frames (was 256)
-    const rmsAll=[];
-    for(let i=0;i<numWin;i++){
-      if(winRMS[i]<thresh70) continue;
-      const wStart=i*WIN;
-      for(let k=wStart;k<wStart+WIN-STEP&&k+STEP<data.length;k+=STEP){
-        let s=0;
-        for(let j=0;j<STEP;j++) s+=data[k+j]*data[k+j];
-        rmsAll.push(Math.sqrt(s/STEP));
-        if(rmsAll.length>=1500) break; // cap to bound autocorrelation time
-      }
-      if(rmsAll.length>=1500) break;
-    }
-
-    if(rmsAll.length>50){
-      // Search ±10% around onset-derived BPM
-      const bLo=Math.floor(60/(bpmOnset*1.10)*sr/STEP);
-      const bHi=Math.ceil(60/(bpmOnset*0.90)*sr/STEP);
-      let bestLag=bLo,bestC=-Infinity;
-      for(let lag=bLo;lag<=bHi;lag++){
-        if(lag<=0) continue;
-        let c=0,cnt=0;
-        for(let i=0;i<rmsAll.length-lag;i++){c+=rmsAll[i]*rmsAll[i+lag];cnt++;}
-        if(cnt>0&&c/cnt>bestC){bestC=c/cnt;bestLag=lag;}
-      }
-      let bpmVerify=60/(bestLag*STEP/sr);
-      while(bpmVerify<80)  bpmVerify*=2;
-      while(bpmVerify>185) bpmVerify/=2;
-
-      const diff=Math.abs(bpmVerify-bpmOnset)/bpmOnset;
-      const final=diff<0.06?bpmVerify:bpmOnset;
-      const r=Math.round(final);
-      return Math.round((Math.abs(final-r)<0.6?r:final)*10)/10;
-    }
-
-    const r=Math.round(bpmOnset);
-    return Math.round((Math.abs(bpmOnset-r)<0.6?r:bpmOnset)*10)/10;
+    bpmIOI = 6000 / bestP;
+    while(bpmIOI < 80)  bpmIOI *= 2;
+    while(bpmIOI > 185) bpmIOI /= 2;
   }
 
-  // ── Fallback: pure autocorrelation on full audio ─────────────
-  log('BPM fallback: full-audio autocorrelation','warn');
-  const STEP=512;
-  const USE=Math.min(data.length,sr*30);
-  const rms2=[];
-  for(let i=0;i<USE-STEP;i+=STEP){let s=0;for(let j=0;j<STEP;j++)s+=data[i+j]*data[i+j];rms2.push(Math.sqrt(s/STEP));}
-  const minL=Math.floor(60/180*sr/STEP),maxL=Math.floor(60/60*sr/STEP);
-  let bL=minL,bC=-Infinity;
-  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<rms2.length-lag;i++)c+=rms2[i]*rms2[i+lag];if(c>bC){bC=c;bL=lag;}}
-  let bpm=60/(bL*STEP/sr);
-  while(bpm<80) bpm*=2;
-  while(bpm>185) bpm/=2;
-  return Math.round(bpm*10)/10;
+  // ── Stage 2: autocorrelation on 10s downsampled slice ─────────
+  // Downsample by 8, use 10s = ~55000 samples → very fast
+  const DS     = 8;
+  const USE_AC = Math.min(raw.length, sr * 10);
+  const dsData = [];
+  for(let i = 0; i < USE_AC; i += DS) dsData.push(raw[i]);
+  const dsSR   = sr / DS;
+
+  // Search ±15% around IOI result
+  const bLo = Math.max(1, Math.floor(60 / (bpmIOI*1.15) * dsSR));
+  const bHi = Math.ceil(60 / (bpmIOI*0.85) * dsSR);
+  let bestLag = bLo, bestC = -Infinity;
+  for(let lag = bLo; lag <= bHi; lag++){
+    let c = 0;
+    for(let i = 0; i < dsData.length - lag; i++) c += dsData[i] * dsData[i+lag];
+    if(c > bestC){ bestC = c; bestLag = lag; }
+  }
+  let bpmAC = 60 / (bestLag / dsSR);
+  while(bpmAC < 80)  bpmAC *= 2;
+  while(bpmAC > 185) bpmAC /= 2;
+
+  // Pick best: if AC agrees within 5% use it (more precise), else use IOI
+  const diff = Math.abs(bpmAC - bpmIOI) / bpmIOI;
+  const final = diff < 0.05 ? bpmAC : bpmIOI;
+  const r = Math.round(final);
+  return Math.round((Math.abs(final - r) < 0.6 ? r : final) * 10) / 10;
 }
-

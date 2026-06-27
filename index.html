@@ -642,14 +642,22 @@ async function handleAudio(file){
   document.getElementById('songInfoBar').classList.add('on');
   document.getElementById('infoTitle').textContent=document.getElementById('songTitle').value||fname;
   document.getElementById('infoArtist').textContent=document.getElementById('songArtist').value||'Unknown Artist';
-  setP(25);log('Analyzing energy...');computeEnergy();setP(40);
-  log('Detecting onsets (up to 90s)...');computeOnsets();setP(65);
-  log('Detecting BPM...');detectedBPM=detectBPM();
-  document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
-  log('BPM: '+detectedBPM.toFixed(1),'ok');setP(80);
-  log('Mapping sections...');sectionMap=buildSectionMap(detectedBPM,audioBuffer.duration);setP(90);
-  drawWaveform();drawEnergy();document.getElementById('waveSection').style.display='flex';setP(100);
-  updateDiffBadges();document.getElementById('genBtn').disabled=false;log('Ready!','ok');
+  // Yield between each step so the browser can update the UI log
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  setP(25); log('Analyzing energy...'); computeEnergy(); setP(40);
+  await tick();
+  log('Detecting onsets...'); computeOnsets(); setP(65);
+  await tick();
+  log('Detecting BPM...'); detectedBPM = detectBPM();
+  document.getElementById('bpmBadge').textContent = detectedBPM.toFixed(1) + ' BPM';
+  log('BPM: ' + detectedBPM.toFixed(1), 'ok'); setP(80);
+  await tick();
+  log('Mapping sections...'); sectionMap = buildSectionMap(detectedBPM, audioBuffer.duration); setP(90);
+  await tick();
+  drawWaveform(); drawEnergy();
+  document.getElementById('waveSection').style.display = 'flex'; setP(100);
+  updateDiffBadges(); document.getElementById('genBtn').disabled = false; log('Ready!', 'ok');
 }
 function setP(p){document.getElementById('analyzeProgress').style.width=p+'%';}
 
@@ -750,83 +758,429 @@ function computeOnsets(){
   }
   log('Onsets: ' + onsetTimes.length, 'ok');
 }
-// ── Section map ─────────────────────────────────────────────────────
-// staminaMode ON:  strong beat → run, below melodyThresh → melody, very quiet → rest
-// staminaMode OFF: everything → melody (onset-following only, no streams)
+// ── Section map — three-tier priority system ─────────────────────
+// Returns array[beat] = 'intense' | 'medium' | 'slow'
+// intense → 16th stamina runs
+// medium  → 8th notes + melody following
+// slow    → holds + quarter melody
 function buildSectionMap(bpm, duration) {
   const staminaMode  = document.getElementById('staminaMode').checked;
-  const melodyThresh = +document.getElementById('melodyThresh').value / 100; // e.g. 0.30
-  const forceBreaks  = document.getElementById('forceBreaks').checked;
-
+  const melodyThresh = +document.getElementById('melodyThresh').value / 100;
   const beatDur    = 60 / bpm;
   const totalBeats = Math.floor(duration / beatDur);
 
-  // Stamina mode OFF: melody-focused but still uses energy.
-  // Strong beats still get runs, but the melody threshold is much higher
-  // so most of the song follows melody rather than streaming.
-  const melodyThreshMultiplier = staminaMode ? 1.0 : 3.0; // OFF = 3× threshold = far more melody
-
-  // Per-beat RMS energy
-  const windowsPerBeat = beatDur / 0.1;
-  const beatEnergy = [];
+  // Per-beat energy
+  const wPerB = beatDur / 0.1;
+  const bE = [];
   for(let b=0;b<totalBeats;b++){
-    const i0=Math.floor(b*windowsPerBeat), i1=Math.floor((b+1)*windowsPerBeat);
+    const i0=Math.floor(b*wPerB), i1=Math.floor((b+1)*wPerB);
     let s=0,c=0;
     for(let i=i0;i<i1&&i<energyCurve.length;i++){s+=energyCurve[i];c++;}
-    beatEnergy.push(c?s/c:0);
+    bE.push(c?s/c:0);
   }
-
   // Smooth ±3 beats
-  const smoothE = beatEnergy.map((_,i,a)=>{
+  const sE = bE.map((_,i,a)=>{
     let s=0,c=0;
     for(let j=Math.max(0,i-3);j<=Math.min(a.length-1,i+3);j++){s+=a[j];c++;}
     return s/c;
   });
+  const avg = sE.reduce((a,b)=>a+b,0)/sE.length || 0.3;
 
-  const avg = smoothE.reduce((a,b)=>a+b,0)/smoothE.length || 0.3;
+  // Stamina mode OFF: multiply thresholds so fewer beats are 'intense'
+  const intenseMult = staminaMode ? 1.0 : 3.0;
 
-  // Thresholds relative to average energy:
-  // - below melodyThresh% of avg → melody (follow the song lightly)
-  // - below 15% of avg → rest (real silence)
-  // - everything else → run (stamina stream)
-  const restThresh      = avg * 0.15;
-  const melodyAbsThresh = avg * melodyThresh * melodyThreshMultiplier;
+  // Thresholds:
+  // intense = top energy (above 70% of avg * intenseMult)
+  // medium  = middle band (above melodyThresh * avg)
+  // slow    = below that
+  const intenseThresh = avg * (0.7 / intenseMult);
+  const mediumThresh  = avg * melodyThresh;
 
-  const map = new Array(totalBeats).fill('run');
+  const map = new Array(totalBeats).fill('slow');
   for(let b=0;b<totalBeats;b++){
-    const e = smoothE[b];
-    if(e <= restThresh){
-      map[b] = forceBreaks ? 'rest' : 'melody';
-    } else if(e <= melodyAbsThresh){
-      map[b] = 'melody';
-    }
-    // else: stays 'run'
+    const e = sE[b];
+    if(e >= intenseThresh)      map[b] = 'intense';
+    else if(e >= mediumThresh)  map[b] = 'medium';
+    // else stays 'slow'
   }
 
-  // Bridge single isolated non-run beats surrounded by runs
+  // Bridge single-beat gaps in intense sections
   for(let b=1;b<totalBeats-1;b++){
-    if(map[b]!=='run' && map[b-1]==='run' && map[b+1]==='run') map[b]='run';
+    if(map[b]!=='intense' && map[b-1]==='intense' && map[b+1]==='intense')
+      map[b]='intense';
   }
-
-  // Expand short melody islands (< 3 beats) inside runs → run
+  // Merge short intense islands < 4 beats into medium
   let b=0;
   while(b<totalBeats){
-    if(map[b]==='melody'){
-      let end=b;
-      while(end<totalBeats && map[end]==='melody') end++;
-      const len=end-b;
-      if(len<3 && b>0 && end<totalBeats && map[b-1]==='run' && map[end]==='run'){
-        for(let i=b;i<end;i++) map[i]='run';
-      }
-      b=end;
+    if(map[b]==='intense'){
+      let e=b; while(e<totalBeats&&map[e]==='intense') e++;
+      if(e-b<4) for(let i=b;i<e;i++) map[i]='medium';
+      b=e;
     } else b++;
   }
 
-  const rc=map.filter(x=>x==='run').length;
-  const mc=map.filter(x=>x==='melody').length;
-  const xc=map.filter(x=>x==='rest').length;
-  log(`Sections — run:${rc}b melody:${mc}b rest:${xc}b${staminaMode?'':' (melody-focused)'}`, 'ok');
+  const ic=map.filter(x=>x==='intense').length;
+  const mc=map.filter(x=>x==='medium').length;
+  const sc=map.filter(x=>x==='slow').length;
+  log(`Sections — intense:${ic}b medium:${mc}b slow:${sc}b`,'ok');
   return map;
+}
+
+// ── Main chart generator — three-tier priority system ────────────
+// intense → 16th stamina runs (continuous stream)
+// medium  → 8th notes, melody-following when onsets present
+// slow    → quarter/hold notes following beat or melody
+// Easier difficulties lean on melody more, harder lean on stamina.
+function generateChart(block, bpm, energy, duration) {
+  const staminaMode = document.getElementById('staminaMode').checked;
+  const allowCross  = block >= 6;
+  const diffFactor  = (block - 1) / 11; // 0=block1, 1=block12
+
+  // Difficulty-scaled run length and break
+  const userMaxRun   = +document.getElementById('maxRun').value;
+  const userMinBreak = +document.getElementById('minBreak').value;
+  const userMaxBreak = +document.getElementById('maxBreak').value;
+  const maxRun    = Math.max(4,  Math.round(userMaxRun   * (0.25 + 0.75 * diffFactor)));
+  const minBreak  = Math.max(1,  Math.round(userMinBreak * (2.0  - 1.5  * diffFactor)));
+  const maxBreak  = Math.max(4,  Math.round(userMaxBreak * (2.0  - diffFactor)));
+
+  // At easy blocks, prefer melody even in medium sections
+  // At hard blocks, prefer runs even in medium sections
+  const mediumRunChance = staminaMode ? (0.2 + 0.6 * diffFactor) : (0.05 + 0.2 * diffFactor);
+
+  const chainTarget = +document.getElementById('chainLen').value;
+  const leadIn      = +document.getElementById('offset').value;
+  const useOnsets   = document.getElementById('onsetSnap').checked;
+  const snapRes     = +document.getElementById('snapResolution').value;
+  const doubleTapOn = document.getElementById('doubleTap').checked;
+  const repeatWinMs = +document.getElementById('repeatWin').value / 1000;
+
+  const RPB      = 4;             // rows per beat (16th resolution)
+  const beatDur  = 60 / bpm;
+  const rowDur   = beatDur / RPB;
+  const totalBeats = Math.floor(duration / beatDur);
+  const totalRows  = totalBeats * RPB;
+  const leadRows   = Math.ceil(leadIn / rowDur);
+
+  // Per-beat smoothed energy
+  const eBeat = [];
+  for(let b=0;b<totalBeats;b++){
+    const idx=Math.floor(b/totalBeats*energy.length);
+    eBeat.push(energy[Math.min(idx,energy.length-1)]||0);
+  }
+  const smoothE = eBeat.map((_,i,a)=>{
+    let s=0,c=0;
+    for(let j=Math.max(0,i-6);j<Math.min(a.length,i+6);j++){s+=a[j];c++;}
+    return s/c;
+  });
+
+  // note array: -1=empty, 0-3=tap, 10-13=hold head (panel+10), 20-23=hold tail (panel+20)
+  const notes = new Array(totalRows).fill(-1);
+  let lastFoot  = 'R';
+  let lastPanel = 3;
+
+  function getSection(row){
+    const b=Math.floor(row/RPB);
+    return sectionMap[Math.min(b,sectionMap.length-1)]||'slow';
+  }
+
+  // ── Place a single alternating tap ───────────────────────────
+  function placeTap(row, forcePanel){
+    if(row<0||row>=totalRows||notes[row]!==-1) return false;
+    let panel;
+    if(forcePanel!==undefined){
+      panel=forcePanel;
+    } else {
+      const pool = (lastFoot==='L') ? [2,3] : [0,1];
+      const noJack = pool.filter(p=>p!==lastPanel);
+      const choices = noJack.length ? noJack : pool;
+      panel = choices[Math.floor(Math.random()*choices.length)];
+    }
+    notes[row]=panel;
+    lastFoot=(panel===0||panel===1)?'L':'R';
+    lastPanel=panel;
+    return true;
+  }
+
+  // ── Place a hold (head + tail, opposite foot) ─────────────────
+  function placeHold(headRow, lengthRows){
+    if(headRow<0||headRow>=totalRows||notes[headRow]!==-1) return;
+    const pool = (lastFoot==='L') ? [2,3] : [0,1];
+    const noJack = pool.filter(p=>p!==lastPanel);
+    const panel = (noJack.length?noJack:pool)[Math.floor(Math.random()*(noJack.length||pool.length))];
+    const tailRow = Math.min(totalRows-1, headRow + lengthRows);
+    notes[headRow] = panel + 10;  // hold head
+    notes[tailRow] = panel + 20;  // hold tail
+    lastFoot=(panel===0||panel===1)?'L':'R';
+    lastPanel=panel;
+  }
+
+  // ── Pattern category pool for turn injections ─────────────────
+  function getTurnPool(e){
+    const allowedCats=['stream','box','spiral'];
+    if(block>=3) allowedCats.push('candle','gallop');
+    if(block>=5&&allowCross) allowedCats.push('crossover');
+    if(block>=4&&e>0.45) allowedCats.push('drill','anchor');
+    if(block>=6&&e>0.5) allowedCats.push('footswitch','sideswitch');
+    if(block>=8&&e>0.65) allowedCats.push('split');
+    return [...activePats].filter(n=>{
+      const p=PATTERNS[n];
+      return p && p.minDiff<=block && allowedCats.includes(p.cat);
+    });
+  }
+
+  // ── Onset grid ────────────────────────────────────────────────
+  const onsetRows=[];
+  if(useOnsets&&onsetTimes.length>0){
+    let prevT=-999;
+    for(const t of onsetTimes){
+      if(t<leadIn) continue;
+      let row;
+      if(snapRes===4)      row=Math.round((t-leadIn)/beatDur)*RPB;
+      else if(snapRes===8) row=Math.round((t-leadIn)/(beatDur/2))*2;
+      else                 row=Math.round((t-leadIn)/rowDur);
+      if(row<leadRows||row>=totalRows) continue;
+      const isRepeat=(t-prevT)<repeatWinMs;
+      if(!onsetRows.length||onsetRows[onsetRows.length-1].row!==row)
+        onsetRows.push({row,isRepeat,time:t});
+      prevT=t;
+    }
+  }
+  const onsetsByBeat={};
+  for(const o of onsetRows){
+    const b=Math.floor(o.row/RPB);
+    if(!onsetsByBeat[b]) onsetsByBeat[b]=[];
+    onsetsByBeat[b].push(o);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // MAIN LOOP
+  // ════════════════════════════════════════════════════════════════
+  let b          = Math.ceil(leadIn/beatDur);
+  let runBeats   = 0;
+  let breakBeats = 0;
+  let beatsSinceTurn = 0;
+  let lastTurnCat    = '';
+  const L_PANELS = [0,1];
+  const R_PANELS = [2,3];
+  let recentPanels = [];
+
+  while(b < totalBeats){
+    const section = getSection(b*RPB);
+    const e       = smoothE[Math.min(b,smoothE.length-1)]||0;
+    const startRow= b*RPB;
+
+    // ══════════════════════════════════════════════════════════════
+    // INTENSE: continuous 16th stream with turn injections
+    // ══════════════════════════════════════════════════════════════
+    if(section==='intense'){
+      if(runBeats>=maxRun){
+        breakBeats++;
+        if(breakBeats>=minBreak){ runBeats=0; breakBeats=0; beatsSinceTurn=0; }
+        b++; continue;
+      }
+      breakBeats=0;
+
+      // Every chainTarget beats inject a named pattern turn
+      if(beatsSinceTurn>=chainTarget){
+        const pool = getTurnPool(e);
+        const valid = pool.filter(n=>seqValid(PATTERNS[n]?.seq,lastFoot));
+        const diffCat = (valid.length?valid:pool).filter(n=>PATTERNS[n]?.cat!==lastTurnCat);
+        const chosen = (diffCat.length?diffCat:(valid.length?valid:pool))[
+          Math.floor(Math.random()*Math.max(diffCat.length,valid.length,pool.length,1))
+        ];
+        if(chosen&&PATTERNS[chosen]){
+          const seq=PATTERNS[chosen].seq;
+          lastTurnCat=PATTERNS[chosen].cat;
+          for(let i=0;i<seq.length;i++){
+            const row=startRow+i;
+            if(row>=totalRows) break;
+            if(notes[row]===-1){
+              notes[row]=seq[i];
+              lastFoot=(seq[i]===0||seq[i]===1)?'L':'R';
+              lastPanel=seq[i];
+            }
+          }
+          const beatsUsed=Math.max(1,Math.ceil(seq.length/RPB));
+          runBeats+=beatsUsed; b+=beatsUsed; beatsSinceTurn=0; continue;
+        }
+      }
+
+      // Plain 16th note — alternate feet, avoid panel monotony
+      const fPool=(lastFoot==='L')?R_PANELS:L_PANELS;
+      const recent3=new Set(recentPanels.slice(-3));
+      let choices=fPool.filter(p=>p!==lastPanel&&!recent3.has(p));
+      if(!choices.length) choices=fPool.filter(p=>p!==lastPanel);
+      if(!choices.length) choices=fPool;
+      const panel=choices[Math.floor(Math.random()*choices.length)];
+      if(notes[startRow]===-1){
+        notes[startRow]=panel;
+        lastFoot=(panel===0||panel===1)?'L':'R';
+        lastPanel=panel;
+        recentPanels.push(panel);
+        if(recentPanels.length>8) recentPanels.shift();
+      }
+      runBeats++; b++; beatsSinceTurn++;
+      continue;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // MEDIUM: 8th notes mostly, melody if strong onsets present
+    // Harder difficulties may still run here
+    // ══════════════════════════════════════════════════════════════
+    if(section==='medium'){
+      runBeats=0; breakBeats=0; beatsSinceTurn=0;
+
+      const beatOnsets=onsetsByBeat[b]||[];
+      const hasStrongOnset=beatOnsets.length>0;
+
+      // Hard blocks: chance of running even in medium
+      if(staminaMode && Math.random()<mediumRunChance && !hasStrongOnset){
+        // 8th note (every 2 rows)
+        for(let r=0;r<RPB;r+=2){
+          const row=startRow+r;
+          if(row<totalRows&&notes[row]===-1) placeTap(row);
+        }
+        b++; continue;
+      }
+
+      if(hasStrongOnset&&useOnsets){
+        // Follow melody onsets
+        for(const {row,isRepeat} of beatOnsets){
+          if(isRepeat&&doubleTapOn){
+            placeTap(row,lastPanel);
+            if(row+1<totalRows&&notes[row+1]===-1) notes[row+1]=lastPanel;
+          } else {
+            placeTap(row);
+          }
+        }
+      } else {
+        // No onset: place 8th note on beat
+        placeTap(startRow);
+      }
+      b++; continue;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // SLOW: holds + quarter notes following beat/melody
+    // ══════════════════════════════════════════════════════════════
+    runBeats=0; breakBeats=0; beatsSinceTurn=0;
+    const beatOnsets=onsetsByBeat[b]||[];
+
+    if(beatOnsets.length>0&&useOnsets){
+      // Place a hold from each strong onset to the next onset (or 1 beat)
+      for(let oi=0;oi<beatOnsets.length;oi++){
+        const {row,isRepeat}=beatOnsets[oi];
+        if(isRepeat) continue; // skip repeats in slow sections
+        // Hold length: to next onset or 1 beat, whichever is shorter
+        const nextRow = oi+1<beatOnsets.length
+          ? beatOnsets[oi+1].row
+          : Math.min(totalRows-1, row+RPB);
+        const holdLen = Math.max(1, nextRow-row-1);
+        if(holdLen>=RPB){ // only bother with holds ≥ 1 beat long
+          placeHold(row, holdLen);
+        } else {
+          placeTap(row);
+        }
+      }
+    } else {
+      // No onset: quarter note tap on the beat (every other beat for easy)
+      if(block>=5||b%2===0) placeTap(startRow);
+    }
+    b++;
+  }
+
+  return {notes, rpb:RPB};
+}
+// ── SM serialization ──────────────────────────────────────────────
+// note values: -1=empty, 0-3=tap, 10-13=hold head, 20-23=hold tail
+function notesToSM(notes){
+  const rpm=16; // 4 beats × 4 rows per measure at 16th resolution
+  const measures=[];
+  for(let i=0;i<notes.length;i+=rpm){
+    const m=notes.slice(i,i+rpm);
+    while(m.length<rpm) m.push(-1);
+    measures.push(m);
+  }
+  return measures.map(m=>m.map(n=>{
+    const row=['0','0','0','0'];
+    if(n>=0 && n<=3)    row[n]='1';       // tap
+    if(n>=10 && n<=13)  row[n-10]='2';    // hold head
+    if(n>=20 && n<=23)  row[n-20]='3';    // hold tail
+    return row.join('');
+  }).join('\n')).join('\n,\n');
+}
+
+function buildSM(title,artist,bpm,offset,charts,ext,safe){
+  safe=safe||title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
+  const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
+  const base=5-charts.length;
+  const hdr=`#TITLE:${title};\n#SUBTITLE:;\n#ARTIST:${artist};\n#TITLETRANSLIT:;\n#SUBTITLETRANSLIT:;\n#ARTISTTRANSLIT:;\n#GENRE:;\n#CREDIT:ITG StepGen;\n#BANNER:${safe}-banner.png;\n#BACKGROUND:${safe}-bg.png;\n#CDTITLE:;\n#MUSIC:${safe}.${ext};\n#OFFSET:-${offset.toFixed(6)};\n#SAMPLESTART:12.000;\n#SAMPLELENGTH:13.000;\n#SELECTABLE:YES;\n#BPMS:0.000=${bpm.toFixed(3)};\n#STOPS:;\n\n`;
+  const cblocks=charts.map((c,i)=>{
+    const name=diffNames[Math.min(base+i,4)];
+    return `#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes)}\n;`;
+  }).join('\n\n');
+  return hdr+cblocks;
+}
+
+// ── Diff badges ───────────────────────────────────────────────────
+function getDiffs(){
+  const mn=+document.getElementById('diffMin').value,mx=+document.getElementById('diffMax').value,n=+document.getElementById('diffCount').value;
+  if(n===1)return[mx];if(n===2)return[Math.round((mn+mx)/2),mx];return[mn,Math.round((mn+mx)/2),mx];
+}
+function updateDiffBadges(){
+  const diffs=getDiffs(),names=['Easy','Medium','Hard'],cls=['easy','med','hard'];
+  document.getElementById('diffBadges').innerHTML=diffs.map((d,i)=>`<div class="db ${cls[i]||'hard'}">${names[i]} · Blk ${d}</div>`).join('');
+}
+updateDiffBadges();
+
+// ── Image generation ──────────────────────────────────────────────
+function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
+async function makeImg(title,artist,w,h,artImg){
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');
+  if(artImg){cx.drawImage(artImg,0,0,w,h);}
+  else{const g=cx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0a0014');g.addColorStop(1,'#000e1a');cx.fillStyle=g;cx.fillRect(0,0,w,h);cx.globalAlpha=.05;cx.fillStyle='#fff';cx.font=`${Math.min(w,h)*.55}px sans-serif`;cx.textAlign='center';cx.fillText('▼',w/2,h*.65);cx.globalAlpha=1;}
+  const og=cx.createLinearGradient(0,h*.45,0,h);og.addColorStop(0,'rgba(0,0,0,0)');og.addColorStop(1,'rgba(0,0,0,.85)');cx.fillStyle=og;cx.fillRect(0,0,w,h);
+  const tfs=Math.min(w===418?20:34,w/(title.length+2)*1.5);
+  cx.shadowColor='#000';cx.shadowBlur=10;cx.fillStyle='#fff';cx.font=`bold ${tfs}px sans-serif`;cx.textAlign='center';cx.fillText(title,w/2,h-(w===418?19:52));
+  cx.font=`${tfs*.62}px sans-serif`;cx.fillStyle='#aaaaee';cx.fillText(artist,w/2,h-(w===418?4:27));
+  return new Promise(res=>cv.toBlob(res,'image/png'));
+}
+
+// ── Density chart ─────────────────────────────────────────────────
+function drawDensityChart(charts,duration,bpm){
+  const cv=document.getElementById('densityCanvas'),cx=cv.getContext('2d');
+  cv.width=cv.offsetWidth||800;cv.height=90;const W=cv.width,H=cv.height;
+  cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
+  if(!charts.length) return;
+  const rpm=16,WINDOW=4;
+  const colors=['#00ff88','#ffb800','#ff3cac','#00f0ff'];
+  const names=['Easy','Medium','Hard'];
+  const legend=document.getElementById('densityLegend');legend.innerHTML='';
+  const totalRows=charts[0].notes.length;
+  const totalMeasures=Math.ceil(totalRows/rpm);
+  const series=charts.map((ch,ci)=>{
+    const meas=[];
+    for(let m=0;m<totalMeasures;m++){
+      const s=m*rpm,e=s+rpm;let cnt=0;
+      for(let r=s;r<e&&r<ch.notes.length;r++) if(ch.notes[r]>=0&&ch.notes[r]<=3) cnt++;
+      meas.push(cnt);
+    }
+    const sm=meas.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}return s/c;});
+    return{sm,block:ch.block,color:colors[ci]};
+  });
+  const gMax=Math.max(...series.flatMap(s=>s.sm),1);
+  series.forEach((s,si)=>{
+    cx.beginPath();cx.strokeStyle=s.color;cx.lineWidth=2;
+    s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-10)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});
+    cx.stroke();
+    if(si===0){cx.beginPath();s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-10)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});cx.lineTo(W,H);cx.lineTo(0,H);cx.closePath();cx.fillStyle=s.color+'22';cx.fill();}
+    const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:4px';
+    el.innerHTML=`<span style="display:inline-block;width:18px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} (Blk ${s.block})`;
+    legend.appendChild(el);
+  });
+  cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.textAlign='left';cx.fillText('NOTES/MEASURE',4,11);
+  document.getElementById('densitySection').style.display='flex';
 }
 
 // ── Canvases ──────────────────────────────────────────────────────
@@ -851,463 +1205,12 @@ function drawEnergy(){
   cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.fillText('ENERGY',5,11);
 }
 
-// ── Diff badges ───────────────────────────────────────────────────
-function getDiffs(){
-  const mn=+document.getElementById('diffMin').value,mx=+document.getElementById('diffMax').value,n=+document.getElementById('diffCount').value;
-  if(n===1)return[mx];if(n===2)return[Math.round((mn+mx)/2),mx];return[mn,Math.round((mn+mx)/2),mx];
-}
-function updateDiffBadges(){
-  const diffs=getDiffs(),names=['Easy','Medium','Hard'],cls=['easy','med','hard'];
-  document.getElementById('diffBadges').innerHTML=diffs.map((d,i)=>`<div class="db ${cls[i]||'hard'}">${names[i]} · Blk ${d}</div>`).join('');
-}
-updateDiffBadges();
-
-// ═══════════════════════════════════════════════════════════════════
-// CHART GENERATION - PATTERN-BASED ENGINE
-// ═══════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════
-// CHART ENGINE
-// ═══════════════════════════════════════════════════════════════════
-
-// L/D panels = left foot, U/R panels = right foot
-function footOf(p){return(p===0||p===1)?'L':'R';}
-
-// End foot after playing a sequence from a given start foot
-function seqEndFoot(seq){return footOf(seq[seq.length-1]);}
-
-// Does a sequence strictly alternate feet from startFoot?
-function seqValid(seq, startFoot){
-  let f=startFoot;
-  for(const p of seq){
-    if(footOf(p)===f) return false; // same foot twice = jack = bad
-    f=footOf(p);
-  }
-  return true;
-}
-
-// Subdivision: how many 16th-rows per note at this energy level
-function rowStepForEnergy(e){
-  if(e<0.15) return 4;  // quarter notes (4th)
-  if(e<0.38) return 2;  // eighth notes (8th)
-  return 1;              // sixteenth notes (16th)
-}
-
-// ── Pattern pool filtered for context ────────────────────────────
-function getPool(block, lastFoot, energy, allowCross, recentPats) {
-  // Difficulty gates:
-  // block 1-3:  stream, box, gallop only
-  // block 4-5:  + candle, anchor, spiral
-  // block 6-7:  + crossover, drill, footswitch
-  // block 8-9:  + sideswitch
-  // block 10+:  + split, all patterns
-  const techAllowed = block >= 4;
-  const crossAllowed = allowCross && block >= 6;
-  const advancedAllowed = block >= 8;
-
-  let pool = [...activePats].filter(name => {
-    const p = PATTERNS[name];
-    if (p.minDiff > block) return false;
-    // Category gates by block
-    if (!techAllowed && (p.cat==='candle'||p.cat==='anchor'||p.cat==='spiral')) return false;
-    if (!crossAllowed && (p.cat==='crossover'||p.cat==='sideswitch')) return false;
-    if (block < 6 && (p.cat==='drill'||p.cat==='footswitch')) return false;
-    if (!advancedAllowed && p.cat==='split') return false;
-    // Energy gates
-    if ((p.cat==='drill'||p.cat==='footswitch') && energy < 0.45) return false;
-    if (p.cat==='split' && energy < 0.65) return false;
-    if (p.cat==='candle' && energy < 0.3) return false;
-    return true;
-  });
-
-  if (!pool.length) {
-    pool = Object.keys(PATTERNS).filter(n=>
-      PATTERNS[n].cat==='stream' && PATTERNS[n].minDiff <= block
-    );
-    if(!pool.length) pool = Object.keys(PATTERNS).slice(0,2);
-  }
-
-  // Foot validity
-  const valid = pool.filter(name => seqValid(PATTERNS[name].seq, lastFoot));
-  if (valid.length) pool = valid;
-
-  // Anti-repeat: exclude last N picks
-  const fresh = pool.filter(name => !recentPats.includes(name));
-  if (fresh.length >= 2) pool = fresh;
-
-  // Prefer different category from last
-  const lastCat = recentPats.length ? PATTERNS[recentPats[recentPats.length-1]]?.cat : null;
-  if (lastCat) {
-    const diffCat = pool.filter(name => PATTERNS[name].cat !== lastCat);
-    if (diffCat.length >= 2) pool = diffCat;
-  }
-
-  // At higher blocks, weight toward longer/more complex patterns
-  if (block >= 7) {
-    const complex = pool.filter(name => PATTERNS[name].seq.length >= 6);
-    if (complex.length >= 2) pool = complex;
-  }
-
-  return pool;
-}
-
-// ── Main chart generator ─────────────────────────────────────────
-function generateChart(block, bpm, energy, duration) {
-  const staminaMode = document.getElementById('staminaMode').checked;
-  const allowCross  = block >= 6;
-  const diffFactor  = (block - 1) / 11;
-
-  // Difficulty-scaled params
-  const userMaxRun   = +document.getElementById('maxRun').value;
-  const userMinBreak = +document.getElementById('minBreak').value;
-  const userMaxBreak = +document.getElementById('maxBreak').value;
-  const maxRun    = Math.max(4,  Math.round(userMaxRun   * (0.25 + 0.75 * diffFactor)));
-  const minBreak  = Math.max(1,  Math.round(userMinBreak * (2.0  - 1.5  * diffFactor)));
-  const maxBreak  = Math.max(4,  Math.round(userMaxBreak * (2.0  - diffFactor)));
-  // Stamina mode: all 16ths in run sections. Non-stamina: scaled by diff.
-  const sixteenthProb = staminaMode ? 1.0 : (0.1 + 0.8 * diffFactor);
-
-  const chainTarget = +document.getElementById('chainLen').value;
-  const leadIn      = +document.getElementById('offset').value;
-  const breaksOn    = document.getElementById('forceBreaks').checked;
-  const useOnsets   = document.getElementById('onsetSnap').checked;
-  const snapRes     = +document.getElementById('snapResolution').value;
-  const doubleTapOn = document.getElementById('doubleTap').checked;
-  const repeatWinMs = +document.getElementById('repeatWin').value / 1000;
-
-  const RPB      = 4;
-  const beatDur  = 60 / bpm;
-  const rowDur   = beatDur / RPB;
-  const totalBeats = Math.floor(duration / beatDur);
-  const totalRows  = totalBeats * RPB;
-  const leadRows   = Math.ceil(leadIn / rowDur);
-
-  // Per-beat energy
-  const eBeat = [];
-  for(let b=0;b<totalBeats;b++){
-    const idx=Math.floor(b/totalBeats*energy.length);
-    eBeat.push(energy[Math.min(idx,energy.length-1)]||0);
-  }
-  const smoothE = eBeat.map((_,i,a)=>{
-    let s=0,c=0;
-    for(let j=Math.max(0,i-10);j<Math.min(a.length,i+10);j++){s+=a[j];c++;}
-    return s/c;
-  });
-
-  const notes   = new Array(totalRows).fill(-1);
-  let lastFoot  = 'R';
-  let lastPanel = 3;
-
-  function getSection(row){
-    const b=Math.floor(row/RPB);
-    return sectionMap[Math.min(b,sectionMap.length-1)]||'melody';
-  }
-
-  // ── Single note placement (strict foot alternation) ───────────
-  function placeNote(row, forcePanel){
-    if(row<0||row>=totalRows||notes[row]!==-1) return false;
-    let panel;
-    if(forcePanel!==undefined){
-      panel=forcePanel;
-    } else {
-      // Always alternate feet. Pick a random panel on the opposite foot.
-      const pool = (lastFoot==='L') ? [2,3] : [0,1];
-      // Prefer not to repeat last panel (avoid same-panel jack)
-      const noJack = pool.filter(p=>p!==lastPanel);
-      const choices = noJack.length ? noJack : pool;
-      panel = choices[Math.floor(Math.random()*choices.length)];
-    }
-    notes[row]=panel;
-    lastFoot=(panel===0||panel===1)?'L':'R';
-    lastPanel=panel;
-    return true;
-  }
-
-  // ── Onset snap grid ───────────────────────────────────────────
-  const onsetRows=[];
-  if(useOnsets && onsetTimes.length>0){
-    let prevT=-999;
-    for(const t of onsetTimes){
-      if(t<leadIn) continue;
-      let row;
-      if(snapRes===4)       row=Math.round((t-leadIn)/beatDur)*RPB;
-      else if(snapRes===8)  row=Math.round((t-leadIn)/(beatDur/2))*2;
-      else                  row=Math.round((t-leadIn)/rowDur);
-      if(row<leadRows||row>=totalRows) continue;
-      const isRepeat=(t-prevT)<repeatWinMs;
-      if(!onsetRows.length||onsetRows[onsetRows.length-1].row!==row)
-        onsetRows.push({row,isRepeat,time:t});
-      prevT=t;
-    }
-  }
-  const onsetsByBeat={};
-  for(const o of onsetRows){
-    const b=Math.floor(o.row/RPB);
-    if(!onsetsByBeat[b]) onsetsByBeat[b]=[];
-    onsetsByBeat[b].push(o);
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  // STREAM GENERATOR
-  // Stamina runs are generated as a CONTINUOUS 16th-note stream.
-  // We do NOT pick named patterns per beat. Instead we generate a
-  // valid alternating-foot sequence note-by-note, then every
-  // chainTarget beats we inject a "turn" — a short sub-sequence
-  // from the pattern library that shapes the direction change.
-  // This guarantees variety without ever repeating the same block.
-  // ════════════════════════════════════════════════════════════════
-
-  // Panel groups by foot
-  const L_PANELS = [0,1]; // Left foot: L, D
-  const R_PANELS = [2,3]; // Right foot: U, R
-
-  // Pattern categories allowed at each difficulty for "turn injections"
-  function getTurnCats(e){
-    const cats = ['stream','box'];
-    if(block>=3) cats.push('candle','gallop','spiral');
-    if(block>=5 && allowCross) cats.push('crossover');
-    if(block>=4 && e>0.45) cats.push('drill','anchor');
-    if(block>=6 && e>0.5) cats.push('footswitch','sideswitch');
-    if(block>=8 && e>0.65) cats.push('split');
-    return cats;
-  }
-
-  // State for the stream
-  let b          = Math.ceil(leadIn/beatDur);
-  let runBeats   = 0;
-  let breakBeats = 0;
-  // Track last N panels for variety (no 3-in-a-row same panel)
-  let recentPanels = [];
-  // Turn injection: every turnEvery beats, pull from pattern lib
-  const turnEvery = Math.max(2, chainTarget);
-  let beatsSinceTurn = 0;
-  let lastUsedCat = '';
-
-  while(b < totalBeats){
-    const section = getSection(b*RPB);
-    const e       = smoothE[Math.min(b,smoothE.length-1)]||0;
-
-    // ── REST ─────────────────────────────────────────────────────
-    if(section==='rest'){
-      breakBeats++;
-      if(breakBeats>=maxBreak){ placeNote(b*RPB); breakBeats=0; }
-      runBeats=0; b++; continue;
-    }
-
-    // ── RUN: generate note-by-note 16th stream ───────────────────
-    if(section==='run'){
-      // Mandatory break after maxRun
-      if(runBeats>=maxRun){
-        breakBeats++;
-        if(breakBeats>=minBreak){ runBeats=0; breakBeats=0; beatsSinceTurn=0; }
-        b++; continue;
-      }
-      breakBeats=0;
-
-      // Decide row step (stamina mode = always 16ths)
-      const rowStep = (Math.random()<sixteenthProb) ? 1 : 2;
-      const startRow = b*RPB;
-
-      // Every turnEvery beats: inject a named pattern for shape variety
-      if(beatsSinceTurn>=turnEvery){
-        const allowedCats = getTurnCats(e);
-        // Pick a pattern from allowed cats, different category from last
-        let pool = [...activePats].filter(n=>{
-          const p=PATTERNS[n];
-          return p.minDiff<=block && allowedCats.includes(p.cat) && p.cat!==lastUsedCat;
-        });
-        if(!pool.length) pool=[...activePats].filter(n=>PATTERNS[n].minDiff<=block&&allowedCats.includes(PATTERNS[n].cat));
-        if(!pool.length) pool=Object.keys(PATTERNS).filter(n=>PATTERNS[n].cat==='stream');
-
-        // Validate foot alternation from current lastFoot
-        const validPool = pool.filter(n=>seqValid(PATTERNS[n].seq,lastFoot));
-        const chosen = (validPool.length?validPool:pool)[Math.floor(Math.random()*(validPool.length||pool.length))];
-        const seq = PATTERNS[chosen].seq;
-        lastUsedCat = PATTERNS[chosen].cat;
-
-        // Place it
-        for(let i=0;i<seq.length;i++){
-          const row=startRow+i*rowStep;
-          if(row>=totalRows) break;
-          if(notes[row]===-1){
-            notes[row]=seq[i];
-            lastFoot=(seq[i]===0||seq[i]===1)?'L':'R';
-            lastPanel=seq[i];
-          }
-        }
-        const beatsUsed=Math.max(1,Math.ceil(((seq.length-1)*rowStep+1)/RPB));
-        runBeats+=beatsUsed; b+=beatsUsed;
-        beatsSinceTurn=0;
-      } else {
-        // Plain alternating note — just pick opposite foot, avoid same panel twice
-        const footPool = (lastFoot==='L') ? R_PANELS : L_PANELS;
-        // Avoid repeating last panel and also avoid picking a panel used 2+ times recently
-        const recentSet = new Set(recentPanels.slice(-3));
-        let choices = footPool.filter(p=>p!==lastPanel&&!recentSet.has(p));
-        if(!choices.length) choices=footPool.filter(p=>p!==lastPanel);
-        if(!choices.length) choices=footPool;
-        const panel = choices[Math.floor(Math.random()*choices.length)];
-
-        if(notes[startRow]===-1){
-          notes[startRow]=panel;
-          lastFoot=(panel===0||panel===1)?'L':'R';
-          lastPanel=panel;
-          recentPanels.push(panel);
-          if(recentPanels.length>8) recentPanels.shift();
-        }
-        runBeats+=Math.ceil(rowStep/RPB)||1;
-        b+=Math.ceil(rowStep/RPB)||1;
-        beatsSinceTurn++;
-      }
-      continue;
-    }
-
-    // ── MELODY: sparse onset-following ───────────────────────────
-    runBeats=0; breakBeats=0; beatsSinceTurn=0;
-    const beatOnsets=onsetsByBeat[b]||[];
-
-    if(useOnsets && beatOnsets.length>0){
-      for(const {row,isRepeat} of beatOnsets){
-        if(isRepeat&&doubleTapOn){
-          placeNote(row,lastPanel);
-          if(row+1<totalRows&&notes[row+1]===-1) notes[row+1]=lastPanel;
-        } else {
-          placeNote(row);
-        }
-      }
-    } else {
-      // No onset: place a quarter-note step on beat so it's not empty
-      placeNote(b*RPB);
-    }
-    b++;
-  }
-
-  return {notes, rpb:RPB};
-}
-// ── SM serialization ──────────────────────────────────────────────
-function notesToSM(notes){
-  const rpm=16; // 4 rows/beat × 4 beats/measure at 16th resolution
-  const measures=[];
-  for(let i=0;i<notes.length;i+=rpm){
-    const m=notes.slice(i,i+rpm);while(m.length<rpm)m.push(-1);measures.push(m);
-  }
-  return measures.map(m=>m.map(p=>{const r=['0','0','0','0'];if(p>=0)r[p]='1';return r.join('');}).join('\n')).join('\n,\n');
-}
-
-function buildSM(title,artist,bpm,offset,charts,ext,safe){
-  safe = safe || title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
-  const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
-  const base=5-charts.length;
-  const hdr=`#TITLE:${title};\n#SUBTITLE:;\n#ARTIST:${artist};\n#TITLETRANSLIT:;\n#SUBTITLETRANSLIT:;\n#ARTISTTRANSLIT:;\n#GENRE:;\n#CREDIT:ITG StepGen;\n#BANNER:${safe}-banner.png;\n#BACKGROUND:${safe}-bg.png;\n#CDTITLE:;\n#MUSIC:${safe}.${ext};\n#OFFSET:-${offset.toFixed(6)};\n#SAMPLESTART:12.000;\n#SAMPLELENGTH:13.000;\n#SELECTABLE:YES;\n#BPMS:0.000=${bpm.toFixed(3)};\n#STOPS:;\n\n`;
-  const cblocks=charts.map((c,i)=>{const name=diffNames[Math.min(base+i,4)];return`#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes)}\n;`;}).join('\n\n');
-  return hdr+cblocks;
-}
-
-// ── Image generation ──────────────────────────────────────────────
-function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
-async function makeImg(title,artist,w,h,artImg){
-  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');
-  if(artImg){cx.drawImage(artImg,0,0,w,h);}
-  else{const g=cx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0a0014');g.addColorStop(1,'#000e1a');cx.fillStyle=g;cx.fillRect(0,0,w,h);cx.globalAlpha=.05;cx.fillStyle='#fff';cx.font=`${Math.min(w,h)*.55}px sans-serif`;cx.textAlign='center';cx.fillText('▼',w/2,h*.65);cx.globalAlpha=1;}
-  const og=cx.createLinearGradient(0,h*.45,0,h);og.addColorStop(0,'rgba(0,0,0,0)');og.addColorStop(1,'rgba(0,0,0,.85)');cx.fillStyle=og;cx.fillRect(0,0,w,h);
-  const tfs=Math.min(w===418?20:34,w/(title.length+2)*1.5);
-  cx.shadowColor='#000';cx.shadowBlur=10;cx.fillStyle='#fff';cx.font=`bold ${tfs}px sans-serif`;cx.textAlign='center';cx.fillText(title,w/2,h-(w===418?19:52));
-  cx.font=`${tfs*.62}px sans-serif`;cx.fillStyle='#aaaaee';cx.fillText(artist,w/2,h-(w===418?4:27));
-  return new Promise(res=>cv.toBlob(res,'image/png'));
-}
-
-// ── Density chart: notes per measure across time, per difficulty ──
-function drawDensityChart(charts, duration, bpm) {
-  const cv  = document.getElementById('densityCanvas');
-  const cx  = cv.getContext('2d');
-  cv.width  = cv.offsetWidth || 800;
-  cv.height = 90;
-  const W = cv.width, H = cv.height;
-
-  cx.fillStyle = '#12121a';
-  cx.fillRect(0,0,W,H);
-
-  if(!charts.length) return;
-
-  const beatDur      = 60/bpm;
-  const RPB          = 4;
-  const rowsPerMeasure = 16; // 4 beats × 4 rows
-  const colors       = ['#00ff88','#ffb800','#ff3cac','#00f0ff'];
-  const diffNames    = ['Easy','Medium','Hard'];
-  const legend       = document.getElementById('densityLegend');
-  legend.innerHTML   = '';
-
-  // How many measures total
-  const totalRows    = charts[0].notes.length;
-  const totalMeasures = Math.ceil(totalRows / rowsPerMeasure);
-  const WINDOW       = 4; // smooth over 4-measure windows
-
-  // For each chart compute notes-per-measure
-  const series = charts.map((ch, ci) => {
-    const meas = [];
-    for(let m=0;m<totalMeasures;m++){
-      const start=m*rowsPerMeasure, end=start+rowsPerMeasure;
-      let count=0;
-      for(let r=start;r<end&&r<ch.notes.length;r++) if(ch.notes[r]>=0) count++;
-      meas.push(count);
-    }
-    // Smooth
-    const smooth = meas.map((_,i,a)=>{
-      let s=0,c=0;
-      for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}
-      return s/c;
-    });
-    return {smooth, block:ch.block, color:colors[ci]};
-  });
-
-  // Find global max for Y scale
-  const globalMax = Math.max(...series.flatMap(s=>s.smooth), 1);
-
-  // Draw each series
-  series.forEach((s,si) => {
-    cx.beginPath();
-    cx.strokeStyle = s.color;
-    cx.lineWidth   = 2;
-    s.smooth.forEach((v,i) => {
-      const x = i/totalMeasures*W;
-      const y = H - (v/globalMax)*(H-10) - 4;
-      i===0 ? cx.moveTo(x,y) : cx.lineTo(x,y);
-    });
-    cx.stroke();
-
-    // Fill under lowest difficulty only for readability
-    if(si===0){
-      cx.beginPath();
-      s.smooth.forEach((v,i)=>{
-        const x=i/totalMeasures*W;
-        const y=H-(v/globalMax)*(H-10)-4;
-        i===0?cx.moveTo(x,y):cx.lineTo(x,y);
-      });
-      cx.lineTo(W,H); cx.lineTo(0,H); cx.closePath();
-      cx.fillStyle=s.color+'22';
-      cx.fill();
-    }
-
-    // Legend entry
-    const name = diffNames[si] || `Block ${s.block}`;
-    const el   = document.createElement('div');
-    el.style.cssText = `display:flex;align-items:center;gap:4px`;
-    el.innerHTML = `<span style="display:inline-block;width:18px;height:3px;background:${s.color};border-radius:2px"></span>${name} (Blk ${s.block})`;
-    legend.appendChild(el);
-  });
-
-  // Y axis label
-  cx.fillStyle='#5a5a7a'; cx.font='9px Inter'; cx.textAlign='left';
-  cx.fillText('NOTES/MEASURE',4,11);
-  cx.fillText(Math.round(globalMax),4,H-4);
-
-  document.getElementById('densitySection').style.display='flex';
-}
-
 // ── GENERATE BUTTON ───────────────────────────────────────────────
 document.getElementById('genBtn').addEventListener('click', async()=>{
   if(!audioBuffer){log('No audio loaded!','err');return;}
-  const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='⏳ Generating...';
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true;btn.textContent='⏳ Generating...';
+  const tick=()=>new Promise(r=>setTimeout(r,0));
   try{
     const title=document.getElementById('songTitle').value||'Unknown';
     const artist=document.getElementById('songArtist').value||'Unknown Artist';
@@ -1315,31 +1218,32 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
     const offset=+document.getElementById('offset').value;
     const diffs=getDiffs();
     const ext=audioFileObj?audioFileObj.name.split('.').pop():'mp3';
+    const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
 
     log(`Generating ${diffs.length} chart(s): blocks ${diffs.join(', ')}`);
     const charts=[];
     for(const block of diffs){
       log(`Building block ${block}...`);
+      await tick();
       const {notes,rpb}=generateChart(block,bpm,energyCurve,audioBuffer.duration);
-      const nc=notes.filter(n=>n>=0).length;
-      log(`  Block ${block}: ${nc} notes placed`,'ok');
+      const nc=notes.filter(n=>n>=0&&n<=3).length;
+      log(`  Block ${block}: ${nc} notes`,'ok');
       charts.push({block,notes,rpb});
     }
 
-    drawDensityChart(charts, audioBuffer.duration, bpm);
+    drawDensityChart(charts,audioBuffer.duration,bpm);
 
-    log('Writing .sm...');
-    const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
+    log('Writing .sm...');await tick();
     const smText=buildSM(title,artist,bpm,offset,charts,ext,safe);
 
-    log('Generating artwork...');
+    log('Generating artwork...');await tick();
     const artSrc=userArt||embeddedArt||null;
     const artImg=artSrc?await loadImg(artSrc):null;
     const bannerBlob=await makeImg(title,artist,418,164,artImg);
-    const bgBlob=await makeImg(title,artist,640,480,artImg);
+    const bgBlob    =await makeImg(title,artist,640,480,artImg);
     const jacketBlob=await makeImg(title,artist,512,512,artImg);
 
-    log('Packing ZIP...');
+    log('Packing ZIP...');await tick();
     const zip=new JSZip();
     const folder=zip.folder(safe);
     folder.file(`${safe}.sm`,smText);
@@ -1352,104 +1256,10 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
     const url=URL.createObjectURL(zipBlob);
     const a=document.createElement('a');a.href=url;a.download=`${safe}.zip`;a.click();
     URL.revokeObjectURL(url);
-    log(`✓ Downloaded "${safe}.zip" — drop folder into Songs/`,'ok');
+    log(`✓ Downloaded "${safe}.zip"`, 'ok');
   }catch(err){log('Error: '+err.message,'err');console.error(err);}
   btn.disabled=false;btn.textContent='⚡ GENERATE STEP FILE';
 });
 </script>
 </body>
-</html>// ── BPM detection — fast two-stage ──────────────────────────────
-// Stage 1: IOI histogram on onsets from intense windows (~instant)
-// Stage 2: narrow autocorrelation verify on 10s downsampled slice
-function detectBPM(){
-  const sr   = audioBuffer.sampleRate;
-  const raw  = audioBuffer.getChannelData(0);
-
-  // ── Energy windows: find top 30% ──────────────────────────────
-  const W_S   = 1.0;
-  const W_N   = Math.floor(W_S * sr);
-  const USE   = Math.min(raw.length, sr * 60);
-  const nWin  = Math.floor(USE / W_N);
-  const wRMS  = new Float32Array(nWin);
-  // Step by 8 to compute window RMS faster
-  for(let i = 0; i < nWin; i++){
-    let s = 0, cnt = 0;
-    for(let j = i*W_N; j < (i+1)*W_N && j < USE; j += 8){ s += raw[j]*raw[j]; cnt++; }
-    wRMS[i] = cnt ? Math.sqrt(s/cnt) : 0;
-  }
-  const sorted = [...wRMS].sort((a,b) => b-a);
-  const thresh = sorted[Math.floor(sorted.length * 0.3)] || 0;
-
-  // ── Stage 1: IOI on intense onsets ────────────────────────────
-  const intense = (onsetTimes && onsetTimes.length >= 4)
-    ? onsetTimes.filter(t => {
-        const w = Math.floor(t / W_S);
-        return w >= 0 && w < nWin && wRMS[w] >= thresh;
-      })
-    : (onsetTimes || []);
-
-  const src = intense.length >= 4 ? intense : (onsetTimes || []);
-
-  let bpmIOI = 120;
-  if(src.length >= 4){
-    const cs  = src.map(t => Math.round(t * 100));
-    const MIN_BPM = 60, MAX_BPM = 220;
-    const minP = Math.round(6000/MAX_BPM);
-    const maxP = Math.round(6000/MIN_BPM);
-    const hist = new Float32Array(maxP + 1);
-
-    for(let i = 0; i < cs.length; i++){
-      for(let j = i+1; j < Math.min(i+10, cs.length); j++){
-        let gap = cs[j] - cs[i];
-        if(gap <= 0) continue;
-        const wt = 1.0 / (j - i);
-        let g = gap;
-        while(g > maxP) g = Math.round(g/2);
-        while(g < minP && g > 0) g = Math.round(g*2);
-        if(g >= minP && g <= maxP) hist[g] += wt;
-      }
-    }
-
-    // 3-point smooth + score
-    let bestScore = -1, bestP = minP;
-    for(let p = minP; p <= maxP; p++){
-      const sm = (hist[Math.max(minP,p-1)] + hist[p]*2 + hist[Math.min(maxP,p+1)]) / 4;
-      let score = sm;
-      const half = Math.round(p/2);
-      if(half >= minP) score += hist[half] * 0.4;
-      const bpmH = 6000/p;
-      if(bpmH >= 120 && bpmH <= 175) score *= 1.12;
-      if(score > bestScore){ bestScore = score; bestP = p; }
-    }
-    bpmIOI = 6000 / bestP;
-    while(bpmIOI < 80)  bpmIOI *= 2;
-    while(bpmIOI > 185) bpmIOI /= 2;
-  }
-
-  // ── Stage 2: autocorrelation on 10s downsampled slice ─────────
-  // Downsample by 8, use 10s = ~55000 samples → very fast
-  const DS     = 8;
-  const USE_AC = Math.min(raw.length, sr * 10);
-  const dsData = [];
-  for(let i = 0; i < USE_AC; i += DS) dsData.push(raw[i]);
-  const dsSR   = sr / DS;
-
-  // Search ±15% around IOI result
-  const bLo = Math.max(1, Math.floor(60 / (bpmIOI*1.15) * dsSR));
-  const bHi = Math.ceil(60 / (bpmIOI*0.85) * dsSR);
-  let bestLag = bLo, bestC = -Infinity;
-  for(let lag = bLo; lag <= bHi; lag++){
-    let c = 0;
-    for(let i = 0; i < dsData.length - lag; i++) c += dsData[i] * dsData[i+lag];
-    if(c > bestC){ bestC = c; bestLag = lag; }
-  }
-  let bpmAC = 60 / (bestLag / dsSR);
-  while(bpmAC < 80)  bpmAC *= 2;
-  while(bpmAC > 185) bpmAC /= 2;
-
-  // Pick best: if AC agrees within 5% use it (more precise), else use IOI
-  const diff = Math.abs(bpmAC - bpmIOI) / bpmIOI;
-  const final = diff < 0.05 ? bpmAC : bpmIOI;
-  const r = Math.round(final);
-  return Math.round((Math.abs(final - r) < 0.6 ? r : final) * 10) / 10;
-}
+</html>

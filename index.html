@@ -68,6 +68,8 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 .pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px;}
 .pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
 .pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
+.toggle-all{background:var(--bg);border:1px solid var(--accent3);color:var(--accent);font-family:'Inter',sans-serif;font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;text-transform:none;letter-spacing:0;}
+.toggle-all:hover{background:rgba(123,47,255,.15);}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
 </head>
@@ -108,8 +110,10 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="diff-row" id="diffBadges" style="margin-top:4px"></div>
     </div>
     <div>
-      <div class="sec">Patterns</div>
-      <div class="pat-grid" id="patGrid"></div>
+      <div class="sec" style="display:flex;justify-content:space-between;align-items:center">Stamina Patterns<button class="toggle-all" id="toggleStamina">Toggle all</button></div>
+      <div class="pat-grid" id="patGridStamina"></div>
+      <div class="sec" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">Tech Patterns<button class="toggle-all" id="toggleTech">Toggle all</button></div>
+      <div class="pat-grid" id="patGridTech"></div>
     </div>
     <div>
       <div class="sec">Stream Rules</div>
@@ -134,7 +138,7 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="tog-row"><label>No same category back to back</label><label class="toggle"><input type="checkbox" id="ruleNoSameCat" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Cycle categories before repeat</label><label class="toggle"><input type="checkbox" id="ruleCycleCats" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>4-pattern repeat window</label><label class="toggle"><input type="checkbox" id="ruleRepeatWindow" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Mirror alternation</label><label class="toggle"><input type="checkbox" id="ruleMirrorAlt" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Prefer mirrored variety</label><label class="toggle"><input type="checkbox" id="ruleMirrorAlt" checked/><span class="sl"></span></label></div>
       <div class="rules-group">Intensity &amp; Stamina</div>
       <div class="tog-row"><label>Stamina mode (runs on strong beat)</label><label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Energy-aware pattern selection</label><label class="toggle"><input type="checkbox" id="ruleEnergyPats" checked/><span class="sl"></span></label></div>
@@ -181,30 +185,36 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 // ═══════════════════════════════════════════════════════════════════
 // PATTERN LIBRARY — 0=L 1=D 2=U 3=R  |  L/D=left foot  U/R=right foot
 // ═══════════════════════════════════════════════════════════════════
+// 0=L(left arrow) 1=D(down) 2=U(up) 3=R(right). Left foot: panels 0,1. Right foot: 2,3.
+// STAMINA patterns must strictly alternate feet (every step opposite foot — no
+// double-steps), which is what makes a real crossover-free stream. TECH patterns
+// intentionally break alternation (drills, footswitches, anchors).
 const PATTERNS = {
-  "Run L→R":       {seq:[0,1,2,3],          cat:"stream",     group:"stamina",minDiff:1},
-  "Run R→L":       {seq:[3,2,1,0],          cat:"stream",     group:"stamina",minDiff:1},
-  "Staircase Up":  {seq:[0,1,2,3,2,1],      cat:"stream",     group:"stamina",minDiff:2},
-  "Staircase Dn":  {seq:[3,2,1,0,1,2],      cat:"stream",     group:"stamina",minDiff:2},
-  "Run Alt 1":     {seq:[0,2,1,3],          cat:"stream",     group:"stamina",minDiff:2},
-  "Run Alt 2":     {seq:[3,1,2,0],          cat:"stream",     group:"stamina",minDiff:2},
-  "Box CW":        {seq:[0,2,3,1],          cat:"box",        group:"stamina",minDiff:3},
-  "Box CCW":       {seq:[0,1,3,2],          cat:"box",        group:"stamina",minDiff:3},
-  "Box Full":      {seq:[0,2,3,1,3,2,0,1],  cat:"box",        group:"stamina",minDiff:5},
-  "Spiral In":     {seq:[0,1,3,2,1,2],      cat:"spiral",     group:"stamina",minDiff:4},
-  "Spiral Out":    {seq:[1,2,0,3,2,1],      cat:"spiral",     group:"stamina",minDiff:4},
-  "Gallop L":      {seq:[0,1,1,2],          cat:"gallop",     group:"stamina",minDiff:3},
-  "Gallop R":      {seq:[3,2,2,1],          cat:"gallop",     group:"stamina",minDiff:3},
-  "Gallop Alt":    {seq:[0,1,2,1,3,2],      cat:"gallop",     group:"stamina",minDiff:4},
+  // ── STAMINA: strictly alternating (L panel ↔ R panel every step) ──
+  "Run L→R":       {seq:[0,2,1,3],          cat:"stream",  group:"stamina",minDiff:1},
+  "Run R→L":       {seq:[3,1,2,0],          cat:"stream",  group:"stamina",minDiff:1},
+  "Cross Run A":   {seq:[0,3,1,2],          cat:"stream",  group:"stamina",minDiff:2},
+  "Cross Run B":   {seq:[1,2,0,3],          cat:"stream",  group:"stamina",minDiff:2},
+  "Staircase Up":  {seq:[0,2,1,3,1,2],      cat:"stream",  group:"stamina",minDiff:2},
+  "Staircase Dn":  {seq:[3,1,2,0,2,1],      cat:"stream",  group:"stamina",minDiff:2},
+  "Zigzag A":      {seq:[0,2,0,3,1,3],      cat:"stream",  group:"stamina",minDiff:3},
+  "Zigzag B":      {seq:[3,1,3,0,2,0],      cat:"stream",  group:"stamina",minDiff:3},
+  "Box CW":        {seq:[0,2,1,3],          cat:"box",     group:"stamina",minDiff:3},
+  "Box CCW":       {seq:[1,3,0,2],          cat:"box",     group:"stamina",minDiff:3},
+  "Box Full":      {seq:[0,2,1,3,0,3,1,2],  cat:"box",     group:"stamina",minDiff:5},
+  "Spiral In":     {seq:[0,2,1,3,0,2],      cat:"spiral",  group:"stamina",minDiff:4},
+  "Spiral Out":    {seq:[1,3,0,2,1,3],      cat:"spiral",  group:"stamina",minDiff:4},
+  "Sweep A":       {seq:[0,3,0,2,1,2],      cat:"spiral",  group:"stamina",minDiff:4},
+  "Sweep B":       {seq:[3,0,3,1,2,1],      cat:"spiral",  group:"stamina",minDiff:4},
+  // ── TECH: intentionally non-alternating ──────────────────────────
+  "Gallop L":      {seq:[0,1,1,2],          cat:"gallop",     group:"tech",   minDiff:3},
+  "Gallop R":      {seq:[3,2,2,1],          cat:"gallop",     group:"tech",   minDiff:3},
   "Candle A":      {seq:[2,0,1],            cat:"candle",     group:"tech",   minDiff:3},
   "Candle B":      {seq:[1,3,2],            cat:"candle",     group:"tech",   minDiff:3},
-  "Candle C":      {seq:[0,2,1],            cat:"candle",     group:"tech",   minDiff:4},
-  "Candle D":      {seq:[3,1,2],            cat:"candle",     group:"tech",   minDiff:4},
   "Crossover L":   {seq:[0,1,3,2],          cat:"crossover",  group:"tech",   minDiff:4},
   "Crossover R":   {seq:[3,2,0,1],          cat:"crossover",  group:"tech",   minDiff:4},
   "Drill LD":      {seq:[0,1,0,1,0,1],      cat:"drill",      group:"tech",   minDiff:4},
   "Drill RU":      {seq:[3,2,3,2,3,2],      cat:"drill",      group:"tech",   minDiff:4},
-  "Drill DU":      {seq:[1,2,1,2,1,2],      cat:"drill",      group:"tech",   minDiff:4},
   "Anchor L":      {seq:[0,2,0,1,0,3],      cat:"anchor",     group:"tech",   minDiff:4},
   "Anchor R":      {seq:[3,1,3,2,3,0],      cat:"anchor",     group:"tech",   minDiff:4},
   "Footswitch L":  {seq:[0,0,1,2],          cat:"footswitch", group:"tech",   minDiff:5},
@@ -214,6 +224,20 @@ const PATTERNS = {
   "Split LU":      {seq:[0,2,1,3],          cat:"split",      group:"tech",   minDiff:7},
   "Split DR":      {seq:[1,3,0,2],          cat:"split",      group:"tech",   minDiff:7},
 };
+
+// Tag each pattern with whether it strictly alternates feet, and validate
+// that everything labelled "stamina" really does (guards against typos).
+(function(){
+  const fo=p=>(p===0||p===1)?'L':'R';
+  Object.keys(PATTERNS).forEach(name=>{
+    const seq=PATTERNS[name].seq;
+    let alt=true;
+    for(let i=1;i<seq.length;i++) if(fo(seq[i])===fo(seq[i-1])){alt=false;break;}
+    PATTERNS[name].alt=alt;
+    if(PATTERNS[name].group==='stamina'&&!alt)
+      console.warn('Stamina pattern does not alternate:',name,seq.join(''));
+  });
+})();
 
 // Auto-generate mirrored versions (L↔R swap)
 const MIRROR_MAP = {0:3,1:2,2:1,3:0};
@@ -227,9 +251,10 @@ Object.keys(PATTERNS).forEach(name=>{
 
 const activePats=new Set(Object.keys(PATTERNS));
 
-// Pattern chip UI
+// Pattern chip UI — split by group, each with toggle-all
 (function(){
-  const grid=document.getElementById('patGrid');
+  const grids={stamina:document.getElementById('patGridStamina'),tech:document.getElementById('patGridTech')};
+  const chipFor={};
   Object.keys(PATTERNS).forEach(name=>{
     const p=PATTERNS[name];
     if(p.mirror) return;
@@ -242,14 +267,29 @@ const activePats=new Set(Object.keys(PATTERNS));
       if(activePats.has(name)){activePats.delete(name);activePats.delete(mn);chip.classList.remove('on');}
       else{activePats.add(name);if(PATTERNS[mn])activePats.add(mn);chip.classList.add('on');}
     });
-    grid.appendChild(chip);
+    chipFor[name]=chip;
+    (grids[p.group]||grids.stamina).appendChild(chip);
   });
+  function makeToggleAll(group,btn){
+    btn.addEventListener('click',()=>{
+      const names=Object.keys(PATTERNS).filter(n=>!PATTERNS[n].mirror&&PATTERNS[n].group===group);
+      const anyOn=names.some(n=>activePats.has(n));
+      names.forEach(n=>{
+        const mn=n+' ⟳';
+        if(anyOn){activePats.delete(n);activePats.delete(mn);chipFor[n].classList.remove('on');}
+        else{activePats.add(n);if(PATTERNS[mn])activePats.add(mn);chipFor[n].classList.add('on');}
+      });
+      btn.textContent=anyOn?'Enable all':'Disable all';
+    });
+  }
+  makeToggleAll('stamina',document.getElementById('toggleStamina'));
+  makeToggleAll('tech',document.getElementById('toggleTech'));
 })();
 
 // ── State ─────────────────────────────────────────────────────────
 let audioBuffer=null, audioFileObj=null;
 let detectedBPM=120, detectedOffset=0;
-let energyCurve=[], onsetTimes=[], sectionMap=[], songStructure=[];
+let energyCurve=[], onsetTimes=[], onsetStrengths=[], sectionMap=[], songStructure=[];
 let embeddedArt=null, userArt=null;
 let lastGeneratedData=null;
 
@@ -320,11 +360,11 @@ async function handleAudio(file){
 
   setP(20);log('Analyzing energy...');await tick();computeEnergy();
   setP(45);log('Detecting onsets...');await tick();computeOnsets();
-  setP(65);log('Detecting BPM...');await tick();detectedBPM=detectBPM();
+  setP(65);log('Fitting tempo + offset...');await tick();detectedBPM=detectBPM();
   document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
-  log('BPM: '+detectedBPM.toFixed(1),'ok');setP(75);
+  setP(80);
   await tick();
-  log('Detecting offset...');detectedOffset=detectOffset(detectedBPM);setP(80);
+  detectOffset(detectedBPM);
   await tick();
   log('Mapping sections...');sectionMap=buildSectionMap(detectedBPM,audioBuffer.duration);setP(88);
   await tick();
@@ -370,7 +410,7 @@ function computeEnergy(){
 function computeOnsets(){
   const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
   const sens=+document.getElementById('onsetSens').value;
-  const USE=Math.min(d.length,sr*60),HOP=1024,DS=8,BANDS=4;
+  const USE=Math.min(d.length,sr*120),HOP=1024,DS=8,BANDS=4;
   const WGTS=[3.0,2.0,1.0,0.3];
   const nHops=Math.floor((USE-HOP)/HOP);
   const flux=new Float32Array(nHops),times=new Float32Array(nHops);
@@ -387,69 +427,126 @@ function computeOnsets(){
   }
   const PWIN=10,MGAP=Math.max(1,Math.round(0.05*sr/HOP));
   let maxF=0;for(let i=0;i<nHops;i++)if(flux[i]>maxF)maxF=flux[i];
-  onsetTimes=[];let lastHop=-MGAP;
+  onsetTimes=[];onsetStrengths=[];let lastHop=-MGAP;
   for(let i=1;i<nHops-1;i++){
     const v=flux[i];let sum=0;
     for(let j=Math.max(0,i-PWIN);j<Math.min(nHops,i+PWIN);j++)sum+=flux[j];
     const thr=(sum/(PWIN*2))+sens*maxF*0.4;
-    if(v>thr&&v>flux[i-1]&&v>flux[i+1]&&i-lastHop>=MGAP){onsetTimes.push(times[i]);lastHop=i;}
+    if(v>thr&&v>flux[i-1]&&v>flux[i+1]&&i-lastHop>=MGAP){onsetTimes.push(times[i]);onsetStrengths.push(v/(maxF||1));lastHop=i;}
   }
   log('Onsets: '+onsetTimes.length,'ok');
 }
 
-// ── BPM ──────────────────────────────────────────────────────────
-function detectBPM(){
-  if(onsetTimes&&onsetTimes.length>=4){
-    const cs=onsetTimes.map(t=>Math.round(t*100));
-    const MIN_P=Math.round(6000/220),MAX_P=Math.round(6000/60);
-    const hist=new Float32Array(MAX_P+1);
-    for(let i=0;i<cs.length;i++){
-      for(let j=i+1;j<Math.min(i+8,cs.length);j++){
-        let g=cs[j]-cs[i];if(g<=0)continue;
-        const wt=1.0/(j-i);
-        while(g>MAX_P)g=Math.round(g/2);
-        while(g<MIN_P&&g>0)g=Math.round(g*2);
-        if(g>=MIN_P&&g<=MAX_P)hist[g]+=wt;
-      }
-    }
-    let best=-1,bestP=MIN_P;
-    for(let p=MIN_P;p<=MAX_P;p++){
-      let score=(hist[Math.max(MIN_P,p-1)]+hist[p]*2+hist[Math.min(MAX_P,p+1)])/4;
-      const half=Math.round(p/2);if(half>=MIN_P)score+=hist[half]*0.4;
-      const bpmH=6000/p;if(bpmH>=120&&bpmH<=175)score*=1.1;
-      if(score>best){best=score;bestP=p;}
-    }
-    let bpm=6000/bestP;
-    while(bpm<80)bpm*=2;while(bpm>185)bpm/=2;
-    const r=Math.round(bpm);return Math.round((Math.abs(bpm-r)<0.6?r:bpm)*10)/10;
+// ── BPM + Offset — ArrowVortex-style joint fit ────────────────────
+// AV finds tempo and offset together: it sweeps candidate BPMs, and for
+// each one finds the phase (offset) where weighted onset energy best lands
+// on the beat grid. The (bpm, offset) pair with the highest alignment wins,
+// then both are refined at fine resolution. Returns BPM; stores offset in
+// detectedOffset and a candidate list in bpmCandidates.
+let bpmCandidates=[];
+function fitTempo(){
+  bpmCandidates=[];
+  if(!onsetTimes||onsetTimes.length<4){detectedOffset=0;return 120;}
+  // For performance, fit against the strongest onsets (up to 400), but keep
+  // them in time order so phase math stays correct.
+  let idx=onsetTimes.map((t,i)=>i);
+  if(idx.length>400){
+    idx.sort((a,b)=>(onsetStrengths[b]||0)-(onsetStrengths[a]||0));
+    idx=idx.slice(0,400).sort((a,b)=>a-b);
   }
-  // Fallback autocorrelation on 5s downsampled 64x
-  const raw=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
-  const DS=64,USE=Math.min(raw.length,sr*5),ds=[];
-  for(let i=0;i<USE;i+=DS)ds.push(raw[i]);
-  const dsSR=sr/DS,minL=Math.max(1,Math.floor(60/185*dsSR)),maxL=Math.ceil(60/60*dsSR);
-  let bL=minL,bC=-Infinity;
-  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<ds.length-lag;i++)c+=ds[i]*ds[i+lag];if(c>bC){bC=c;bL=lag;}}
-  let bpm=60/(bL/dsSR);while(bpm<80)bpm*=2;while(bpm>185)bpm/=2;
-  return Math.round(bpm*10)/10;
+  const T=idx.map(i=>onsetTimes[i]);
+  const S=idx.map(i=>(onsetStrengths&&onsetStrengths[i])||1);
+  const span=T[T.length-1]-T[0]||1;
+
+  // Weighted alignment score for a given period & phase.
+  // Each onset contributes strength * gaussian(distance to nearest grid line).
+  function align(period, phase){
+    let score=0, wsum=0;
+    const sigma=period*0.06; // ~6% of beat tolerance, like AV's tight snap
+    for(let i=0;i<T.length;i++){
+      const ph=((T[i]-phase)%period+period)%period;
+      const dist=Math.min(ph, period-ph);
+      score+=S[i]*Math.exp(-(dist*dist)/(2*sigma*sigma));
+      wsum+=S[i];
+    }
+    return wsum?score/wsum:0;
+  }
+  // Best phase for a period: scan 64 sub-positions, return {phase,score}.
+  function bestPhase(period){
+    let bestP=0,bestS=-1;
+    const STEPS=64;
+    for(let k=0;k<STEPS;k++){
+      const phase=k*period/STEPS;
+      const s=align(period,phase);
+      if(s>bestS){bestS=s;bestP=phase;}
+    }
+    return {phase:bestP,score:bestS};
+  }
+
+  // Coarse BPM sweep across the playable range (60–220), 0.5 BPM steps.
+  const results=[];
+  for(let bpm=60;bpm<=220;bpm+=0.5){
+    const period=60/bpm;
+    if(span/period<4) continue; // need several beats of evidence
+    const {phase,score}=bestPhase(period);
+    results.push({bpm,period,phase,score});
+  }
+  if(!results.length){detectedOffset=0;return 120;}
+
+  // Octave normalization: fold each result into 80–185 and keep the strongest
+  // representative per rounded-BPM bucket. AV reports a few distinct options.
+  results.sort((a,b)=>b.score-a.score);
+  const seen=new Map();
+  for(const r of results){
+    let bpm=r.bpm;
+    while(bpm<80)bpm*=2; while(bpm>185)bpm/=2;
+    // stamina prior nudges toward the 120–175 zone
+    const prior=(bpm>=120&&bpm<=175)?1.12:(bpm>=95&&bpm<=185?1.0:0.85);
+    const adjScore=r.score*prior;
+    const key=Math.round(bpm);
+    if(!seen.has(key)||seen.get(key).adjScore<adjScore)
+      seen.set(key,{bpm,period:60/bpm,phase:r.phase,score:r.score,adjScore});
+  }
+  let cands=[...seen.values()].sort((a,b)=>b.adjScore-a.adjScore).slice(0,5);
+
+  // Refine the top candidate: fine BPM search (±1 BPM, 0.02 steps) with
+  // re-fitted phase, then fine offset polish.
+  const best=cands[0];
+  let refBpm=best.bpm,refScore=best.score,refPhase=best.phase;
+  for(let bpm=best.bpm-1;bpm<=best.bpm+1;bpm+=0.02){
+    if(bpm<60||bpm>220)continue;
+    const period=60/bpm;
+    const {phase,score}=bestPhase(period);
+    if(score>refScore){refScore=score;refBpm=bpm;refPhase=phase;}
+  }
+  // Fine offset polish at ~1ms resolution around refPhase.
+  const period=60/refBpm;
+  let polishPhase=refPhase,polishScore=refScore;
+  for(let off=refPhase-period*0.1;off<=refPhase+period*0.1;off+=0.001){
+    const s=align(period,off);
+    if(s>polishScore){polishScore=s;polishPhase=off;}
+  }
+  // Normalize phase into [0, period) and convert to a "first beat" offset
+  // (time of the first beat). AV's #OFFSET is this value, written negative.
+  let phase=((polishPhase%period)+period)%period;
+  // The offset we want is the time gap from audio start to the first beat,
+  // which is simply the phase (first grid line at or after t=0).
+  detectedOffset=phase;
+
+  // Round BPM nicely if very close to an integer.
+  const r=Math.round(refBpm);
+  const finalBpm=Math.abs(refBpm-r)<0.04?r:Math.round(refBpm*100)/100;
+
+  bpmCandidates=cands.map(c=>({bpm:Math.round(c.bpm*100)/100,score:c.adjScore}));
+  log('Tempo fit: '+finalBpm+' BPM, offset '+(detectedOffset*1000).toFixed(1)+'ms','ok');
+  if(cands.length>1) log('Other BPM candidates: '+cands.slice(1).map(c=>c.bpm.toFixed(1)).join(', '),'');
+  log('Fit confidence: '+polishScore.toFixed(3),'ok');
+  return finalBpm;
 }
 
-// ── Beat offset detection ─────────────────────────────────────────
-function detectOffset(bpm){
-  if(!onsetTimes||onsetTimes.length<2)return 0;
-  const beatDur=60/bpm;
-  const raw=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
-  const W=Math.floor(sr*0.1),USE=Math.min(raw.length,sr*30),nW=Math.floor(USE/W);
-  const wE=new Float32Array(nW);
-  for(let i=0;i<nW;i++){let s=0,cnt=0;for(let j=i*W;j<(i+1)*W&&j<USE;j+=8){s+=raw[j]*raw[j];cnt++;}wE[i]=cnt?Math.sqrt(s/cnt):0;}
-  let maxE=0;for(const v of wE)if(v>maxE)maxE=v;
-  let firstBeat=null;
-  for(const t of onsetTimes){const wi=Math.floor(t/0.1);if(wi>=0&&wi<nW&&wE[wi]>=maxE*0.3){firstBeat=t;break;}}
-  if(firstBeat===null)firstBeat=onsetTimes[0];
-  const phase=firstBeat%beatDur;
-  log('Beat offset: '+(phase*1000).toFixed(1)+'ms','ok');
-  return phase;
-}
+// Back-compat wrappers
+function detectBPM(){return fitTempo();}
+function detectOffset(bpm){return detectedOffset;} // already set by fitTempo
 
 // ── Section map — three tiers ─────────────────────────────────────
 function buildSectionMap(bpm,duration){
@@ -617,7 +714,6 @@ function generateChart(block,bpm,energy,duration){
     const rNoCat=document.getElementById('ruleNoSameCat').checked;
     const rCycle=document.getElementById('ruleCycleCats').checked;
     const rWin=document.getElementById('ruleRepeatWindow').checked;
-    const rMirr=document.getElementById('ruleMirrorAlt').checked;
     let pool=getTurnPool(e);
     if(rNoRep&&lastTurnName){const f=pool.filter(n=>n!==lastTurnName);if(f.length)pool=f;}
     if(rNoCat&&lastTurnCat){const f=pool.filter(n=>PATTERNS[n]?.cat!==lastTurnCat);if(f.length)pool=f;}
@@ -626,8 +722,15 @@ function generateChart(block,bpm,energy,duration){
     if(!pool.length)return null;
     const baseName=pool[Math.floor(Math.random()*pool.length)];
     const base=PATTERNS[baseName],mirror=PATTERNS[baseName+' ⟳'];
+    // Next note must land on the foot OPPOSITE to lastFoot. Pick whichever
+    // variant (base or mirror) starts on that foot. If neither does, keep base;
+    // the injection loop recomputes lastFoot from the actual final panel so the
+    // following fill still alternates correctly from where this pattern ended.
+    const neededFoot=lastFoot==='L'?'R':'L';
     let useSeq=base.seq;
-    if(rMirr){const nL=lastFoot==='R',sL=(base.seq[0]===0||base.seq[0]===1);if(nL!==sL&&mirror)useSeq=mirror.seq;}
+    if(footOf(base.seq[0])!==neededFoot && mirror && footOf(mirror.seq[0])===neededFoot){
+      useSeq=mirror.seq;
+    }
     lastTurnCat=base.cat;lastTurnName=baseName;recentTurns.push(baseName);if(recentTurns.length>4)recentTurns.shift();
     return useSeq;
   }
@@ -661,8 +764,12 @@ function generateChart(block,bpm,energy,duration){
       medRunBeats++;b++;continue;
     }
 
-    // INTENSE
-    if(runBeats>=maxRun){breakBeats++;if(breakBeats>=minBreak){runBeats=0;breakBeats=0;beatsSinceTurn=0;}b++;continue;}
+    // INTENSE — continuous stream until section changes (energy drop).
+    // In stamina mode the run flows unbroken; the cap is a safety limit set
+    // higher so charts aren't chopped up. Outside stamina mode the user's
+    // maxRun/minBreak enforce shorter bursts.
+    const effMaxRun = staminaMode ? maxRun*2 : maxRun;
+    if(runBeats>=effMaxRun){breakBeats++;if(breakBeats>=minBreak){runBeats=0;breakBeats=0;beatsSinceTurn=0;}b++;continue;}
     breakBeats=0;medRunBeats=0;medBreakBeats=0;
 
     if(!can16th){if(can8th)fill8ths(startRow,endRow);else fill4ths(startRow,endRow);runBeats++;b++;beatsSinceTurn++;continue;}
@@ -776,9 +883,25 @@ function drawDensityChart(charts,duration,bpm){
     const meas=[];
     for(let m=0;m<totalMeasures;m++){const s=m*rpm,e=s+rpm;let cnt=0;for(let r=s;r<e&&r<ch.notes.length;r++)if(ch.notes[r]>=0&&ch.notes[r]<=3)cnt++;meas.push(cnt/measDur);}
     const sm=meas.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}return s/c;});
-    let maxRun=0,curRun=0,maxRunStart=0,curStart=0;
-    sm.forEach((v,i)=>{if(v>0.5){curRun++;if(curRun>maxRun){maxRun=curRun;maxRunStart=curStart;}}else{curRun=0;curStart=i+1;}});
-    return{sm,block:ch.block,color:colors[ci],maxRun,maxRunStart,peakNPS:Math.max(...sm)};
+    // True longest run = longest unbroken chain of consecutive 16th-note rows.
+    // A row "has a note" if it holds a tap or hold-head (>=0). A continuous
+    // stream is a span where every 16th row is filled with no empty gap.
+    const has=r=>{const n=ch.notes[r];return n>=0&&!(n>=20&&n<=23);}; // taps + hold heads, not tail
+    let bestLen=0,bestStart=0,curLen=0,curStart=0;
+    for(let r=0;r<ch.notes.length;r++){
+      if(has(r)){if(curLen===0)curStart=r;curLen++;if(curLen>bestLen){bestLen=curLen;bestStart=curStart;}}
+      else curLen=0;
+    }
+    // Report in notes (the conventional way runs are measured: e.g. "a 64-note run")
+    // and in measures spanned for the on-chart highlight box.
+    const runNotes=bestLen;
+    const runStartMeas=bestStart/rpm;
+    const runMeasSpan=bestLen/rpm;
+    // peak NPS = the actual stream speed (16ths at this BPM), shown only if a
+    // real run exists; otherwise the busiest measure's smoothed value.
+    const streamNPS=bpm/60*4;
+    const peakNPS=runNotes>=rpm?streamNPS:Math.max(...sm);
+    return{sm,block:ch.block,color:colors[ci],runNotes,runStartMeas,runMeasSpan,peakNPS};
   });
   const gMax=Math.max(maxNPS,...series.flatMap(s=>s.sm),1);
   // Max NPS reference line
@@ -789,14 +912,15 @@ function drawDensityChart(charts,duration,bpm){
     cx.beginPath();cx.strokeStyle=s.color;cx.lineWidth=si===series.length-1?2:1.5;
     s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-12)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});cx.stroke();
     // Longest run annotation on hardest chart
-    if(si===series.length-1&&s.maxRun>0){
-      const x0=s.maxRunStart/totalMeasures*W,x1=(s.maxRunStart+s.maxRun)/totalMeasures*W;
+    if(si===series.length-1&&s.runNotes>=rpm){
+      const x0=s.runStartMeas/totalMeasures*W,x1=(s.runStartMeas+s.runMeasSpan)/totalMeasures*W;
       cx.fillStyle=s.color+'22';cx.fillRect(x0,2,x1-x0,H-4);
       cx.strokeStyle=s.color;cx.lineWidth=1;cx.setLineDash([2,2]);cx.strokeRect(x0,2,x1-x0,H-4);cx.setLineDash([]);
-      if(x1-x0>24){cx.fillStyle=s.color;cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.maxRun+'m run',(x0+x1)/2,H-4);}
+      if(x1-x0>30){cx.fillStyle=s.color;cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.runNotes+'-note run',(x0+x1)/2,H-4);}
     }
     const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:4px';
-    el.innerHTML=`<span style="display:inline-block;width:16px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} Blk${s.block} (peak ${s.peakNPS.toFixed(1)} NPS, longest run ${s.maxRun}m)`;
+    const runTxt=s.runNotes>=rpm?`longest run ${s.runNotes} notes (${s.runMeasSpan.toFixed(1)}m)`:'no sustained stream';
+    el.innerHTML=`<span style="display:inline-block;width:16px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} Blk${s.block} (peak ${s.peakNPS.toFixed(1)} NPS, ${runTxt})`;
     legend.appendChild(el);
   });
   cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.textAlign='left';cx.textBaseline='top';cx.fillText('NPS',4,4);

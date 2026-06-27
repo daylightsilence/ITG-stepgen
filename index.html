@@ -680,10 +680,21 @@ async function extractID3Art(file){
 
 // ── Energy analysis ───────────────────────────────────────────────
 function computeEnergy(){
-  const d=audioBuffer.getChannelData(0),ws=Math.floor(audioBuffer.sampleRate*.1);
-  energyCurve=[];
-  for(let i=0;i<d.length-ws;i+=ws){let s=0;for(let j=0;j<ws;j++)s+=d[i+j]*d[i+j];energyCurve.push(Math.sqrt(s/ws));}
-  const mx=Math.max(...energyCurve)||1;energyCurve=energyCurve.map(v=>v/mx);
+  const d   = audioBuffer.getChannelData(0);
+  const sr  = audioBuffer.sampleRate;
+  // 200ms windows, step by 16 samples — ~100x faster than original
+  const WS  = Math.floor(sr * 0.2);
+  const DS  = 16; // downsample: read every 16th sample
+  const USE = Math.min(d.length, sr * 90); // cap at 90s
+  energyCurve = [];
+  for(let i = 0; i < USE - WS; i += WS){
+    let s = 0, cnt = 0;
+    for(let j = i; j < i + WS; j += DS){ s += d[j]*d[j]; cnt++; }
+    energyCurve.push(cnt ? Math.sqrt(s/cnt) : 0);
+  }
+  let mx = 0;
+  for(let i = 0; i < energyCurve.length; i++) if(energyCurve[i]>mx) mx=energyCurve[i];
+  if(mx > 0) for(let i = 0; i < energyCurve.length; i++) energyCurve[i] /= mx;
 }
 
 // ── Onset detection via spectral flux ────────────────────────────
@@ -691,78 +702,57 @@ function computeEnergy(){
 // increases frame-to-frame (flux). Peaks = note onsets.
 function computeOnsets(){
   const sr   = audioBuffer.sampleRate;
-  const raw  = audioBuffer.getChannelData(0);
-  const sensitivity = +document.getElementById('onsetSens').value;
+  const d    = audioBuffer.getChannelData(0);
+  const sens = +document.getElementById('onsetSens').value;
 
-  // Only analyse first 60s — more than enough for patterns
-  const USE     = Math.min(raw.length, sr * 60);
-  // Downsample to ~11025 Hz equivalent by stepping every 4 samples
-  // This cuts the loop count by 4× with negligible quality loss
-  const DS      = 4;
-  const HOP     = 512;          // hop in original samples
-  const WIN     = 1024;
-  const dsHOP   = HOP / DS;    // hops in downsampled space
-  const numHops = Math.floor((USE - WIN) / HOP);
+  // Cap at 60s, large hop and downsample for speed
+  const USE  = Math.min(d.length, sr * 60);
+  const HOP  = 1024;   // ~23ms per hop at 44100
+  const DS   = 8;      // read every 8th sample
+  const BANDS= 4;      // 4 subbands: bass, low-mid, mid, high
+  const BW   = Math.floor(HOP / DS / BANDS);
+  const WGTS = [3.0, 2.0, 1.0, 0.3]; // heavy bass weight
 
-  // 6 subbands weighted to bass (where stamina beats live)
-  const NUM_BANDS = 6;
-  const WEIGHTS   = [2.5, 2.0, 1.5, 1.0, 0.5, 0.2];
-  const bandSize  = Math.floor(WIN / DS / NUM_BANDS);
+  const nHops = Math.floor((USE - HOP) / HOP);
+  const flux  = new Float32Array(nHops);
+  const times = new Float32Array(nHops);
+  const prev  = new Float32Array(BANDS);
 
-  const flux    = new Float32Array(numHops);
-  const times   = new Float32Array(numHops);
-  const prev    = new Float32Array(NUM_BANDS);
-
-  for(let h = 0; h < numHops; h++){
+  for(let h = 0; h < nHops; h++){
     const base = h * HOP;
     times[h]   = base / sr;
-    const cur  = new Float32Array(NUM_BANDS);
-
-    for(let b = 0; b < NUM_BANDS; b++){
-      const s0 = base + b * (WIN / NUM_BANDS);
-      const s1 = s0  + (WIN / NUM_BANDS);
-      let rms  = 0;
-      // Step by DS to downsample inline
-      for(let i = s0; i < s1 && i < USE; i += DS)
-        rms += raw[i] * raw[i];
-      cur[b] = Math.sqrt(rms / ((s1 - s0) / DS)) * WEIGHTS[b];
+    for(let b = 0; b < BANDS; b++){
+      const s0 = base + b * Math.floor(HOP / BANDS);
+      const s1 = s0  + Math.floor(HOP / BANDS);
+      let rms  = 0, cnt = 0;
+      for(let i = s0; i < s1 && i < USE; i += DS){ rms += d[i]*d[i]; cnt++; }
+      const val = cnt ? Math.sqrt(rms/cnt) * WGTS[b] : 0;
+      const diff = val - prev[b];
+      if(diff > 0) flux[h] += diff;
+      prev[b] = val;
     }
-
-    let f = 0;
-    for(let b = 0; b < NUM_BANDS; b++){
-      const d = cur[b] - prev[b];
-      if(d > 0) f += d;
-      prev[b] = cur[b];
-    }
-    flux[h] = f;
   }
 
-  // Adaptive peak picking
-  const PWIN    = 12;
-  const MIN_GAP = Math.max(1, Math.round(0.06 * sr / HOP));
-  const maxF    = Math.max(...flux) || 1;
-  onsetTimes    = [];
-  let lastHop   = -MIN_GAP;
+  // Peak pick with adaptive threshold
+  const PWIN  = 10;
+  const MGAP  = Math.max(1, Math.round(0.05 * sr / HOP));
+  let maxF = 0;
+  for(let i = 0; i < nHops; i++) if(flux[i] > maxF) maxF = flux[i];
 
-  for(let i = 1; i < numHops - 1; i++){
+  onsetTimes = [];
+  let lastHop = -MGAP;
+  for(let i = 1; i < nHops - 1; i++){
     const v = flux[i];
-    let sum = 0, cnt = 0;
-    for(let j = Math.max(0,i-PWIN); j < Math.min(numHops,i+PWIN); j++){
-      sum += flux[j]; cnt++;
-    }
-    const thr = (sum/cnt) + sensitivity * maxF * 0.45;
-    if(v > thr && v > flux[i-1] && v > flux[i+1] && i - lastHop >= MIN_GAP){
+    let sum = 0;
+    for(let j = Math.max(0,i-PWIN); j < Math.min(nHops,i+PWIN); j++) sum += flux[j];
+    const thr = (sum / (PWIN*2)) + sens * maxF * 0.4;
+    if(v > thr && v > flux[i-1] && v > flux[i+1] && i - lastHop >= MGAP){
       onsetTimes.push(times[i]);
       lastHop = i;
     }
   }
   log('Onsets: ' + onsetTimes.length, 'ok');
 }
-// ── Section map — three-tier priority system ─────────────────────
-// Returns array[beat] = 'intense' | 'medium' | 'slow'
-// intense → 16th stamina runs
-// medium  → 8th notes + melody following
-// slow    → holds + quarter melody
 function buildSectionMap(bpm, duration) {
   const staminaMode  = document.getElementById('staminaMode').checked;
   const melodyThresh = +document.getElementById('melodyThresh').value / 100;
@@ -858,7 +848,8 @@ function generateChart(block, bpm, energy, duration) {
   const RPB      = 4;             // rows per beat (16th resolution)
   const beatDur  = 60 / bpm;
   const rowDur   = beatDur / RPB;
-  const totalBeats = Math.floor(duration / beatDur);
+  const totalBeatsRaw = Math.floor(duration / beatDur);
+  const totalBeats = Math.min(totalBeatsRaw, Math.floor(600 / beatDur)); // cap at 10min
   const totalRows  = totalBeats * RPB;
   const leadRows   = Math.ceil(leadIn / rowDur);
 
@@ -1224,8 +1215,9 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
     const charts=[];
     for(const block of diffs){
       log(`Building block ${block}...`);
-      await tick();
+      await tick(); // yield so browser stays responsive
       const {notes,rpb}=generateChart(block,bpm,energyCurve,audioBuffer.duration);
+      await tick(); // yield after generation too
       const nc=notes.filter(n=>n>=0&&n<=3).length;
       log(`  Block ${block}: ${nc} notes`,'ok');
       charts.push({block,notes,rpb});
@@ -1252,7 +1244,7 @@ document.getElementById('genBtn').addEventListener('click', async()=>{
     folder.file(`${safe}-jacket.png`,jacketBlob);
     if(audioFileObj)folder.file(`${safe}.${ext}`,audioFileObj);
 
-    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+    const zipBlob=await zip.generateAsync({type:'blob',compression:'STORE'}); // STORE=no compression, much faster for audio
     const url=URL.createObjectURL(zipBlob);
     const a=document.createElement('a');a.href=url;a.download=`${safe}.zip`;a.click();
     URL.revokeObjectURL(url);

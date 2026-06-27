@@ -24,13 +24,14 @@ input[type=text],select{background:var(--bg);border:1px solid var(--border);colo
 input[type=text]:focus,select:focus{border-color:var(--accent);}
 input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .tog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
-.tog-row label{font-size:12px;color:var(--muted);}
-.toggle{position:relative;width:36px;height:20px;}
+.tog-row label:first-child{font-size:12px;color:var(--muted);}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0;}
 .toggle input{opacity:0;width:0;height:0;}
 .sl{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:background .2s;}
 .sl:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:var(--muted);border-radius:50%;transition:.2s;}
 .toggle input:checked+.sl{background:var(--accent3);}
 .toggle input:checked+.sl:before{transform:translateX(16px);background:var(--accent);}
+.rules-group{font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin:8px 0 4px;}
 .content{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:18px;gap:14px;}
 .upload-zone{border:2px dashed var(--border);border-radius:8px;padding:28px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(0,240,255,.03);}
@@ -57,38 +58,16 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 .log-box .err{color:var(--accent2);}.log-box .ok{color:var(--success);}.log-box .warn{color:var(--warn);}
 .gen-btn{background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;border-radius:6px;padding:13px 24px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:.12em;cursor:pointer;transition:opacity .2s,transform .1s;width:100%;}
 .gen-btn:hover{opacity:.9;}.gen-btn:active{transform:scale(.98);}.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+.dl-btn{background:linear-gradient(135deg,#007733,#00aa55);color:#fff;border:none;border-radius:6px;padding:13px 24px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:.12em;cursor:pointer;transition:opacity .2s;width:100%;display:none;}
+.dl-btn:hover{opacity:.9;}.dl-btn:disabled{opacity:.4;cursor:not-allowed;}
 .diff-row{display:flex;gap:6px;flex-wrap:wrap;}
 .db{font-family:'Orbitron',monospace;font-size:10px;padding:3px 7px;border-radius:3px;border:1px solid;}
 .db.easy{color:#00ff88;border-color:#00ff88;background:rgba(0,255,136,.08);}
 .db.med{color:#ffb800;border-color:#ffb800;background:rgba(255,184,0,.08);}
 .db.hard{color:#ff3cac;border-color:#ff3cac;background:rgba(255,60,172,.08);}
-.pat-tabs{display:flex;gap:4px;margin-bottom:8px;}
-.pat-tab{flex:1;padding:4px 0;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.06em;text-align:center;border-radius:4px;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s;user-select:none;}
-.pat-tab.active{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.18);}
-.pat-group-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 3px;padding-left:2px;display:flex;justify-content:space-between;align-items:center;}
-.grp-tog{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:.06em;padding:2px 6px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
-.grp-tog:hover{border-color:var(--accent2);color:var(--accent2);}
-.grp-tog.all-on{border-color:var(--accent3);color:var(--accent3);}
-.pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
-.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;position:relative;}
+.pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px;}
+.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
 .pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
-.pat-chip.hidden{display:none;}
-.pat-group-label.hidden{display:none;}
-/* Pattern preview tooltip */
-#patTooltip{
-  position:fixed;
-  display:none;
-  background:#1a1a28;
-  border:1px solid var(--accent3);
-  border-radius:6px;
-  padding:8px;
-  pointer-events:none;
-  z-index:9999;
-  box-shadow:0 4px 20px rgba(0,0,0,.6);
-}
-#patTooltip canvas{display:block;border-radius:3px;}
-#patTooltip .tip-name{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:.08em;color:var(--accent);text-align:center;margin-bottom:6px;text-transform:uppercase;}
-#patTooltip .tip-cat{font-size:10px;color:var(--muted);text-align:center;margin-top:5px;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
 </head>
@@ -130,71 +109,36 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div>
       <div class="sec">Patterns</div>
-      <div class="pat-tabs">
-        <div class="pat-tab active" id="tabBoth" onclick="setPatTab('both')">BOTH</div>
-        <div class="pat-tab" id="tabStamina" onclick="setPatTab('stamina')">STAMINA</div>
-        <div class="pat-tab" id="tabTech" onclick="setPatTab('tech')">TECH</div>
-      </div>
-      <div id="patContainer">
-        <div class="pat-group-label" id="labelStamina">
-          <span>— Stamina —</span>
-          <button class="grp-tog" id="togStamina" onclick="toggleGroup('stamina')">ALL OFF</button>
-        </div>
-        <div class="pat-grid" id="patGridStamina"></div>
-        <div class="pat-group-label" id="labelTech" style="margin-top:8px">
-          <span>— Tech —</span>
-          <button class="grp-tog" id="togTech" onclick="toggleGroup('tech')">ALL OFF</button>
-        </div>
-        <div class="pat-grid" id="patGridTech"></div>
-      </div>
+      <div class="pat-grid" id="patGrid"></div>
     </div>
     <div>
       <div class="sec">Stream Rules</div>
-      <div class="field"><label>Patterns per chain <span id="chainLenVal">3–5</span></label><input type="range" id="chainLen" min="2" max="8" value="4" step="1"/></div>
+      <div class="field"><label>Patterns per chain <span id="chainLenVal">4</span></label><input type="range" id="chainLen" min="2" max="8" value="4"/></div>
       <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
-      <div class="field"><label>Min break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
-      <div class="field"><label>Max break length (beats) <span id="maxBreakVal">16</span></label><input type="range" id="maxBreak" min="4" max="64" value="16" step="2"/></div>
+      <div class="field"><label>Min break (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
+      <div class="field"><label>Max break (beats) <span id="maxBreakVal">16</span></label><input type="range" id="maxBreak" min="4" max="64" value="16" step="2"/></div>
       <div class="field"><label>Melody threshold <span id="melodyThreshVal">30</span>%</label><input type="range" id="melodyThresh" min="5" max="60" value="30" step="5"/></div>
       <div class="field"><label>Onset sensitivity <span id="onsetSensVal">0.4</span></label><input type="range" id="onsetSens" min="0.1" max="0.9" value="0.4" step="0.05"/></div>
-      <div class="field"><label>Repeat window (ms) <span id="repeatWinVal">200</span></label><input type="range" id="repeatWin" min="50" max="500" value="200" step="25"/></div>
       <div class="field"><label>Fine-tune offset (s) <span id="offsetVal">0.0</span></label><input type="range" id="offset" min="-0.5" max="2" value="0" step="0.05"/></div>
-      <div class="field"><label>Snap resolution</label>
-        <select id="snapResolution">
-          <option value="16">16th notes (free)</option>
-          <option value="8">8th notes</option>
-          <option value="4">Quarter notes (beats only)</option>
-        </select>
-      </div>
     </div>
     <div>
       <div class="sec">Rules</div>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Toggle generation behaviors on/off</div>
-
-      <div style="font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 4px">Rhythm &amp; Sync</div>
+      <div class="rules-group">Rhythm &amp; Sync</div>
       <div class="tog-row"><label>ITG 9ms sync bias</label><label class="toggle"><input type="checkbox" id="rule9ms" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Auto-detect beat offset</label><label class="toggle"><input type="checkbox" id="ruleAutoOffset" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Snap steps to melody onsets</label><label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Double tap on repeated notes</label><label class="toggle"><input type="checkbox" id="doubleTap" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Snap steps to melody</label><label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Double tap repeats</label><label class="toggle"><input type="checkbox" id="doubleTap" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
-
-      <div style="font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px">Song Structure</div>
-      <div class="tog-row"><label>Detect repeating sections</label><label class="toggle"><input type="checkbox" id="ruleDetectStructure" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Reuse patterns in repeats</label><label class="toggle"><input type="checkbox" id="ruleReusePatterns" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Snap runs to section boundaries</label><label class="toggle"><input type="checkbox" id="ruleSnapToSection" checked/><span class="sl"></span></label></div>
-
-      <div style="font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px">Pattern Rules</div>
+      <div class="rules-group">Pattern Rules</div>
       <div class="tog-row"><label>No same pattern back to back</label><label class="toggle"><input type="checkbox" id="ruleNoRepeat" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>No same category back to back</label><label class="toggle"><input type="checkbox" id="ruleNoSameCat" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Cycle all categories before repeating</label><label class="toggle"><input type="checkbox" id="ruleCycleCats" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Repeat window (4 patterns)</label><label class="toggle"><input type="checkbox" id="ruleRepeatWindow" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Cycle categories before repeat</label><label class="toggle"><input type="checkbox" id="ruleCycleCats" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>4-pattern repeat window</label><label class="toggle"><input type="checkbox" id="ruleRepeatWindow" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Mirror alternation</label><label class="toggle"><input type="checkbox" id="ruleMirrorAlt" checked/><span class="sl"></span></label></div>
-
-      <div style="font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin:10px 0 4px">Intensity &amp; Stamina</div>
+      <div class="rules-group">Intensity &amp; Stamina</div>
       <div class="tog-row"><label>Stamina mode (runs on strong beat)</label><label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Run length follows intensity peaks</label><label class="toggle"><input type="checkbox" id="ruleRunIntensity" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Energy-aware pattern selection</label><label class="toggle"><input type="checkbox" id="ruleEnergyPats" checked/><span class="sl"></span></label></div>
     </div>
-  </div>
   </div>
   <div class="content">
     <div class="upload-zone" id="uploadZone">
@@ -217,414 +161,132 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <canvas id="waveCanvas" height="80"></canvas>
       <canvas id="energyCanvas" height="50"></canvas>
     </div>
-    <div class="wave-sec" id="structureSection" style="display:none">
+    <div class="wave-sec" id="structureSection">
       <div class="wave-label">Song Structure</div>
-      <canvas id="structureCanvas" height="30"></canvas>
-      <div id="structureLegend" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;font-size:10px;color:var(--muted)"></div>
+      <canvas id="structureCanvas" height="28"></canvas>
+      <div id="structureLegend" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;font-size:10px;color:var(--muted)"></div>
     </div>
-    <div class="wave-sec" id="densitySection" style="display:none">
-      <div class="wave-label">Step Density (NPS) — per difficulty</div>
+    <div class="wave-sec" id="densitySection">
+      <div class="wave-label">Step Density — NPS per difficulty</div>
       <canvas id="densityCanvas" height="90"></canvas>
-      <div id="densityLegend" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:5px;font-size:10px;color:var(--muted)"></div>
+      <div id="densityLegend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;font-size:10px;color:var(--muted)"></div>
     </div>
     <div class="log-box" id="log"><span style="color:var(--muted)">Waiting for audio...</span><br/></div>
     <button class="gen-btn" id="genBtn" disabled>⚡ PREVIEW CHART</button>
-    <button class="gen-btn" id="dlBtn" disabled style="display:none;background:linear-gradient(135deg,#00aa55,#007733);margin-top:6px">⬇ DOWNLOAD ZIP</button>
+    <button class="dl-btn" id="dlBtn">⬇ DOWNLOAD ZIP</button>
   </div>
-</div>
-<div id="patTooltip">
-  <div class="tip-name" id="tipName"></div>
-  <canvas id="tipCanvas" width="160" height="140"></canvas>
-  <div class="tip-cat" id="tipCat"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// PATTERN LIBRARY
-// Each pattern is a sequence of panels: 0=L 1=D 2=U 3=R
-// Patterns are designed to alternate feet correctly
-// L/D = left foot, U/R = right foot
+// PATTERN LIBRARY — 0=L 1=D 2=U 3=R  |  L/D=left foot  U/R=right foot
 // ═══════════════════════════════════════════════════════════════════
 const PATTERNS = {
-  // ── Stamina: stream runs ───────────────────────────────────────
-  "Run L→R":        { seq:[0,1,2,3],           cat:"stream",      group:"stamina", minDiff:1 },
-  "Run R→L":        { seq:[3,2,1,0],           cat:"stream",      group:"stamina", minDiff:1 },
-  "Staircase Up":   { seq:[0,1,2,3,2,1],       cat:"stream",      group:"stamina", minDiff:2 },
-  "Staircase Down": { seq:[3,2,1,0,1,2],       cat:"stream",      group:"stamina", minDiff:2 },
-  "Run Alt 1":      { seq:[0,2,1,3],           cat:"stream",      group:"stamina", minDiff:2 },
-  "Run Alt 2":      { seq:[3,1,2,0],           cat:"stream",      group:"stamina", minDiff:2 },
-  // ── Stamina: box/spiral (body movement, no crossing) ──────────
-  "Box CW":         { seq:[0,2,3,1],           cat:"box",         group:"stamina", minDiff:3 },
-  "Box CCW":        { seq:[0,1,3,2],           cat:"box",         group:"stamina", minDiff:3 },
-  "Box Full":       { seq:[0,2,3,1,3,2,0,1],  cat:"box",         group:"stamina", minDiff:5 },
-  "Spiral In":      { seq:[0,1,3,2,1,2],       cat:"spiral",      group:"stamina", minDiff:4 },
-  "Spiral Out":     { seq:[1,2,0,3,2,1],       cat:"spiral",      group:"stamina", minDiff:4 },
-  // ── Stamina: gallops (rhythm accents) ─────────────────────────
-  "Gallop L":       { seq:[0,1,1,2],           cat:"gallop",      group:"stamina", minDiff:3 },
-  "Gallop R":       { seq:[3,2,2,1],           cat:"gallop",      group:"stamina", minDiff:3 },
-  "Gallop Alt":     { seq:[0,1,2,1,3,2],       cat:"gallop",      group:"stamina", minDiff:4 },
-  // ── Tech: candles (cross-body movement) ───────────────────────
-  "Candle A":       { seq:[2,0,1],             cat:"candle",      group:"tech",    minDiff:3 },
-  "Candle B":       { seq:[1,3,2],             cat:"candle",      group:"tech",    minDiff:3 },
-  "Candle C":       { seq:[0,2,1],             cat:"candle",      group:"tech",    minDiff:4 },
-  "Candle D":       { seq:[3,1,2],             cat:"candle",      group:"tech",    minDiff:4 },
-  // ── Tech: crossovers ──────────────────────────────────────────
-  "Crossover L":    { seq:[0,1,3,2],           cat:"crossover",   group:"tech",    minDiff:4 },
-  "Crossover R":    { seq:[3,2,0,1],           cat:"crossover",   group:"tech",    minDiff:4 },
-  "XO Candle L":    { seq:[0,1,3,1],           cat:"crossover",   group:"tech",    minDiff:5 },
-  "XO Candle R":    { seq:[3,2,0,2],           cat:"crossover",   group:"tech",    minDiff:5 },
-  // ── Tech: drills ──────────────────────────────────────────────
-  "Drill LD":       { seq:[0,1,0,1,0,1],       cat:"drill",       group:"tech",    minDiff:4 },
-  "Drill RU":       { seq:[3,2,3,2,3,2],       cat:"drill",       group:"tech",    minDiff:4 },
-  "Drill DU":       { seq:[1,2,1,2,1,2],       cat:"drill",       group:"tech",    minDiff:4 },
-  "Drill LR":       { seq:[0,3,0,3,0,3],       cat:"drill",       group:"tech",    minDiff:6 },
-  // ── Tech: footswitches ────────────────────────────────────────
-  "Footswitch L":   { seq:[0,0,1,2],           cat:"footswitch",  group:"tech",    minDiff:5 },
-  "Footswitch R":   { seq:[3,3,2,1],           cat:"footswitch",  group:"tech",    minDiff:5 },
-  "FS Stream":      { seq:[1,0,1,2,3,2],       cat:"footswitch",  group:"tech",    minDiff:6 },
-  // ── Tech: sideswitches & anchors ──────────────────────────────
-  "Sideswitch L":   { seq:[0,1,0,2,0,1],       cat:"sideswitch",  group:"tech",    minDiff:6 },
-  "Sideswitch R":   { seq:[3,2,3,1,3,2],       cat:"sideswitch",  group:"tech",    minDiff:6 },
-  "Anchor L":       { seq:[0,2,0,1,0,3],       cat:"anchor",      group:"tech",    minDiff:4 },
-  "Anchor R":       { seq:[3,1,3,2,3,0],       cat:"anchor",      group:"tech",    minDiff:4 },
-  "Anchor D":       { seq:[1,0,1,2,1,3],       cat:"anchor",      group:"tech",    minDiff:5 },
-  "Anchor U":       { seq:[2,3,2,1,2,0],       cat:"anchor",      group:"tech",    minDiff:5 },
-  // ── Tech: splits ──────────────────────────────────────────────
-  "Split LU":       { seq:[0,2,1,3],           cat:"split",       group:"tech",    minDiff:7 },
-  "Split DR":       { seq:[1,3,0,2],           cat:"split",       group:"tech",    minDiff:7 },
-}
-// ── Auto-generate mirrored versions of every pattern ─────────────
-// Mirror L↔R: panel 0(L)↔3(R), panel 1(D)↔2(U)
-// This doubles the library and ensures smooth left→right foot
-// transitions when one pattern ends on a given foot.
-const MIRROR_MAP = {0:3, 1:2, 2:1, 3:0};
+  "Run L→R":       {seq:[0,1,2,3],          cat:"stream",     group:"stamina",minDiff:1},
+  "Run R→L":       {seq:[3,2,1,0],          cat:"stream",     group:"stamina",minDiff:1},
+  "Staircase Up":  {seq:[0,1,2,3,2,1],      cat:"stream",     group:"stamina",minDiff:2},
+  "Staircase Dn":  {seq:[3,2,1,0,1,2],      cat:"stream",     group:"stamina",minDiff:2},
+  "Run Alt 1":     {seq:[0,2,1,3],          cat:"stream",     group:"stamina",minDiff:2},
+  "Run Alt 2":     {seq:[3,1,2,0],          cat:"stream",     group:"stamina",minDiff:2},
+  "Box CW":        {seq:[0,2,3,1],          cat:"box",        group:"stamina",minDiff:3},
+  "Box CCW":       {seq:[0,1,3,2],          cat:"box",        group:"stamina",minDiff:3},
+  "Box Full":      {seq:[0,2,3,1,3,2,0,1],  cat:"box",        group:"stamina",minDiff:5},
+  "Spiral In":     {seq:[0,1,3,2,1,2],      cat:"spiral",     group:"stamina",minDiff:4},
+  "Spiral Out":    {seq:[1,2,0,3,2,1],      cat:"spiral",     group:"stamina",minDiff:4},
+  "Gallop L":      {seq:[0,1,1,2],          cat:"gallop",     group:"stamina",minDiff:3},
+  "Gallop R":      {seq:[3,2,2,1],          cat:"gallop",     group:"stamina",minDiff:3},
+  "Gallop Alt":    {seq:[0,1,2,1,3,2],      cat:"gallop",     group:"stamina",minDiff:4},
+  "Candle A":      {seq:[2,0,1],            cat:"candle",     group:"tech",   minDiff:3},
+  "Candle B":      {seq:[1,3,2],            cat:"candle",     group:"tech",   minDiff:3},
+  "Candle C":      {seq:[0,2,1],            cat:"candle",     group:"tech",   minDiff:4},
+  "Candle D":      {seq:[3,1,2],            cat:"candle",     group:"tech",   minDiff:4},
+  "Crossover L":   {seq:[0,1,3,2],          cat:"crossover",  group:"tech",   minDiff:4},
+  "Crossover R":   {seq:[3,2,0,1],          cat:"crossover",  group:"tech",   minDiff:4},
+  "Drill LD":      {seq:[0,1,0,1,0,1],      cat:"drill",      group:"tech",   minDiff:4},
+  "Drill RU":      {seq:[3,2,3,2,3,2],      cat:"drill",      group:"tech",   minDiff:4},
+  "Drill DU":      {seq:[1,2,1,2,1,2],      cat:"drill",      group:"tech",   minDiff:4},
+  "Anchor L":      {seq:[0,2,0,1,0,3],      cat:"anchor",     group:"tech",   minDiff:4},
+  "Anchor R":      {seq:[3,1,3,2,3,0],      cat:"anchor",     group:"tech",   minDiff:4},
+  "Footswitch L":  {seq:[0,0,1,2],          cat:"footswitch", group:"tech",   minDiff:5},
+  "Footswitch R":  {seq:[3,3,2,1],          cat:"footswitch", group:"tech",   minDiff:5},
+  "Sideswitch L":  {seq:[0,1,0,2,0,1],      cat:"sideswitch", group:"tech",   minDiff:6},
+  "Sideswitch R":  {seq:[3,2,3,1,3,2],      cat:"sideswitch", group:"tech",   minDiff:6},
+  "Split LU":      {seq:[0,2,1,3],          cat:"split",      group:"tech",   minDiff:7},
+  "Split DR":      {seq:[1,3,0,2],          cat:"split",      group:"tech",   minDiff:7},
+};
+
+// Auto-generate mirrored versions (L↔R swap)
+const MIRROR_MAP = {0:3,1:2,2:1,3:0};
+Object.keys(PATTERNS).forEach(name=>{
+  const p=PATTERNS[name];
+  const m=p.seq.map(x=>MIRROR_MAP[x]);
+  const mn=name+' ⟳';
+  if(JSON.stringify(m)!==JSON.stringify(p.seq))
+    PATTERNS[mn]={seq:m,cat:p.cat,group:p.group,minDiff:p.minDiff,mirror:true};
+});
+
+const activePats=new Set(Object.keys(PATTERNS));
+
+// Pattern chip UI
 (function(){
-  const origNames = Object.keys(PATTERNS);
-  origNames.forEach(name => {
-    const p = PATTERNS[name];
-    const mirrored = p.seq.map(panel => MIRROR_MAP[panel]);
-    const mirrorName = name + ' ⟳';
-    // Only add if meaningfully different from original
-    if(JSON.stringify(mirrored) !== JSON.stringify(p.seq)){
-      PATTERNS[mirrorName] = {
-        seq:     mirrored,
-        cat:     p.cat,
-        group:   p.group,
-        minDiff: p.minDiff,
-        mirror:  true   // flag so UI can mark it
-      };
-    }
+  const grid=document.getElementById('patGrid');
+  Object.keys(PATTERNS).forEach(name=>{
+    const p=PATTERNS[name];
+    if(p.mirror) return;
+    const chip=document.createElement('div');
+    chip.className='pat-chip on';
+    chip.textContent=name;
+    chip.title=p.cat+' · min block '+p.minDiff;
+    chip.addEventListener('click',()=>{
+      const mn=name+' ⟳';
+      if(activePats.has(name)){activePats.delete(name);activePats.delete(mn);chip.classList.remove('on');}
+      else{activePats.add(name);if(PATTERNS[mn])activePats.add(mn);chip.classList.add('on');}
+    });
+    grid.appendChild(chip);
   });
 })();
 
-;
+// ── State ─────────────────────────────────────────────────────────
+let audioBuffer=null, audioFileObj=null;
+let detectedBPM=120, detectedOffset=0;
+let energyCurve=[], onsetTimes=[], sectionMap=[], songStructure=[];
+let embeddedArt=null, userArt=null;
+let lastGeneratedData=null;
 
-// Active pattern state
-const activePats = new Set(Object.keys(PATTERNS));
-let currentTab = 'both';
-
-// ── Build pattern chips UI ────────────────────────────────────────
-function buildPatChips() {
-  const gridS = document.getElementById('patGridStamina');
-  const gridT = document.getElementById('patGridTech');
-  gridS.innerHTML = ''; gridT.innerHTML = '';
-
-  Object.keys(PATTERNS).forEach(name => {
-    const p = PATTERNS[name];
-    // Don't show auto-mirrored patterns as separate chips —
-    // they're always active internally and used transparently
-    if(p.mirror) return;
-
-    const chip = document.createElement('div');
-    chip.className = 'pat-chip' + (activePats.has(name) ? ' on' : '');
-    chip.textContent = name;
-    chip.dataset.name = name;
-    chip.dataset.group = p.group;
-    chip.title = `${p.cat} | min block ${p.minDiff}`;
-    chip.addEventListener('click', () => {
-      const mirrorName = name + ' ⟳';
-      if (activePats.has(name)) {
-        activePats.delete(name);
-        activePats.delete(mirrorName); // toggle mirror together
-        chip.classList.remove('on');
-      } else {
-        activePats.add(name);
-        if(PATTERNS[mirrorName]) activePats.add(mirrorName); // enable mirror too
-        chip.classList.add('on');
-      }
-    });
-    addTooltipEvents(chip, name);
-    (p.group === 'stamina' ? gridS : gridT).appendChild(chip);
-  });
-  applyTabFilter();
+// ── Helpers ───────────────────────────────────────────────────────
+function footOf(p){return(p===0||p===1)?'L':'R';}
+function seqValid(seq,startFoot){
+  if(!seq||!seq.length) return false;
+  return footOf(seq[0])!==startFoot; // only check starting foot
 }
 
-function setPatTab(tab) {
-  currentTab = tab;
-  ['both','stamina','tech'].forEach(t => {
-    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1))
-      .classList.toggle('active', t === tab);
-  });
-  applyTabFilter();
+function log(msg,cls=''){
+  const b=document.getElementById('log');
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  d.textContent='> '+msg;
+  b.appendChild(d);b.scrollTop=b.scrollHeight;
 }
-
-function applyTabFilter() {
-  // Show/hide group labels and chips based on current tab
-  const showStamina = currentTab === 'both' || currentTab === 'stamina';
-  const showTech    = currentTab === 'both' || currentTab === 'tech';
-
-  document.getElementById('labelStamina').classList.toggle('hidden', !showStamina);
-  document.getElementById('patGridStamina').classList.toggle('hidden', !showStamina);
-  document.getElementById('labelTech').classList.toggle('hidden', !showTech);
-  document.getElementById('patGridTech').classList.toggle('hidden', !showTech);
-
-  // When a group is hidden, also disable its patterns from generation
-  Object.keys(PATTERNS).forEach(name => {
-    const p = PATTERNS[name];
-    if(p.mirror) return; // mirrors follow their parent
-    const shouldShow = (p.group === 'stamina' && showStamina) || (p.group === 'tech' && showTech);
-    const chip = document.querySelector(`.pat-chip[data-name="${CSS.escape(name)}"]`);
-    if (!chip) return;
-    const mirrorName = name + ' ⟳';
-    if (!shouldShow) {
-      activePats.delete(name);
-      activePats.delete(mirrorName);
-    } else if (chip.classList.contains('on')) {
-      activePats.add(name);
-      if(PATTERNS[mirrorName]) activePats.add(mirrorName);
-    }
-  });
-}
-
-function toggleGroup(group) {
-  const chips = document.querySelectorAll(`.pat-chip[data-group="${group}"]`);
-  const btn   = document.getElementById('tog' + group.charAt(0).toUpperCase() + group.slice(1));
-  // Check if all are currently on
-  const allOn = [...chips].every(c => c.classList.contains('on'));
-  chips.forEach(chip => {
-    const name = chip.dataset.name;
-    if(allOn){
-      activePats.delete(name); chip.classList.remove('on');
-    } else {
-      activePats.add(name); chip.classList.add('on');
-    }
-  });
-  btn.textContent = allOn ? 'ALL ON'  : 'ALL OFF';
-  btn.classList.toggle('all-on', !allOn);
-}
-
-buildPatChips();
-
-// ═══════════════════════════════════════════════════════════════════
-// PATTERN PREVIEW TOOLTIP
-// Draws an arrow diagram showing each step in the sequence.
-// Panels: 0=L 1=D 2=U 3=R laid out as a 2×2 pad grid.
-// ═══════════════════════════════════════════════════════════════════
-
-// Arrow shapes for each panel direction
-const ARROW_SHAPES = {
-  0: { label:'◀', color:'#3399ff', col:0, row:1 }, // Left
-  1: { label:'▼', color:'#ff3333', col:1, row:1 }, // Down  (bottom center)
-  2: { label:'▲', color:'#ff3333', col:1, row:0 }, // Up    (top center)
-  3: { label:'▶', color:'#3399ff', col:2, row:1 }, // Right
-};
-
-// Pad layout: 3 columns (L, center, R), 2 rows (U row, D row)
-// col: 0=left, 1=center, 2=right
-// row: 0=top(Up), 1=bottom(Down/Left/Right)
-
-function drawPatternPreview(canvas, patName) {
-  const seq  = PATTERNS[patName].seq;
-  const W    = canvas.width;
-  const H    = canvas.height;
-  const cx   = canvas.getContext('2d');
-
-  cx.fillStyle = '#0e0e1a';
-  cx.fillRect(0, 0, W, H);
-
-  // ── Layout ─────────────────────────────────────────────────────
-  const PAD_W  = 34;
-  const PAD_H  = 34;
-  const GAP_X  = 6;
-  const GAP_Y  = 8;
-  const GRID_W = 3 * PAD_W + 2 * GAP_X;
-  const GRID_H = 2 * PAD_H + GAP_Y;
-  const OX     = (W - GRID_W) / 2;
-  const OY     = 8;
-
-  // Helper: pixel coords of panel box
-  function panelXY(shape){
-    return {
-      x: OX + shape.col * (PAD_W + GAP_X),
-      y: OY + shape.row * (PAD_H + GAP_Y)
-    };
-  }
-
-  // ── Draw dim panel backgrounds ──────────────────────────────────
-  [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]].forEach(([c,r])=>{
-    const px = OX + c*(PAD_W+GAP_X);
-    const py = OY + r*(PAD_H+GAP_Y);
-    cx.fillStyle = '#1a1a2a';
-    cx.strokeStyle = '#2a2a3a';
-    cx.lineWidth = 1;
-    cx.beginPath(); cx.roundRect(px,py,PAD_W,PAD_H,4); cx.fill(); cx.stroke();
-  });
-
-  // ── Draw connecting line first (under panels) ───────────────────
-  if(seq.length > 1){
-    cx.strokeStyle = '#ffffff22';
-    cx.lineWidth = 2;
-    cx.setLineDash([3,3]);
-    cx.beginPath();
-    seq.forEach((panel, i) => {
-      const {x,y} = panelXY(ARROW_SHAPES[panel]);
-      const cx_ = x + PAD_W/2, cy_ = y + PAD_H/2;
-      i===0 ? cx.moveTo(cx_,cy_) : cx.lineTo(cx_,cy_);
-    });
-    cx.stroke();
-    cx.setLineDash([]);
-  }
-
-  // ── For each UNIQUE panel in sequence, draw it highlighted ──────
-  // Track how many times each panel has appeared so far — used to
-  // pick which visit's step number to show (we'll show all in strip)
-  const panelColors = {};
-  seq.forEach((panel, stepIdx) => {
-    const shape = ARROW_SHAPES[panel];
-    const {x,y} = panelXY(shape);
-    const alpha = 0.3 + 0.7 * ((stepIdx+1)/seq.length);
-    const hexAlpha = Math.round(alpha*255).toString(16).padStart(2,'0');
-
-    cx.fillStyle = shape.color + hexAlpha;
-    cx.strokeStyle = shape.color;
-    cx.lineWidth = 2;
-    cx.beginPath(); cx.roundRect(x,y,PAD_W,PAD_H,4); cx.fill(); cx.stroke();
-
-    // Arrow glyph
-    cx.fillStyle = '#fff';
-    cx.font = 'bold 17px sans-serif';
-    cx.textAlign = 'center';
-    cx.textBaseline = 'middle';
-    cx.fillText(shape.label, x+PAD_W/2, y+PAD_H/2);
-  });
-
-  // ── Sequence strip below the grid ──────────────────────────────
-  // One small box per step, left to right, showing the step number
-  // and colour-coded by which panel it hits
-  const STRIP_Y  = OY + GRID_H + 10;
-  const BOX_W    = Math.min(22, (W - 16) / Math.max(seq.length, 1));
-  const BOX_H    = 18;
-  const STRIP_X  = (W - BOX_W * seq.length) / 2;
-
-  seq.forEach((panel, i) => {
-    const shape = ARROW_SHAPES[panel];
-    const bx = STRIP_X + i * BOX_W;
-
-    // Box background in panel colour
-    cx.fillStyle = shape.color + '44';
-    cx.strokeStyle = shape.color;
-    cx.lineWidth = 1;
-    cx.beginPath(); cx.roundRect(bx+1, STRIP_Y, BOX_W-2, BOX_H, 3); cx.fill(); cx.stroke();
-
-    // Step number — always 1-based, always sequential, never overlaps
-    cx.fillStyle = '#ffffff';
-    cx.font = `bold ${BOX_W < 18 ? 9 : 10}px sans-serif`;
-    cx.textAlign = 'center';
-    cx.textBaseline = 'middle';
-    cx.fillText(String(i+1), bx + BOX_W/2, STRIP_Y + BOX_H/2);
-  });
-
-  // Panel labels
-  const LABEL_Y = STRIP_Y + BOX_H + 6;
-  cx.fillStyle = '#3399ff88';
-  cx.font = '9px Inter';
-  cx.textAlign = 'center';
-  cx.textBaseline = 'top';
-  cx.fillText('L', OX+PAD_W/2, LABEL_Y);
-  cx.fillText('R', OX+2*(PAD_W+GAP_X)+PAD_W/2, LABEL_Y);
-  cx.fillStyle = '#ff333388';
-  cx.fillText('U', OX+(PAD_W+GAP_X)+PAD_W/2, OY+PAD_H/2 - 5 - 8);
-  cx.fillText('D', OX+(PAD_W+GAP_X)+PAD_W/2, LABEL_Y);
-}
-
-// ── Tooltip show/hide ─────────────────────────────────────────────
-const tooltip   = document.getElementById('patTooltip');
-const tipCanvas = document.getElementById('tipCanvas');
-const tipName   = document.getElementById('tipName');
-const tipCat    = document.getElementById('tipCat');
-let   tipTimer  = null;
-
-function showTooltip(chip, patName) {
-  const p = PATTERNS[patName];
-  tipName.textContent = patName;
-  tipCat.textContent  = p.cat + ' · min block ' + p.minDiff;
-  drawPatternPreview(tipCanvas, patName);
-  tooltip.style.display = 'block';
-  positionTooltip(chip);
-}
-
-function positionTooltip(chip) {
-  const rect  = chip.getBoundingClientRect();
-  const tw    = tooltip.offsetWidth  || 176;
-  const th    = tooltip.offsetHeight || 180;
-  const vw    = window.innerWidth;
-  const vh    = window.innerHeight;
-
-  // Try to the right of sidebar; fall back left if no room
-  let x = rect.right + 10;
-  let y = rect.top;
-  if(x + tw > vw) x = rect.left - tw - 10;
-  if(y + th > vh) y = vh - th - 8;
-  if(y < 4)       y = 4;
-
-  tooltip.style.left = x + 'px';
-  tooltip.style.top  = y + 'px';
-}
-
-function hideTooltip() { tooltip.style.display = 'none'; }
-
-// Wire hover events onto chips inside buildPatChips
-function addTooltipEvents(chip, patName) {
-  chip.addEventListener('mouseenter', () => {
-    clearTimeout(tipTimer);
-    tipTimer = setTimeout(() => showTooltip(chip, patName), 120);
-  });
-  chip.addEventListener('mouseleave', () => {
-    clearTimeout(tipTimer);
-    hideTooltip();
-  });
-  chip.addEventListener('mousemove', () => positionTooltip(chip));
-}
-
-let audioBuffer = null, audioFileObj = null;
-let detectedBPM = 120, detectedOffset = 0, energyCurve = [], onsetTimes = [], sectionMap = [];
-let songStructure = []; // [{start, end, label, color}]
-let lastCharts = null;  // stored after preview, used by download
-let embeddedArt = null, userArt = null;
+function clearLog(){document.getElementById('log').innerHTML='';}
+function setP(p){document.getElementById('analyzeProgress').style.width=p+'%';}
+const tick=()=>new Promise(r=>setTimeout(r,0));
 
 // ── Sliders ───────────────────────────────────────────────────────
 [['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
  ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['maxBreak','maxBreakVal',''],
- ['offset','offsetVal','s'],['onsetSens','onsetSensVal',''],['repeatWin','repeatWinVal','ms'],
- ['melodyThresh','melodyThreshVal','%']
+ ['offset','offsetVal','s'],['onsetSens','onsetSensVal',''],
+ ['melodyThresh','melodyThreshVal','%'],['chainLen','chainLenVal','']
 ].forEach(([id,vid,u])=>{
-  document.getElementById(id).addEventListener('input',()=>{
-    document.getElementById(vid).textContent=document.getElementById(id).value+u;
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('input',()=>{
+    document.getElementById(vid).textContent=el.value+u;
     updateDiffBadges();
   });
 });
-// Chain length shows a range display
-document.getElementById('chainLen').addEventListener('input', () => {
-  const v = +document.getElementById('chainLen').value;
-  document.getElementById('chainLenVal').textContent = `${Math.max(2,v-1)}–${v+1}`;
-});
 document.getElementById('diffCount').addEventListener('change',updateDiffBadges);
 
-// ── Logging ───────────────────────────────────────────────────────
-function log(msg,cls=''){const b=document.getElementById('log');const d=document.createElement('div');if(cls)d.className=cls;d.textContent='> '+msg;b.appendChild(d);b.scrollTop=b.scrollHeight;}
-function clearLog(){document.getElementById('log').innerHTML='';}
-
-// ── Art upload ────────────────────────────────────────────────────
+// ── Art ───────────────────────────────────────────────────────────
 document.getElementById('artFile').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=ev=>{userArt=ev.target.result;showArt(userArt);};r.readAsDataURL(f);
@@ -644,38 +306,34 @@ document.getElementById('audioFile').addEventListener('change',e=>{if(e.target.f
 async function handleAudio(file){
   audioFileObj=file;clearLog();log('Loading: '+file.name);
   document.getElementById('genBtn').disabled=true;
+  document.getElementById('dlBtn').style.display='none';
   const fname=file.name.replace(/\.[^.]+$/,'');
-  if(!document.getElementById('songTitle').value)document.getElementById('songTitle').value=fname;
+  if(!document.getElementById('songTitle').value) document.getElementById('songTitle').value=fname;
   try{await extractID3Art(file);}catch(e){}
-  let ab; try{ab=await file.arrayBuffer();}catch(e){log('Read failed: '+e.message,'err');return;}
+  let ab;try{ab=await file.arrayBuffer();}catch(e){log('Read failed: '+e.message,'err');return;}
   const actx=new(window.AudioContext||window.webkitAudioContext)();
   try{audioBuffer=await actx.decodeAudioData(ab);}catch(e){log('Decode failed: '+e.message,'err');return;}
-  log(`Decoded: ${audioBuffer.duration.toFixed(1)}s`,'ok');
+  log('Decoded: '+audioBuffer.duration.toFixed(1)+'s','ok');
   document.getElementById('songInfoBar').classList.add('on');
   document.getElementById('infoTitle').textContent=document.getElementById('songTitle').value||fname;
   document.getElementById('infoArtist').textContent=document.getElementById('songArtist').value||'Unknown Artist';
-  // Yield between each step so the browser can update the UI log
-  const tick = () => new Promise(r => setTimeout(r, 0));
 
-  setP(25); log('Analyzing energy...'); computeEnergy(); setP(40);
+  setP(20);log('Analyzing energy...');await tick();computeEnergy();
+  setP(45);log('Detecting onsets...');await tick();computeOnsets();
+  setP(65);log('Detecting BPM...');await tick();detectedBPM=detectBPM();
+  document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
+  log('BPM: '+detectedBPM.toFixed(1),'ok');setP(75);
   await tick();
-  log('Detecting onsets...'); computeOnsets(); setP(65);
+  log('Detecting offset...');detectedOffset=detectOffset(detectedBPM);setP(80);
   await tick();
-  log('Detecting BPM...'); detectedBPM = detectBPM();
-  document.getElementById('bpmBadge').textContent = detectedBPM.toFixed(1) + ' BPM';
-  log('BPM: ' + detectedBPM.toFixed(1), 'ok'); setP(75);
+  log('Mapping sections...');sectionMap=buildSectionMap(detectedBPM,audioBuffer.duration);setP(88);
   await tick();
-  log('Detecting beat offset...'); detectedOffset = detectOffset(detectedBPM); setP(80);
+  log('Detecting structure...');detectSongStructure(detectedBPM,audioBuffer.duration);setP(93);
   await tick();
-  log('Mapping sections...'); sectionMap = buildSectionMap(detectedBPM, audioBuffer.duration); setP(85);
-  await tick();
-  log('Detecting structure...'); detectSongStructure(detectedBPM, audioBuffer.duration); setP(90);
-  await tick();
-  drawWaveform(); drawEnergy(); drawStructure(audioBuffer.duration);
-  document.getElementById('waveSection').style.display = 'flex'; setP(100);
-  updateDiffBadges(); document.getElementById('genBtn').disabled = false; log('Ready!', 'ok');
+  drawWaveform();drawEnergy();drawStructure(audioBuffer.duration);
+  document.getElementById('waveSection').style.display='flex';setP(100);
+  updateDiffBadges();document.getElementById('genBtn').disabled=false;log('Ready!','ok');
 }
-function setP(p){document.getElementById('analyzeProgress').style.width=p+'%';}
 
 // ── ID3 art ───────────────────────────────────────────────────────
 async function extractID3Art(file){
@@ -689,853 +347,363 @@ async function extractID3Art(file){
       const mime=(img[0]===0x89&&img[1]===0x50)?'image/png':'image/jpeg';
       const blob=new Blob([img],{type:mime});
       embeddedArt=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(blob);});
-      showArt(embeddedArt);log('Album art found in file','ok');return;
+      showArt(embeddedArt);log('Album art extracted','ok');return;
     }
   }
 }
 
-// ── Energy analysis ───────────────────────────────────────────────
+// ── Energy ────────────────────────────────────────────────────────
 function computeEnergy(){
-  const d   = audioBuffer.getChannelData(0);
-  const sr  = audioBuffer.sampleRate;
-  // 200ms windows, step by 16 samples — ~100x faster than original
-  const WS  = Math.floor(sr * 0.2);
-  const DS  = 16; // downsample: read every 16th sample
-  const USE = d.length; // full song — energy needs to cover the whole track
-  energyCurve = [];
-  for(let i = 0; i < USE - WS; i += WS){
-    let s = 0, cnt = 0;
-    for(let j = i; j < i + WS; j += DS){ s += d[j]*d[j]; cnt++; }
-    energyCurve.push(cnt ? Math.sqrt(s/cnt) : 0);
+  const d=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
+  const WS=Math.floor(sr*0.2),DS=16;
+  energyCurve=[];
+  for(let i=0;i<d.length-WS;i+=WS){
+    let s=0,cnt=0;
+    for(let j=i;j<i+WS&&j<d.length;j+=DS){s+=d[j]*d[j];cnt++;}
+    energyCurve.push(cnt?Math.sqrt(s/cnt):0);
   }
-  let mx = 0;
-  for(let i = 0; i < energyCurve.length; i++) if(energyCurve[i]>mx) mx=energyCurve[i];
-  if(mx > 0) for(let i = 0; i < energyCurve.length; i++) energyCurve[i] /= mx;
+  let mx=0;for(const v of energyCurve)if(v>mx)mx=v;
+  if(mx>0)for(let i=0;i<energyCurve.length;i++)energyCurve[i]/=mx;
 }
 
-// ── Onset detection via spectral flux ────────────────────────────
-// Divides audio into FFT frames, measures how much the spectrum
-// increases frame-to-frame (flux). Peaks = note onsets.
+// ── Onsets ────────────────────────────────────────────────────────
 function computeOnsets(){
-  const sr   = audioBuffer.sampleRate;
-  const d    = audioBuffer.getChannelData(0);
-  const sens = +document.getElementById('onsetSens').value;
-
-  // Cap at 60s, large hop and downsample for speed
-  const USE  = Math.min(d.length, sr * 60);
-  const HOP  = 1024;   // ~23ms per hop at 44100
-  const DS   = 8;      // read every 8th sample
-  const BANDS= 4;      // 4 subbands: bass, low-mid, mid, high
-  const BW   = Math.floor(HOP / DS / BANDS);
-  const WGTS = [3.0, 2.0, 1.0, 0.3]; // heavy bass weight
-
-  const nHops = Math.floor((USE - HOP) / HOP);
-  const flux  = new Float32Array(nHops);
-  const times = new Float32Array(nHops);
-  const prev  = new Float32Array(BANDS);
-
-  for(let h = 0; h < nHops; h++){
-    const base = h * HOP;
-    times[h]   = base / sr;
-    for(let b = 0; b < BANDS; b++){
-      const s0 = base + b * Math.floor(HOP / BANDS);
-      const s1 = s0  + Math.floor(HOP / BANDS);
-      let rms  = 0, cnt = 0;
-      for(let i = s0; i < s1 && i < USE; i += DS){ rms += d[i]*d[i]; cnt++; }
-      const val = cnt ? Math.sqrt(rms/cnt) * WGTS[b] : 0;
-      const diff = val - prev[b];
-      if(diff > 0) flux[h] += diff;
-      prev[b] = val;
+  const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
+  const sens=+document.getElementById('onsetSens').value;
+  const USE=Math.min(d.length,sr*60),HOP=1024,DS=8,BANDS=4;
+  const WGTS=[3.0,2.0,1.0,0.3];
+  const nHops=Math.floor((USE-HOP)/HOP);
+  const flux=new Float32Array(nHops),times=new Float32Array(nHops);
+  const prev=new Float32Array(BANDS);
+  for(let h=0;h<nHops;h++){
+    const base=h*HOP;times[h]=base/sr;
+    for(let b=0;b<BANDS;b++){
+      const s0=base+b*Math.floor(HOP/BANDS),s1=s0+Math.floor(HOP/BANDS);
+      let rms=0,cnt=0;
+      for(let i=s0;i<s1&&i<USE;i+=DS){rms+=d[i]*d[i];cnt++;}
+      const val=cnt?Math.sqrt(rms/cnt)*WGTS[b]:0;
+      const diff=val-prev[b];if(diff>0)flux[h]+=diff;prev[b]=val;
     }
   }
-
-  // Peak pick with adaptive threshold
-  const PWIN  = 10;
-  const MGAP  = Math.max(1, Math.round(0.05 * sr / HOP));
-  let maxF = 0;
-  for(let i = 0; i < nHops; i++) if(flux[i] > maxF) maxF = flux[i];
-
-  onsetTimes = [];
-  let lastHop = -MGAP;
-  for(let i = 1; i < nHops - 1; i++){
-    const v = flux[i];
-    let sum = 0;
-    for(let j = Math.max(0,i-PWIN); j < Math.min(nHops,i+PWIN); j++) sum += flux[j];
-    const thr = (sum / (PWIN*2)) + sens * maxF * 0.4;
-    if(v > thr && v > flux[i-1] && v > flux[i+1] && i - lastHop >= MGAP){
-      onsetTimes.push(times[i]);
-      lastHop = i;
-    }
+  const PWIN=10,MGAP=Math.max(1,Math.round(0.05*sr/HOP));
+  let maxF=0;for(let i=0;i<nHops;i++)if(flux[i]>maxF)maxF=flux[i];
+  onsetTimes=[];let lastHop=-MGAP;
+  for(let i=1;i<nHops-1;i++){
+    const v=flux[i];let sum=0;
+    for(let j=Math.max(0,i-PWIN);j<Math.min(nHops,i+PWIN);j++)sum+=flux[j];
+    const thr=(sum/(PWIN*2))+sens*maxF*0.4;
+    if(v>thr&&v>flux[i-1]&&v>flux[i+1]&&i-lastHop>=MGAP){onsetTimes.push(times[i]);lastHop=i;}
   }
-  log('Onsets: ' + onsetTimes.length, 'ok');
-}
-// ── Foot helper ──────────────────────────────────────────────────
-function footOf(p){ return (p===0||p===1) ? 'L' : 'R'; }
-function seqEndFoot(seq){ return footOf(seq[seq.length-1]); }
-function seqValid(seq, startFoot){
-  // Only check that the sequence starts on the correct foot.
-  // Mirror patterns handle the other foot. Don't check every step —
-  // that was killing the pool to near-zero.
-  if(!seq||!seq.length) return false;
-  return footOf(seq[0]) !== startFoot; // starts on opposite foot = good
+  log('Onsets: '+onsetTimes.length,'ok');
 }
 
-// ── BPM detection — fast IOI histogram ───────────────────────────
+// ── BPM ──────────────────────────────────────────────────────────
 function detectBPM(){
-  const sr  = audioBuffer.sampleRate;
-  const raw = audioBuffer.getChannelData(0);
-
-  // Use onsets if we have enough
-  if(onsetTimes && onsetTimes.length >= 4){
-    const cs     = onsetTimes.map(t => Math.round(t * 100)); // centiseconds
-    const MIN_P  = Math.round(6000/220);  // min period cs
-    const MAX_P  = Math.round(6000/60);   // max period cs
-    const hist   = new Float32Array(MAX_P + 1);
-
-    for(let i = 0; i < cs.length; i++){
-      for(let j = i+1; j < Math.min(i+8, cs.length); j++){
-        let gap = cs[j] - cs[i];
-        if(gap <= 0) continue;
-        const wt = 1.0 / (j - i);
-        let g = gap;
-        while(g > MAX_P) g = Math.round(g/2);
-        while(g < MIN_P && g > 0) g = Math.round(g*2);
-        if(g >= MIN_P && g <= MAX_P) hist[g] += wt;
+  if(onsetTimes&&onsetTimes.length>=4){
+    const cs=onsetTimes.map(t=>Math.round(t*100));
+    const MIN_P=Math.round(6000/220),MAX_P=Math.round(6000/60);
+    const hist=new Float32Array(MAX_P+1);
+    for(let i=0;i<cs.length;i++){
+      for(let j=i+1;j<Math.min(i+8,cs.length);j++){
+        let g=cs[j]-cs[i];if(g<=0)continue;
+        const wt=1.0/(j-i);
+        while(g>MAX_P)g=Math.round(g/2);
+        while(g<MIN_P&&g>0)g=Math.round(g*2);
+        if(g>=MIN_P&&g<=MAX_P)hist[g]+=wt;
       }
     }
-
-    let best = -1, bestP = MIN_P;
-    for(let p = MIN_P; p <= MAX_P; p++){
-      const sm = (hist[Math.max(MIN_P,p-1)] + hist[p]*2 + hist[Math.min(MAX_P,p+1)]) / 4;
-      let score = sm;
-      const half = Math.round(p/2);
-      if(half >= MIN_P) score += hist[half] * 0.4;
-      const bpmH = 6000/p;
-      if(bpmH >= 120 && bpmH <= 175) score *= 1.1;
-      if(score > best){ best = score; bestP = p; }
+    let best=-1,bestP=MIN_P;
+    for(let p=MIN_P;p<=MAX_P;p++){
+      let score=(hist[Math.max(MIN_P,p-1)]+hist[p]*2+hist[Math.min(MAX_P,p+1)])/4;
+      const half=Math.round(p/2);if(half>=MIN_P)score+=hist[half]*0.4;
+      const bpmH=6000/p;if(bpmH>=120&&bpmH<=175)score*=1.1;
+      if(score>best){best=score;bestP=p;}
     }
-
-    let bpm = 6000 / bestP;
-    while(bpm < 80)  bpm *= 2;
-    while(bpm > 185) bpm /= 2;
-    const r = Math.round(bpm);
-    return Math.round((Math.abs(bpm-r) < 0.6 ? r : bpm) * 10) / 10;
+    let bpm=6000/bestP;
+    while(bpm<80)bpm*=2;while(bpm>185)bpm/=2;
+    const r=Math.round(bpm);return Math.round((Math.abs(bpm-r)<0.6?r:bpm)*10)/10;
   }
-
-  // Fallback: tiny autocorrelation on 5s downsampled by 64x
-  log('BPM: using autocorrelation fallback','warn');
-  const DS  = 64;
-  const USE = Math.min(raw.length, sr * 5);
-  const ds  = [];
-  for(let i = 0; i < USE; i += DS) ds.push(raw[i]);
-  const dsSR = sr / DS;
-  const minL = Math.max(1, Math.floor(60/185 * dsSR));
-  const maxL = Math.ceil(60/60 * dsSR);
-  let bL = minL, bC = -Infinity;
-  for(let lag = minL; lag <= maxL; lag++){
-    let c = 0;
-    for(let i = 0; i < ds.length - lag; i++) c += ds[i] * ds[i+lag];
-    if(c > bC){ bC = c; bL = lag; }
-  }
-  let bpm = 60 / (bL / dsSR);
-  while(bpm < 80)  bpm *= 2;
-  while(bpm > 185) bpm /= 2;
-  return Math.round(bpm * 10) / 10;
+  // Fallback autocorrelation on 5s downsampled 64x
+  const raw=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
+  const DS=64,USE=Math.min(raw.length,sr*5),ds=[];
+  for(let i=0;i<USE;i+=DS)ds.push(raw[i]);
+  const dsSR=sr/DS,minL=Math.max(1,Math.floor(60/185*dsSR)),maxL=Math.ceil(60/60*dsSR);
+  let bL=minL,bC=-Infinity;
+  for(let lag=minL;lag<=maxL;lag++){let c=0;for(let i=0;i<ds.length-lag;i++)c+=ds[i]*ds[i+lag];if(c>bC){bC=c;bL=lag;}}
+  let bpm=60/(bL/dsSR);while(bpm<80)bpm*=2;while(bpm>185)bpm/=2;
+  return Math.round(bpm*10)/10;
 }
-
-// ── Song structure detection — beat-aligned self-similarity matrix ─
-// Divides song into N-measure chunks starting exactly on beat boundaries.
-// Computes energy feature vector per chunk, builds self-similarity matrix,
-// then extracts repeated sections from diagonal stripes.
-function detectSongStructure(bpm, duration){
-  if(!document.getElementById('ruleDetectStructure').checked){
-    songStructure=[]; return;
-  }
-
-  const beatDur  = 60 / bpm;
-  const measDur  = beatDur * 4;         // 4 beats per measure
-  const SEG_MEAS = 8;                   // compare in 8-measure segments
-  const segDur   = measDur * SEG_MEAS;  // seconds per segment
-
-  // How many complete 8-measure segments fit in the song?
-  const numSegs  = Math.floor(duration / segDur);
-  if(numSegs < 2){ songStructure=[]; return; }
-
-  // Energy curve is in 200ms windows — how many per segment?
-  const winPerSeg = Math.round(segDur / 0.2);
-
-  // Build feature vectors: energy per 8 sub-bands within each segment
-  // Sub-bands split the segment into 8 equal time slices
-  const NUM_FEATS = 8;
-  const sliceWins = Math.floor(winPerSeg / NUM_FEATS);
-  const features  = []; // features[seg] = Float32Array(NUM_FEATS)
-
-  for(let s = 0; s < numSegs; s++){
-    const segStartWin = Math.round((s * segDur) / 0.2);
-    const fv = new Float32Array(NUM_FEATS);
-    for(let f = 0; f < NUM_FEATS; f++){
-      const w0 = segStartWin + f * sliceWins;
-      const w1 = w0 + sliceWins;
-      let sum = 0, cnt = 0;
-      for(let w = w0; w < w1 && w < energyCurve.length; w++){
-        sum += energyCurve[w]; cnt++;
-      }
-      fv[f] = cnt ? sum/cnt : 0;
-    }
-    // Normalize feature vector (L2)
-    let norm = 0;
-    for(let f = 0; f < NUM_FEATS; f++) norm += fv[f]*fv[f];
-    norm = Math.sqrt(norm) || 1;
-    for(let f = 0; f < NUM_FEATS; f++) fv[f] /= norm;
-    features.push(fv);
-  }
-
-  // Build self-similarity matrix (cosine similarity — vectors already normalized)
-  const sim = new Float32Array(numSegs * numSegs);
-  for(let i = 0; i < numSegs; i++){
-    for(let j = i; j < numSegs; j++){
-      let dot = 0;
-      for(let f = 0; f < NUM_FEATS; f++) dot += features[i][f] * features[j][f];
-      sim[i*numSegs+j] = dot;
-      sim[j*numSegs+i] = dot;
-    }
-  }
-
-  // Extract repeated sections from self-similarity matrix.
-  // Two segments are "the same" if similarity >= threshold.
-  const THRESH = 0.94;
-
-  // Assign labels: greedy — first unassigned segment gets next label,
-  // then all segments similar to it get the same label.
-  const labels    = new Int16Array(numSegs).fill(-1);
-  let   nextLabel = 0;
-
-  for(let i = 0; i < numSegs; i++){
-    if(labels[i] !== -1) continue;
-    labels[i] = nextLabel;
-    for(let j = i+1; j < numSegs; j++){
-      if(labels[j] === -1 && sim[i*numSegs+j] >= THRESH){
-        labels[j] = nextLabel;
-      }
-    }
-    nextLabel++;
-  }
-
-  // Build structure: merge consecutive same-label segments into one block
-  const COLORS = ['#00f0ff','#ff3cac','#00ff88','#ffb800','#7b2fff',
-                  '#ff6600','#00ccff','#ff0066','#aaff00','#ff00aa'];
-  const NAMES  = 'ABCDEFGHIJKLMNOP'.split('');
-
-  songStructure = [];
-  let prevLabel = -1;
-  for(let s = 0; s < numSegs; s++){
-    const lbl   = labels[s];
-    const tStart = s * segDur;           // exact beat-aligned time
-    const tEnd   = Math.min((s+1)*segDur, duration);
-    if(lbl !== prevLabel){
-      songStructure.push({
-        start:      tStart,
-        end:        tEnd,
-        label:      NAMES[lbl % NAMES.length],
-        color:      COLORS[lbl % COLORS.length],
-        structLabel: lbl,
-        segStart:   s,   // first segment index in this block
-        segEnd:     s    // will extend below
-      });
-      prevLabel = lbl;
-    } else {
-      songStructure[songStructure.length-1].end    = tEnd;
-      songStructure[songStructure.length-1].segEnd = s;
-    }
-  }
-
-  // Map: structLabel → first occurrence's pattern sequence
-  // (populated during chart generation via ruleReusePatterns)
-  songStructure._patternMap = {};
-
-  const parts = songStructure.map(s=>s.label).join(' ');
-  log(`Structure (${SEG_MEAS}-bar segments): ${parts}`, 'ok');
-}
-
-
-// ── Draw song structure bar ───────────────────────────────────────
-function drawStructure(duration){
-  const cv=document.getElementById('structureCanvas');
-  const cx=cv.getContext('2d');
-  cv.width=cv.offsetWidth||800; cv.height=30;
-  const W=cv.width, H=30;
-  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
-  if(!songStructure.length) return;
-
-  songStructure.forEach(seg=>{
-    const x0=seg.start/duration*W;
-    const x1=seg.end/duration*W;
-    cx.fillStyle=seg.color+'88';
-    cx.fillRect(x0,2,x1-x0-1,H-4);
-    cx.strokeStyle=seg.color;
-    cx.lineWidth=1;
-    cx.strokeRect(x0,2,x1-x0-1,H-4);
-    if(x1-x0>20){
-      cx.fillStyle='#fff';
-      cx.font='bold 10px Orbitron,monospace';
-      cx.textAlign='center';
-      cx.textBaseline='middle';
-      cx.fillText(seg.label,(x0+x1)/2,H/2);
-    }
-  });
-
-  // Legend
-  const legend=document.getElementById('structureLegend');
-  legend.innerHTML='';
-  const seen=new Set();
-  songStructure.forEach(seg=>{
-    if(seen.has(seg.label)) return;
-    seen.add(seg.label);
-    const el=document.createElement('div');
-    el.style.cssText='display:flex;align-items:center;gap:4px';
-    el.innerHTML=`<span style="display:inline-block;width:12px;height:12px;background:${seg.color}88;border:1px solid ${seg.color};border-radius:2px"></span>${seg.label}`;
-    legend.appendChild(el);
-  });
-  document.getElementById('structureSection').style.display='flex';
-}
-
 
 // ── Beat offset detection ─────────────────────────────────────────
-// Finds where beat 1 actually falls in the audio.
-// Strategy: take the first cluster of strong onsets, snap them to
-// the detected BPM grid, and work backwards to find the true beat 0.
 function detectOffset(bpm){
-  if(!onsetTimes || onsetTimes.length < 2) return 0;
-
-  const beatDur = 60 / bpm;
-
-  // Find the first strong onset — use the first onset that falls
-  // in a high-energy window (first 30s of song)
-  const sr  = audioBuffer.sampleRate;
-  const raw = audioBuffer.getChannelData(0);
-
-  // Quick energy check per 100ms window in first 30s
-  const W   = Math.floor(sr * 0.1);
-  const USE = Math.min(raw.length, sr * 30);
-  const nW  = Math.floor(USE / W);
-  const wE  = new Float32Array(nW);
-  for(let i=0;i<nW;i++){
-    let s=0,cnt=0;
-    for(let j=i*W;j<(i+1)*W&&j<USE;j+=8){s+=raw[j]*raw[j];cnt++;}
-    wE[i]=cnt?Math.sqrt(s/cnt):0;
-  }
-  const maxE = Math.max(...wE)||1;
-
-  // Find first onset that occurs in a window above 30% of peak energy
-  // This skips silent intros and finds where the music actually starts
-  let firstBeat = null;
-  for(const t of onsetTimes){
-    const wi = Math.floor(t / 0.1);
-    if(wi >= 0 && wi < nW && wE[wi] >= maxE * 0.3){
-      firstBeat = t;
-      break;
-    }
-  }
-
-  // Fallback to first onset if nothing strong found
-  if(firstBeat === null) firstBeat = onsetTimes[0];
-
-  // Now snap firstBeat to the nearest beat grid position,
-  // then work backwards to find the beat 0 offset.
-  // beat 0 offset = firstBeat mod beatDur
-  // (i.e. how far past the last beat grid line is the first beat)
-  const phase = firstBeat % beatDur;
-
-  // Verify by checking how many of the first 20 onsets align
-  // to this phase. Try both phase and phase-beatDur/2 (offbeat).
-  function countAligned(ph, onsets, beatDur, tol){
-    let hits=0;
-    for(const t of onsets){
-      const diff = Math.abs(((t - ph) % beatDur + beatDur) % beatDur);
-      const err  = Math.min(diff, beatDur - diff);
-      if(err < tol) hits++;
-    }
-    return hits;
-  }
-
-  const tol = beatDur * 0.1; // 10% of beat = tolerance window
-  const first20 = onsetTimes.slice(0, 20);
-  const scoreA  = countAligned(phase, first20, beatDur, tol);
-  const scoreB  = countAligned(phase + beatDur/2, first20, beatDur, tol);
-
-  const finalPhase = scoreB > scoreA ? phase + beatDur/2 : phase;
-
-  // The #OFFSET in SM = negative of beat-0 time
-  // (how many seconds before the audio start is beat 0)
-  // We add the 9ms ITG bias on top
-  const detectedOffset = finalPhase;
-  log(`Detected beat offset: ${(detectedOffset*1000).toFixed(1)}ms`, 'ok');
-  return detectedOffset;
+  if(!onsetTimes||onsetTimes.length<2)return 0;
+  const beatDur=60/bpm;
+  const raw=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
+  const W=Math.floor(sr*0.1),USE=Math.min(raw.length,sr*30),nW=Math.floor(USE/W);
+  const wE=new Float32Array(nW);
+  for(let i=0;i<nW;i++){let s=0,cnt=0;for(let j=i*W;j<(i+1)*W&&j<USE;j+=8){s+=raw[j]*raw[j];cnt++;}wE[i]=cnt?Math.sqrt(s/cnt):0;}
+  let maxE=0;for(const v of wE)if(v>maxE)maxE=v;
+  let firstBeat=null;
+  for(const t of onsetTimes){const wi=Math.floor(t/0.1);if(wi>=0&&wi<nW&&wE[wi]>=maxE*0.3){firstBeat=t;break;}}
+  if(firstBeat===null)firstBeat=onsetTimes[0];
+  const phase=firstBeat%beatDur;
+  log('Beat offset: '+(phase*1000).toFixed(1)+'ms','ok');
+  return phase;
 }
 
-
-function buildSectionMap(bpm, duration) {
-  const staminaMode  = document.getElementById('staminaMode').checked;
-  const melodyThresh = +document.getElementById('melodyThresh').value / 100;
-  const beatDur    = 60 / bpm;
-  const totalBeats = Math.floor(duration / beatDur);
-
-  // Per-beat energy
-  const wPerB = beatDur / 0.1;
-  const bE = [];
+// ── Section map — three tiers ─────────────────────────────────────
+function buildSectionMap(bpm,duration){
+  const staminaMode=document.getElementById('staminaMode').checked;
+  const melodyThresh=+document.getElementById('melodyThresh').value/100;
+  const beatDur=60/bpm,totalBeats=Math.floor(duration/beatDur);
+  const wPerB=beatDur/0.2;
+  const bE=[];
   for(let b=0;b<totalBeats;b++){
-    const i0=Math.floor(b*wPerB), i1=Math.floor((b+1)*wPerB);
-    let s=0,c=0;
-    for(let i=i0;i<i1&&i<energyCurve.length;i++){s+=energyCurve[i];c++;}
+    const i0=Math.floor(b*wPerB),i1=Math.floor((b+1)*wPerB);
+    let s=0,c=0;for(let i=i0;i<i1&&i<energyCurve.length;i++){s+=energyCurve[i];c++;}
     bE.push(c?s/c:0);
   }
-  // Smooth ±3 beats
-  const sE = bE.map((_,i,a)=>{
-    let s=0,c=0;
-    for(let j=Math.max(0,i-3);j<=Math.min(a.length-1,i+3);j++){s+=a[j];c++;}
-    return s/c;
-  });
-  const avg = sE.reduce((a,b)=>a+b,0)/sE.length || 0.3;
-
-  // Use percentile thresholds — much more robust than avg multiples.
-  // Sort all beat energies to find true percentile cutoffs.
-  const sorted = [...sE].sort((a,b)=>a-b);
-  const n = sorted.length;
-
-  // Stamina mode ON:  top 45% = intense, next 30% = medium, bottom 25% = slow
-  // Stamina mode OFF: top 20% = intense, next 45% = medium, bottom 35% = slow
-  const intensePct = staminaMode ? 0.55 : 0.80; // bottom X% cutoff for intense
-  const mediumPct  = staminaMode ? 0.25 : 0.35; // bottom X% cutoff for medium
-
-  // Also respect the user's melodyThresh slider as a secondary control
-  const userMediumThresh = avg * melodyThresh;
-
-  const intenseThresh = sorted[Math.floor(n * intensePct)];
-  const mediumThresh  = Math.min(sorted[Math.floor(n * mediumPct)], userMediumThresh);
-
-  const map = new Array(totalBeats).fill('slow');
+  const sE=bE.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-3);j<=Math.min(a.length-1,i+3);j++){s+=a[j];c++;}return s/c;});
+  const sorted=[...sE].sort((a,b)=>a-b),n=sorted.length;
+  const medCut=staminaMode?Math.max(0.05,melodyThresh*0.5):Math.max(0.10,melodyThresh);
+  const slowCut=staminaMode?0.05:0.15;
+  const intenseThresh=sorted[Math.floor(n*(slowCut+medCut))];
+  const medThresh=sorted[Math.floor(n*slowCut)];
+  const map=new Array(totalBeats).fill('slow');
   for(let b=0;b<totalBeats;b++){
-    const e = sE[b];
-    if(e >= intenseThresh)      map[b] = 'intense';
-    else if(e >= mediumThresh)  map[b] = 'medium';
-    // else stays 'slow'
+    const e=sE[b];
+    if(e>=intenseThresh)map[b]='intense';
+    else if(e>=medThresh)map[b]='medium';
   }
-
-  // Bridge single-beat gaps in intense sections
-  for(let b=1;b<totalBeats-1;b++){
-    if(map[b]!=='intense' && map[b-1]==='intense' && map[b+1]==='intense')
-      map[b]='intense';
-  }
-  // Merge short intense islands < 4 beats into medium
+  for(let b=1;b<totalBeats-1;b++)if(map[b]!=='intense'&&map[b-1]==='intense'&&map[b+1]==='intense')map[b]='intense';
   let b=0;
   while(b<totalBeats){
-    if(map[b]==='intense'){
-      let e=b; while(e<totalBeats&&map[e]==='intense') e++;
-      if(e-b<4) for(let i=b;i<e;i++) map[i]='medium';
-      b=e;
-    } else b++;
+    if(map[b]==='intense'){let e=b;while(e<totalBeats&&map[e]==='intense')e++;if(e-b<4)for(let i=b;i<e;i++)map[i]='medium';b=e;}else b++;
   }
-
-  const ic=map.filter(x=>x==='intense').length;
-  const mc=map.filter(x=>x==='medium').length;
-  const sc=map.filter(x=>x==='slow').length;
-  log(`Sections — intense:${ic}b medium:${mc}b slow:${sc}b`,'ok');
+  const ic=map.filter(x=>x==='intense').length,mc=map.filter(x=>x==='medium').length,sc=map.filter(x=>x==='slow').length;
+  log('Sections — intense:'+ic+'b medium:'+mc+'b slow:'+sc+'b','ok');
   return map;
 }
 
-// ── Main chart generator — three-tier priority system ────────────
-// intense → 16th stamina runs (continuous stream)
-// medium  → 8th notes, melody-following when onsets present
-// slow    → quarter/hold notes following beat or melody
-// Easier difficulties lean on melody more, harder lean on stamina.
-function generateChart(block, bpm, energy, duration) {
-  const staminaMode = document.getElementById('staminaMode').checked;
-  const allowCross  = block >= 6;
-  const diffFactor  = (block - 1) / 11; // 0=block1, 1=block12
-
-  // Difficulty-scaled run length and break
-  const userMaxRun   = +document.getElementById('maxRun').value;
-  const userMinBreak = +document.getElementById('minBreak').value;
-  const userMaxBreak = +document.getElementById('maxBreak').value;
-  // Runs scale with difficulty but easy blocks still get reasonable runs
-  // Hard blocks get the full user-set max run
-  const maxRun    = Math.max(8,  Math.round(userMaxRun   * (0.5 + 0.5 * diffFactor)));
-  const minBreak  = Math.max(1,  Math.round(userMinBreak * (1.5  - diffFactor)));
-  const maxBreak  = Math.max(4,  Math.round(userMaxBreak * (1.5  - 0.5*diffFactor)));
-
-  // At easy blocks, prefer melody even in medium sections
-  // At hard blocks, prefer runs even in medium sections
-  const mediumRunChance = staminaMode ? (0.2 + 0.6 * diffFactor) : (0.05 + 0.2 * diffFactor);
-
-  const chainTarget = +document.getElementById('chainLen').value;
-  const leadIn      = +document.getElementById('offset').value;
-  const useOnsets   = document.getElementById('onsetSnap').checked;
-  const snapRes     = +document.getElementById('snapResolution').value;
-  const doubleTapOn = document.getElementById('doubleTap').checked;
-  const repeatWinMs = +document.getElementById('repeatWin').value / 1000;
-
-  const RPB      = 4;             // rows per beat (16th resolution)
-  const beatDur  = 60 / bpm;
-  const rowDur   = beatDur / RPB;
-  const totalBeatsRaw = Math.floor(duration / beatDur);
-  const totalBeats = Math.min(totalBeatsRaw, Math.floor(600 / beatDur)); // cap at 10min
-  const totalRows  = totalBeats * RPB;
-  const leadRows   = Math.ceil(leadIn / rowDur);
-
-  // Per-beat smoothed energy
-  const eBeat = [];
-  for(let b=0;b<totalBeats;b++){
-    const idx=Math.floor(b/totalBeats*energy.length);
-    eBeat.push(energy[Math.min(idx,energy.length-1)]||0);
-  }
-  const smoothE = eBeat.map((_,i,a)=>{
-    let s=0,c=0;
-    for(let j=Math.max(0,i-6);j<Math.min(a.length,i+6);j++){s+=a[j];c++;}
-    return s/c;
-  });
-
-  // note array: -1=empty, 0-3=tap, 10-13=hold head (panel+10), 20-23=hold tail (panel+20)
-  const notes = new Array(totalRows).fill(-1);
-  let lastFoot  = 'R';
-  let lastPanel = 3;
-
-  function getSection(row){
-    const b=Math.floor(row/RPB);
-    return sectionMap[Math.min(b,sectionMap.length-1)]||'slow';
-  }
-
-  // Return which song structure block this beat falls in (or null)
-  const ruleReuse = document.getElementById('ruleReusePatterns').checked;
-  function getStructBlock(beatIdx){
-    if(!ruleReuse||!songStructure.length) return null;
-    const t = beatIdx * beatDur;
-    return songStructure.find(s=>t>=s.start&&t<s.end)||null;
-  }
-
-  // Per-structure-block recorded pattern sequences for reuse
-  // structLabel → array of {baseName, useSeq}
-  const recordedSequences = {};
-
-  // ── Place a single alternating tap ───────────────────────────
-  function placeTap(row, forcePanel){
-    if(row<0||row>=totalRows||notes[row]!==-1) return false;
-    let panel;
-    if(forcePanel!==undefined){
-      panel=forcePanel;
-    } else {
-      const pool = (lastFoot==='L') ? [2,3] : [0,1];
-      const noJack = pool.filter(p=>p!==lastPanel);
-      const choices = noJack.length ? noJack : pool;
-      panel = choices[Math.floor(Math.random()*choices.length)];
+// ── Song structure (self-similarity matrix) ───────────────────────
+function detectSongStructure(bpm,duration){
+  const beatDur=60/bpm,measDur=beatDur*4,SEG_MEAS=8,segDur=measDur*SEG_MEAS;
+  const numSegs=Math.floor(duration/segDur);
+  songStructure=[];
+  if(numSegs<2)return;
+  const wPS=Math.round(segDur/0.2),NF=8,slW=Math.floor(wPS/NF);
+  const feats=[];
+  for(let s=0;s<numSegs;s++){
+    const sw=Math.round((s*segDur)/0.2),fv=new Float32Array(NF);
+    for(let f=0;f<NF;f++){
+      const w0=sw+f*slW,w1=w0+slW;let sum=0,cnt=0;
+      for(let w=w0;w<w1&&w<energyCurve.length;w++){sum+=energyCurve[w];cnt++;}
+      fv[f]=cnt?sum/cnt:0;
     }
-    notes[row]=panel;
-    lastFoot=(panel===0||panel===1)?'L':'R';
-    lastPanel=panel;
-    return true;
+    let norm=0;for(let f=0;f<NF;f++)norm+=fv[f]*fv[f];norm=Math.sqrt(norm)||1;
+    for(let f=0;f<NF;f++)fv[f]/=norm;
+    feats.push(fv);
   }
-
-  // ── Place a hold (head + tail, opposite foot) ─────────────────
-  function placeHold(headRow, lengthRows){
-    if(headRow<0||headRow>=totalRows||notes[headRow]!==-1) return;
-    const pool = (lastFoot==='L') ? [2,3] : [0,1];
-    const noJack = pool.filter(p=>p!==lastPanel);
-    const panel = (noJack.length?noJack:pool)[Math.floor(Math.random()*(noJack.length||pool.length))];
-    const tailRow = Math.min(totalRows-1, headRow + lengthRows);
-    notes[headRow] = panel + 10;  // hold head
-    notes[tailRow] = panel + 20;  // hold tail
-    lastFoot=(panel===0||panel===1)?'L':'R';
-    lastPanel=panel;
+  const sim=new Float32Array(numSegs*numSegs);
+  for(let i=0;i<numSegs;i++)for(let j=i;j<numSegs;j++){let dot=0;for(let f=0;f<NF;f++)dot+=feats[i][f]*feats[j][f];sim[i*numSegs+j]=dot;sim[j*numSegs+i]=dot;}
+  const THRESH=0.93,labels=new Int16Array(numSegs).fill(-1);let nxt=0;
+  for(let i=0;i<numSegs;i++){if(labels[i]!==-1)continue;labels[i]=nxt;for(let j=i+1;j<numSegs;j++)if(labels[j]===-1&&sim[i*numSegs+j]>=THRESH)labels[j]=nxt;nxt++;}
+  const COLORS=['#00f0ff','#ff3cac','#00ff88','#ffb800','#7b2fff','#ff6600','#00ccff','#ff0066'];
+  const NAMES='ABCDEFGHIJKLMNOP'.split('');
+  let prev=-1;
+  for(let s=0;s<numSegs;s++){
+    const lbl=labels[s],tS=s*segDur,tE=Math.min((s+1)*segDur,duration);
+    if(lbl!==prev){songStructure.push({start:tS,end:tE,label:NAMES[lbl%NAMES.length],color:COLORS[lbl%COLORS.length],structLabel:lbl});prev=lbl;}
+    else{songStructure[songStructure.length-1].end=tE;}
   }
+  log('Structure: '+songStructure.map(s=>s.label).join(' '),'ok');
+}
 
-  // ── Pattern category pool for turn injections ─────────────────
+// ── Chart generation ──────────────────────────────────────────────
+// block 1-2: quarters | block 3-4: 8ths | block 5+: 16ths in intense
+function generateChart(block,bpm,energy,duration){
+  const staminaMode=document.getElementById('staminaMode').checked;
+  const diffFactor=(block-1)/11;
+  const can16th=block>=5,can8th=block>=3;
+  const userMaxRun=+document.getElementById('maxRun').value;
+  const userMinBreak=+document.getElementById('minBreak').value;
+  const userMaxBreak=+document.getElementById('maxBreak').value;
+  const maxRun=Math.max(4,Math.round(userMaxRun*(0.3+0.7*diffFactor)));
+  const minBreak=Math.max(1,Math.round(userMinBreak*(2.0-1.5*diffFactor)));
+  const maxBreak=Math.max(4,Math.round(userMaxBreak*(1.5-0.5*diffFactor)));
+  const medMaxRun=Math.max(4,Math.round(maxRun*(0.5+0.4*diffFactor)));
+  const medMinBreak=Math.max(2,Math.round(minBreak*1.5));
+  const chainTarget=+document.getElementById('chainLen').value;
+  const leadIn=+document.getElementById('offset').value;
+  const useOnsets=document.getElementById('onsetSnap').checked;
+  const doubleTap=document.getElementById('doubleTap').checked;
+  const ruleReuse=false; // structure reuse handled per section
+
+  const RPB=4,beatDur=60/bpm,rowDur=beatDur/RPB;
+  const totalBeats=Math.min(Math.floor(duration/beatDur),Math.floor(600/beatDur));
+  const totalRows=totalBeats*RPB,leadRows=Math.ceil(leadIn/rowDur);
+
+  const eBeat=[];
+  for(let b=0;b<totalBeats;b++){const idx=Math.floor(b/totalBeats*energy.length);eBeat.push(energy[Math.min(idx,energy.length-1)]||0);}
+  const smoothE=eBeat.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-6);j<Math.min(a.length,i+6);j++){s+=a[j];c++;}return s/c;});
+
+  const notes=new Array(totalRows).fill(-1);
+  let lastFoot='R',lastPanel=3;
+  const L_PANELS=[0,1],R_PANELS=[2,3];
+  let recentPanels=[];
+
+  function getSection(row){const b=Math.floor(row/RPB);return sectionMap[Math.min(b,sectionMap.length-1)]||'slow';}
+
+  function placeNote(row){
+    if(row<0||row>=totalRows||notes[row]!==-1)return;
+    const fp=(lastFoot==='L')?R_PANELS:L_PANELS;
+    const r3=new Set(recentPanels.slice(-3));
+    let ch=fp.filter(p=>p!==lastPanel&&!r3.has(p));
+    if(!ch.length)ch=fp.filter(p=>p!==lastPanel);
+    if(!ch.length)ch=fp;
+    const panel=ch[Math.floor(Math.random()*ch.length)];
+    notes[row]=panel;lastFoot=(panel===0||panel===1)?'L':'R';lastPanel=panel;
+    recentPanels.push(panel);if(recentPanels.length>8)recentPanels.shift();
+  }
+  function placeTap(row,fp){
+    if(row<0||row>=totalRows||notes[row]!==-1)return;
+    let panel;
+    if(fp!==undefined){panel=fp;}
+    else{const p=(lastFoot==='L')?R_PANELS:L_PANELS;const nj=p.filter(x=>x!==lastPanel);panel=(nj.length?nj:p)[Math.floor(Math.random()*(nj.length||p.length))];}
+    notes[row]=panel;lastFoot=(panel===0||panel===1)?'L':'R';lastPanel=panel;
+  }
+  function placeHold(headRow,len){
+    if(headRow<0||headRow>=totalRows||notes[headRow]!==-1)return;
+    const p=(lastFoot==='L')?R_PANELS:L_PANELS;const nj=p.filter(x=>x!==lastPanel);
+    const panel=(nj.length?nj:p)[Math.floor(Math.random()*(nj.length||p.length))];
+    const tailRow=Math.min(totalRows-1,headRow+len);
+    notes[headRow]=panel+10;notes[tailRow]=panel+20;
+    lastFoot=(panel===0||panel===1)?'L':'R';lastPanel=panel;
+  }
+  function fill16ths(s,e){for(let r=s;r<e&&r<totalRows;r++)placeNote(r);}
+  function fill8ths(s,e){for(let r=s;r<e&&r<totalRows;r+=2)placeNote(r);}
+  function fill4ths(s,e){for(let r=s;r<e&&r<totalRows;r+=4)placeNote(r);}
+
   function getTurnPool(e){
-    const allowedCats=['stream','box','spiral'];
-    if(block>=3) allowedCats.push('candle','gallop');
-    if(block>=5&&allowCross) allowedCats.push('crossover');
-    if(block>=4&&e>0.45) allowedCats.push('drill','anchor');
-    if(block>=6&&e>0.5) allowedCats.push('footswitch','sideswitch');
-    if(block>=8&&e>0.65) allowedCats.push('split');
-    return [...activePats].filter(n=>{
-      const p=PATTERNS[n];
-      return p && p.minDiff<=block && allowedCats.includes(p.cat);
-    });
+    const cats=['stream','box','spiral'];
+    if(block>=3)cats.push('candle','gallop');
+    if(block>=5)cats.push('crossover');
+    if(block>=4&&e>0.45&&document.getElementById('ruleEnergyPats').checked)cats.push('drill','anchor');
+    if(block>=6&&e>0.5)cats.push('footswitch','sideswitch');
+    if(block>=8&&e>0.65)cats.push('split');
+    return[...activePats].filter(n=>{const p=PATTERNS[n];return p&&p.minDiff<=block&&cats.includes(p.cat)&&!p.mirror;});
   }
 
-  // ── Onset grid ────────────────────────────────────────────────
+  // Onset grid
   const onsetRows=[];
   if(useOnsets&&onsetTimes.length>0){
     let prevT=-999;
     for(const t of onsetTimes){
-      if(t<leadIn) continue;
-      let row;
-      if(snapRes===4)      row=Math.round((t-leadIn)/beatDur)*RPB;
-      else if(snapRes===8) row=Math.round((t-leadIn)/(beatDur/2))*2;
-      else                 row=Math.round((t-leadIn)/rowDur);
-      if(row<leadRows||row>=totalRows) continue;
-      const isRepeat=(t-prevT)<repeatWinMs;
-      if(!onsetRows.length||onsetRows[onsetRows.length-1].row!==row)
-        onsetRows.push({row,isRepeat,time:t});
+      if(t<leadIn)continue;
+      const row=Math.round((t-leadIn)/rowDur);
+      if(row<leadRows||row>=totalRows)continue;
+      const isRepeat=(t-prevT)<(+document.getElementById('offset').value/1000||0.2);
+      if(!onsetRows.length||onsetRows[onsetRows.length-1].row!==row)onsetRows.push({row,isRepeat,time:t});
       prevT=t;
     }
   }
   const onsetsByBeat={};
-  for(const o of onsetRows){
-    const b=Math.floor(o.row/RPB);
-    if(!onsetsByBeat[b]) onsetsByBeat[b]=[];
-    onsetsByBeat[b].push(o);
+  for(const o of onsetRows){const b=Math.floor(o.row/RPB);if(!onsetsByBeat[b])onsetsByBeat[b]=[];onsetsByBeat[b].push(o);}
+
+  // Pattern turn state
+  let lastTurnCat='',lastTurnName='',recentTurns=[],beatsSinceTurn=0;
+  function pickTurn(e){
+    const rNoRep=document.getElementById('ruleNoRepeat').checked;
+    const rNoCat=document.getElementById('ruleNoSameCat').checked;
+    const rCycle=document.getElementById('ruleCycleCats').checked;
+    const rWin=document.getElementById('ruleRepeatWindow').checked;
+    const rMirr=document.getElementById('ruleMirrorAlt').checked;
+    let pool=getTurnPool(e);
+    if(rNoRep&&lastTurnName){const f=pool.filter(n=>n!==lastTurnName);if(f.length)pool=f;}
+    if(rNoCat&&lastTurnCat){const f=pool.filter(n=>PATTERNS[n]?.cat!==lastTurnCat);if(f.length)pool=f;}
+    if(rWin&&recentTurns.length){const f=pool.filter(n=>!recentTurns.includes(n));if(f.length)pool=f;}
+    if(rCycle){const used=new Set(recentTurns.map(n=>PATTERNS[n]?.cat));const f=pool.filter(n=>!used.has(PATTERNS[n]?.cat));if(f.length)pool=f;}
+    if(!pool.length)return null;
+    const baseName=pool[Math.floor(Math.random()*pool.length)];
+    const base=PATTERNS[baseName],mirror=PATTERNS[baseName+' ⟳'];
+    let useSeq=base.seq;
+    if(rMirr){const nL=lastFoot==='R',sL=(base.seq[0]===0||base.seq[0]===1);if(nL!==sL&&mirror)useSeq=mirror.seq;}
+    lastTurnCat=base.cat;lastTurnName=baseName;recentTurns.push(baseName);if(recentTurns.length>4)recentTurns.shift();
+    return useSeq;
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // MAIN LOOP
-  // ════════════════════════════════════════════════════════════════
-  let b          = Math.ceil(leadIn/beatDur);
-  let runBeats   = 0;
-  let breakBeats = 0;
-  let beatsSinceTurn = 0;
-  let lastTurnCat    = '';
-  let lastTurnName   = '';
-  let recentTurns    = []; // last 4 pattern names used
-  const L_PANELS = [0,1];
-  const R_PANELS = [2,3];
-  let recentPanels = [];
+  // ── Main loop ────────────────────────────────────────────────────
+  let b=Math.ceil(leadIn/beatDur),runBeats=0,breakBeats=0,medRunBeats=0,medBreakBeats=0;
 
-  while(b < totalBeats){
-    const section = getSection(b*RPB);
-    const e       = smoothE[Math.min(b,smoothE.length-1)]||0;
-    const startRow= b*RPB;
+  while(b<totalBeats){
+    const section=getSection(b*RPB),startRow=b*RPB,endRow=startRow+RPB;
 
-    // ══════════════════════════════════════════════════════════════
-    // INTENSE: continuous 16th stream with turn injections
-    // ══════════════════════════════════════════════════════════════
-    if(section==='intense'){
-      if(runBeats>=maxRun){
-        breakBeats++;
-        if(breakBeats>=minBreak){ runBeats=0; breakBeats=0; beatsSinceTurn=0; }
-        b++; continue;
-      }
-      breakBeats=0;
-
-      // Every chainTarget beats inject a named pattern turn.
-      if(beatsSinceTurn>=chainTarget){
-        // Check if this beat is in a repeated section with a recorded sequence
-        if(ruleReuse){
-          const curBlock=getStructBlock(b);
-          if(curBlock&&curBlock.structLabel!==undefined){
-            const recorded=recordedSequences[curBlock.structLabel];
-            if(recorded&&recorded.length>0){
-              // Find which turn index we're at in this section
-              const sectionBeat=b-Math.floor(curBlock.start/beatDur);
-              const turnIdx=Math.floor(sectionBeat/chainTarget)%recorded.length;
-              const {useSeq}=recorded[turnIdx];
-              // Mirror if needed for correct foot
-              const needsL=lastFoot==='R';
-              const startsL=(useSeq[0]===0||useSeq[0]===1);
-              let replaySeq=useSeq;
-              if(needsL!==startsL){
-                // Try to find mirror
-                const MMAP={0:3,1:2,2:1,3:0};
-                replaySeq=useSeq.map(p=>MMAP[p]);
-              }
-              for(let i=0;i<replaySeq.length;i++){
-                const row=startRow+i;
-                if(row>=totalRows) break;
-                if(notes[row]===-1){
-                  notes[row]=replaySeq[i];
-                  lastFoot=(replaySeq[i]===0||replaySeq[i]===1)?'L':'R';
-                  lastPanel=replaySeq[i];
-                }
-              }
-              const beatsUsed=Math.max(1,Math.ceil(replaySeq.length/RPB));
-              runBeats+=beatsUsed; b+=beatsUsed; beatsSinceTurn=0; continue;
-            }
-          }
+    if(section==='slow'){
+      runBeats=0;medRunBeats=0;beatsSinceTurn=0;
+      const bo=onsetsByBeat[b]||[];
+      if(useOnsets&&bo.length>0){
+        for(let oi=0;oi<bo.length;oi++){
+          const {row,isRepeat}=bo[oi];if(isRepeat)continue;
+          const nextRow=oi+1<bo.length?bo[oi+1].row:Math.min(totalRows-1,row+RPB*2);
+          const holdLen=nextRow-row-1;
+          if(holdLen>=RPB)placeHold(row,holdLen);else placeTap(row);
         }
-
-        const ruleNoRep   = document.getElementById('ruleNoRepeat').checked;
-        const ruleNoCat   = document.getElementById('ruleNoSameCat').checked;
-        const ruleCycle   = document.getElementById('ruleCycleCats').checked;
-        const ruleWindow  = document.getElementById('ruleRepeatWindow').checked;
-        const ruleMirror  = document.getElementById('ruleMirrorAlt').checked;
-
-        let pool = getTurnPool(e).filter(n=>!PATTERNS[n]?.mirror);
-
-        // Rule: no same pattern back to back
-        if(ruleNoRep && lastTurnName)
-          pool = pool.filter(n=>n!==lastTurnName) .length ? pool.filter(n=>n!==lastTurnName) : pool;
-
-        // Rule: no same category back to back
-        if(ruleNoCat && lastTurnCat){
-          const nc=pool.filter(n=>PATTERNS[n]?.cat!==lastTurnCat);
-          if(nc.length>=1) pool=nc;
-        }
-
-        // Rule: repeat window — don't reuse within last 4 picks
-        if(ruleWindow && recentTurns.length){
-          const rw=pool.filter(n=>!recentTurns.includes(n));
-          if(rw.length>=1) pool=rw;
-        }
-
-        // Rule: cycle all categories before repeating
-        if(ruleCycle){
-          const usedCats=new Set(recentTurns.map(n=>PATTERNS[n]?.cat));
-          const fresh=pool.filter(n=>!usedCats.has(PATTERNS[n]?.cat));
-          if(fresh.length>=1) pool=fresh;
-        }
-
-        if(pool.length > 0){
-          const baseName=pool[Math.floor(Math.random()*pool.length)];
-          const base=PATTERNS[baseName];
-          const mirrorName=baseName+' ⟳';
-          const mirror=PATTERNS[mirrorName];
-          let useSeq;
-          if(ruleMirror){
-            const needsL=lastFoot==='R';
-            const baseStartsL=(base.seq[0]===0||base.seq[0]===1);
-            useSeq=(needsL===baseStartsL)?base.seq:(mirror?mirror.seq:base.seq);
-          } else {
-            useSeq=base.seq;
-          }
-          lastTurnCat=base.cat;
-          lastTurnName=baseName;
-          recentTurns.push(baseName);
-          if(recentTurns.length>4) recentTurns.shift();
-
-          // Record this pattern choice for section reuse
-          const curBlock=getStructBlock(b);
-          if(curBlock){
-            if(!recordedSequences[curBlock.structLabel])
-              recordedSequences[curBlock.structLabel]=[];
-            recordedSequences[curBlock.structLabel].push({baseName,useSeq:[...useSeq]});
-          }
-
-          for(let i=0;i<useSeq.length;i++){
-            const row=startRow+i;
-            if(row>=totalRows) break;
-            if(notes[row]===-1){
-              notes[row]=useSeq[i];
-              lastFoot=(useSeq[i]===0||useSeq[i]===1)?'L':'R';
-              lastPanel=useSeq[i];
-            }
-          }
-          const beatsUsed=Math.max(1,Math.ceil(useSeq.length/RPB));
-          runBeats+=beatsUsed; b+=beatsUsed; beatsSinceTurn=0; continue;
-        }
-      }
-
-      // Plain 16th note — alternate feet, avoid panel monotony
-      const fPool=(lastFoot==='L')?R_PANELS:L_PANELS;
-      const recent3=new Set(recentPanels.slice(-3));
-      let choices=fPool.filter(p=>p!==lastPanel&&!recent3.has(p));
-      if(!choices.length) choices=fPool.filter(p=>p!==lastPanel);
-      if(!choices.length) choices=fPool;
-      const panel=choices[Math.floor(Math.random()*choices.length)];
-      if(notes[startRow]===-1){
-        notes[startRow]=panel;
-        lastFoot=(panel===0||panel===1)?'L':'R';
-        lastPanel=panel;
-        recentPanels.push(panel);
-        if(recentPanels.length>8) recentPanels.shift();
-      }
-      runBeats++; b++; beatsSinceTurn++;
-      continue;
+      } else {if(block>=4||b%2===0)placeTap(startRow);}
+      b++;continue;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // MEDIUM: 8th notes mostly, melody if strong onsets present
-    // Harder difficulties may still run here
-    // ══════════════════════════════════════════════════════════════
     if(section==='medium'){
-      runBeats=0; breakBeats=0; beatsSinceTurn=0;
-
-      const beatOnsets=onsetsByBeat[b]||[];
-      const hasStrongOnset=beatOnsets.length>0;
-
-      // Hard blocks: chance of running even in medium
-      if(staminaMode && Math.random()<mediumRunChance && !hasStrongOnset){
-        // 8th note (every 2 rows)
-        for(let r=0;r<RPB;r+=2){
-          const row=startRow+r;
-          if(row<totalRows&&notes[row]===-1) placeTap(row);
-        }
-        b++; continue;
-      }
-
-      if(hasStrongOnset&&useOnsets){
-        // Follow melody onsets
-        for(const {row,isRepeat} of beatOnsets){
-          if(isRepeat&&doubleTapOn){
-            placeTap(row,lastPanel);
-            if(row+1<totalRows&&notes[row+1]===-1) notes[row+1]=lastPanel;
-          } else {
-            placeTap(row);
-          }
-        }
-      } else {
-        // No onset: place 8th note on beat
-        placeTap(startRow);
-      }
-      b++; continue;
+      runBeats=0;beatsSinceTurn=0;
+      if(medRunBeats>=medMaxRun){medBreakBeats++;if(medBreakBeats>=medMinBreak){medRunBeats=0;medBreakBeats=0;}b++;continue;}
+      medBreakBeats=0;
+      if(!can8th){placeTap(startRow);}
+      else{placeNote(startRow);if(startRow+2<totalRows)placeNote(startRow+2);}
+      medRunBeats++;b++;continue;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // SLOW: holds + quarter notes following beat/melody
-    // ══════════════════════════════════════════════════════════════
-    runBeats=0; breakBeats=0; beatsSinceTurn=0;
-    const beatOnsets=onsetsByBeat[b]||[];
+    // INTENSE
+    if(runBeats>=maxRun){breakBeats++;if(breakBeats>=minBreak){runBeats=0;breakBeats=0;beatsSinceTurn=0;}b++;continue;}
+    breakBeats=0;medRunBeats=0;medBreakBeats=0;
 
-    if(beatOnsets.length>0&&useOnsets){
-      // Place a hold from each strong onset to the next onset (or 1 beat)
-      for(let oi=0;oi<beatOnsets.length;oi++){
-        const {row,isRepeat}=beatOnsets[oi];
-        if(isRepeat) continue; // skip repeats in slow sections
-        // Hold length: to next onset or 1 beat, whichever is shorter
-        const nextRow = oi+1<beatOnsets.length
-          ? beatOnsets[oi+1].row
-          : Math.min(totalRows-1, row+RPB);
-        const holdLen = Math.max(1, nextRow-row-1);
-        if(holdLen>=RPB){ // only bother with holds ≥ 1 beat long
-          placeHold(row, holdLen);
-        } else {
-          placeTap(row);
+    if(!can16th){if(can8th)fill8ths(startRow,endRow);else fill4ths(startRow,endRow);runBeats++;b++;beatsSinceTurn++;continue;}
+
+    // 16th stream with turn injections
+    if(beatsSinceTurn>=chainTarget){
+      const useSeq=pickTurn(smoothE[Math.min(b,smoothE.length-1)]||0);
+      if(useSeq){
+        for(let i=0;i<useSeq.length&&startRow+i<totalRows;i++){
+          if(notes[startRow+i]===-1){notes[startRow+i]=useSeq[i];lastFoot=(useSeq[i]===0||useSeq[i]===1)?'L':'R';lastPanel=useSeq[i];}
         }
+        fill16ths(startRow+useSeq.length,endRow);
+        runBeats++;b++;beatsSinceTurn=0;continue;
       }
-    } else {
-      // No onset: quarter note tap on the beat (every other beat for easy)
-      if(block>=5||b%2===0) placeTap(startRow);
     }
-    b++;
+    fill16ths(startRow,endRow);
+    runBeats++;b++;beatsSinceTurn++;
   }
-
-  return {notes, rpb:RPB};
+  return{notes,rpb:RPB};
 }
+
 // ── SM serialization ──────────────────────────────────────────────
-// note values: -1=empty, 0-3=tap, 10-13=hold head, 20-23=hold tail
 function notesToSM(notes){
-  const rpm=16; // 4 beats × 4 rows per measure at 16th resolution
-  const measures=[];
+  const rpm=16,measures=[];
   for(let i=0;i<notes.length;i+=rpm){
-    const m=notes.slice(i,i+rpm);
-    while(m.length<rpm) m.push(-1);
-    measures.push(m);
+    const m=notes.slice(i,i+rpm);while(m.length<rpm)m.push(-1);measures.push(m);
   }
   return measures.map(m=>m.map(n=>{
-    const row=['0','0','0','0'];
-    if(n>=0 && n<=3)    row[n]='1';       // tap
-    if(n>=10 && n<=13)  row[n-10]='2';    // hold head
-    if(n>=20 && n<=23)  row[n-20]='3';    // hold tail
-    return row.join('');
+    const r=['0','0','0','0'];
+    if(n>=0&&n<=3)r[n]='1';
+    if(n>=10&&n<=13)r[n-10]='2';
+    if(n>=20&&n<=23)r[n-20]='3';
+    return r.join('');
   }).join('\n')).join('\n,\n');
 }
 
 function buildSM(title,artist,bpm,offset,charts,ext,safe){
-  safe=safe||title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
   const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
   const base=5-charts.length;
   const hdr=`#TITLE:${title};\n#SUBTITLE:;\n#ARTIST:${artist};\n#TITLETRANSLIT:;\n#SUBTITLETRANSLIT:;\n#ARTISTTRANSLIT:;\n#GENRE:;\n#CREDIT:ITG StepGen;\n#BANNER:${safe}-banner.png;\n#BACKGROUND:${safe}-bg.png;\n#CDTITLE:;\n#MUSIC:${safe}.${ext};\n#OFFSET:-${offset.toFixed(6)};\n#SAMPLESTART:12.000;\n#SAMPLELENGTH:13.000;\n#SELECTABLE:YES;\n#BPMS:0.000=${bpm.toFixed(3)};\n#STOPS:;\n\n`;
-  const cblocks=charts.map((c,i)=>{
-    const name=diffNames[Math.min(base+i,4)];
-    return `#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes)}\n;`;
-  }).join('\n\n');
+  const cblocks=charts.map((c,i)=>{const name=diffNames[Math.min(base+i,4)];return`#NOTES:\n     dance-single:\n     ITG StepGen:\n     ${name}:\n     ${c.block}:\n     0.000,0.000,0.000,0.000,0.000:\n${notesToSM(c.notes)}\n;`;}).join('\n\n');
   return hdr+cblocks;
 }
 
@@ -1550,123 +718,22 @@ function updateDiffBadges(){
 }
 updateDiffBadges();
 
-// ── Image generation ──────────────────────────────────────────────
-function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
-async function makeImg(title,artist,w,h,artImg){
-  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');
-  if(artImg){cx.drawImage(artImg,0,0,w,h);}
-  else{const g=cx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0a0014');g.addColorStop(1,'#000e1a');cx.fillStyle=g;cx.fillRect(0,0,w,h);cx.globalAlpha=.05;cx.fillStyle='#fff';cx.font=`${Math.min(w,h)*.55}px sans-serif`;cx.textAlign='center';cx.fillText('▼',w/2,h*.65);cx.globalAlpha=1;}
-  const og=cx.createLinearGradient(0,h*.45,0,h);og.addColorStop(0,'rgba(0,0,0,0)');og.addColorStop(1,'rgba(0,0,0,.85)');cx.fillStyle=og;cx.fillRect(0,0,w,h);
-  const tfs=Math.min(w===418?20:34,w/(title.length+2)*1.5);
-  cx.shadowColor='#000';cx.shadowBlur=10;cx.fillStyle='#fff';cx.font=`bold ${tfs}px sans-serif`;cx.textAlign='center';cx.fillText(title,w/2,h-(w===418?19:52));
-  cx.font=`${tfs*.62}px sans-serif`;cx.fillStyle='#aaaaee';cx.fillText(artist,w/2,h-(w===418?4:27));
-  return new Promise(res=>cv.toBlob(res,'image/png'));
-}
-
-// ── Density chart — NPS with max line and longest run annotation ──
-function drawDensityChart(charts, duration, bpm){
-  const cv=document.getElementById('densityCanvas'),cx=cv.getContext('2d');
-  cv.width=cv.offsetWidth||800; cv.height=90; const W=cv.width,H=cv.height;
-  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
-  if(!charts.length) return;
-
-  const RPB=4, BEATS_PM=4; // 4 beats per measure
-  const rpm=RPB*BEATS_PM;  // 16 rows per measure
-  const beatDur=60/bpm;
-  const measDur=BEATS_PM*beatDur;
-  const colors=['#00ff88','#ffb800','#ff3cac','#00f0ff'];
-  const names=['Easy','Medium','Hard'];
-  const legend=document.getElementById('densityLegend'); legend.innerHTML='';
-
-  const totalRows=charts[0].notes.length;
-  const totalMeasures=Math.ceil(totalRows/rpm);
-  const WINDOW=3;
-
-  // Theoretical max NPS from BPM (16th notes)
-  const maxNPS = bpm/60*4;
-
-  const series=charts.map((ch,ci)=>{
-    // Notes per second per measure
-    const meas=[];
-    for(let m=0;m<totalMeasures;m++){
-      const s=m*rpm, e=s+rpm; let cnt=0;
-      for(let r=s;r<e&&r<ch.notes.length;r++) if(ch.notes[r]>=0&&ch.notes[r]<=3) cnt++;
-      meas.push(cnt/measDur); // convert to NPS
-    }
-    const sm=meas.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}return s/c;});
-
-    // Find longest continuous run (no zeros)
-    let maxRun=0,curRun=0,maxRunStart=0,curStart=0;
-    sm.forEach((v,i)=>{
-      if(v>0.5){curRun++;if(curRun>maxRun){maxRun=curRun;maxRunStart=curStart;}}
-      else{curRun=0;curStart=i+1;}
-    });
-
-    return{sm,block:ch.block,color:colors[ci],maxRun,maxRunStart};
-  });
-
-  const gMax=Math.max(maxNPS,...series.flatMap(s=>s.sm),1);
-
-  // Draw theoretical max NPS reference line
-  const maxY=H-(maxNPS/gMax)*(H-12)-4;
-  cx.strokeStyle='#ffffff22'; cx.lineWidth=1; cx.setLineDash([4,4]);
-  cx.beginPath(); cx.moveTo(0,maxY); cx.lineTo(W,maxY); cx.stroke();
-  cx.setLineDash([]);
-  cx.fillStyle='#ffffff44'; cx.font='8px Inter'; cx.textAlign='left';
-  cx.fillText(`Max ${maxNPS.toFixed(1)} NPS (${bpm.toFixed(0)} BPM 16ths)`,4,maxY-2);
-
-  series.forEach((s,si)=>{
-    // Fill + line
-    cx.beginPath(); cx.strokeStyle=s.color; cx.lineWidth=si===2?2:1.5;
-    s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-12)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});
-    cx.stroke();
-    if(si===0){
-      cx.beginPath();
-      s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-12)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});
-      cx.lineTo(W,H); cx.lineTo(0,H); cx.closePath();
-      cx.fillStyle=s.color+'18'; cx.fill();
-    }
-
-    // Annotate longest run on the hardest chart
-    if(si===series.length-1 && s.maxRun>0){
-      const x0=s.maxRunStart/totalMeasures*W;
-      const x1=(s.maxRunStart+s.maxRun)/totalMeasures*W;
-      cx.fillStyle=s.color+'33';
-      cx.fillRect(x0,2,x1-x0,H-4);
-      cx.strokeStyle=s.color;
-      cx.lineWidth=1; cx.setLineDash([2,2]);
-      cx.strokeRect(x0,2,x1-x0,H-4);
-      cx.setLineDash([]);
-      if(x1-x0>30){
-        cx.fillStyle=s.color;
-        cx.font='bold 8px Inter'; cx.textAlign='center';
-        cx.fillText(`${s.maxRun}m run`,(x0+x1)/2,H-6);
-      }
-    }
-
-    const el=document.createElement('div'); el.style.cssText='display:flex;align-items:center;gap:4px';
-    el.innerHTML=`<span style="display:inline-block;width:18px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} Blk${s.block} (peak ${s.sm.reduce((a,b)=>Math.max(a,b),0).toFixed(1)} NPS, longest run ${s.maxRun}m)`;
-    legend.appendChild(el);
-  });
-
-  cx.fillStyle='#5a5a7a'; cx.font='9px Inter'; cx.textAlign='left'; cx.fillText('NPS',4,11);
-  document.getElementById('densitySection').style.display='flex';
-}
-
-
 // ── Canvases ──────────────────────────────────────────────────────
+function canvasW(cv){return Math.max(cv.offsetWidth||0,cv.parentElement?.offsetWidth||0,600);}
+
 function drawWaveform(){
   const cv=document.getElementById('waveCanvas'),cx=cv.getContext('2d');
-  cv.width=cv.offsetWidth||800;cv.height=80;const W=cv.width,H=80;
+  cv.width=canvasW(cv);cv.height=80;const W=cv.width,H=80;
   cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
   const d=audioBuffer.getChannelData(0),step=Math.floor(d.length/W);
   cx.strokeStyle='#00f0ff44';cx.lineWidth=1;cx.beginPath();
   for(let x=0;x<W;x++){let mn=1,mx=-1;for(let j=0;j<step;j++){const v=d[x*step+j]||0;if(v<mn)mn=v;if(v>mx)mx=v;}cx.moveTo(x,(1-mx)/2*H);cx.lineTo(x,(1-mn)/2*H);}cx.stroke();
   if(energyCurve.length){cx.strokeStyle='#ff3cac88';cx.lineWidth=2;cx.beginPath();energyCurve.forEach((v,i)=>{const x=i/energyCurve.length*W,y=H-v*H*.8;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();}
 }
+
 function drawEnergy(){
   const cv=document.getElementById('energyCanvas'),cx=cv.getContext('2d');
-  cv.width=cv.offsetWidth||800;cv.height=50;const W=cv.width,H=50;
+  cv.width=canvasW(cv);cv.height=50;const W=cv.width,H=50;
   cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
   if(!energyCurve.length)return;
   const sm=energyCurve.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-8);j<Math.min(a.length,i+8);j++){s+=a[j];c++;}return s/c;});
@@ -1676,90 +743,138 @@ function drawEnergy(){
   cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.fillText('ENERGY',5,11);
 }
 
-// ── GENERATE BUTTON ───────────────────────────────────────────────
-// ── Stored charts for download ───────────────────────────────────
-let lastGeneratedData = null;
+function drawStructure(duration){
+  const cv=document.getElementById('structureCanvas');
+  document.getElementById('structureSection').style.display='flex';
+  cv.width=canvasW(cv);cv.height=28;const W=cv.width,H=28;
+  const cx=cv.getContext('2d');cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
+  if(!songStructure.length)return;
+  songStructure.forEach(seg=>{
+    const x0=seg.start/duration*W,x1=seg.end/duration*W;
+    cx.fillStyle=seg.color+'88';cx.fillRect(x0,2,x1-x0-1,H-4);
+    cx.strokeStyle=seg.color;cx.lineWidth=1;cx.strokeRect(x0,2,x1-x0-1,H-4);
+    if(x1-x0>20){cx.fillStyle='#fff';cx.font='bold 10px Orbitron,monospace';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(seg.label,(x0+x1)/2,H/2);}
+  });
+  const legend=document.getElementById('structureLegend');legend.innerHTML='';
+  const seen=new Set();
+  songStructure.forEach(seg=>{if(seen.has(seg.label))return;seen.add(seg.label);const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:4px';el.innerHTML=`<span style="width:12px;height:12px;background:${seg.color}88;border:1px solid ${seg.color};border-radius:2px;display:inline-block"></span>${seg.label}`;legend.appendChild(el);});
+}
 
-// ── PREVIEW button — generate charts, show density, no download ───
-document.getElementById('genBtn').addEventListener('click', async()=>{
+function drawDensityChart(charts,duration,bpm){
+  document.getElementById('densitySection').style.display='flex';
+  const cv=document.getElementById('densityCanvas'),cx=cv.getContext('2d');
+  cv.width=canvasW(cv);cv.height=90;const W=cv.width,H=cv.height;
+  cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
+  if(!charts.length)return;
+  const beatDur=60/bpm,measDur=beatDur*4,rpm=16,WINDOW=3;
+  const maxNPS=bpm/60*4;
+  const colors=['#00ff88','#ffb800','#ff3cac'];
+  const names=['Easy','Medium','Hard'];
+  const legend=document.getElementById('densityLegend');legend.innerHTML='';
+  const totalRows=charts[0].notes.length,totalMeasures=Math.ceil(totalRows/rpm);
+  const series=charts.map((ch,ci)=>{
+    const meas=[];
+    for(let m=0;m<totalMeasures;m++){const s=m*rpm,e=s+rpm;let cnt=0;for(let r=s;r<e&&r<ch.notes.length;r++)if(ch.notes[r]>=0&&ch.notes[r]<=3)cnt++;meas.push(cnt/measDur);}
+    const sm=meas.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}return s/c;});
+    let maxRun=0,curRun=0,maxRunStart=0,curStart=0;
+    sm.forEach((v,i)=>{if(v>0.5){curRun++;if(curRun>maxRun){maxRun=curRun;maxRunStart=curStart;}}else{curRun=0;curStart=i+1;}});
+    return{sm,block:ch.block,color:colors[ci],maxRun,maxRunStart,peakNPS:Math.max(...sm)};
+  });
+  const gMax=Math.max(maxNPS,...series.flatMap(s=>s.sm),1);
+  // Max NPS reference line
+  const maxY=H-(maxNPS/gMax)*(H-12)-4;
+  cx.strokeStyle='#ffffff22';cx.lineWidth=1;cx.setLineDash([4,4]);cx.beginPath();cx.moveTo(0,maxY);cx.lineTo(W,maxY);cx.stroke();cx.setLineDash([]);
+  cx.fillStyle='#ffffff44';cx.font='8px Inter';cx.textAlign='left';cx.textBaseline='top';cx.fillText(`Max ${maxNPS.toFixed(1)} NPS (${bpm.toFixed(0)} BPM 16ths)`,4,maxY+2);
+  series.forEach((s,si)=>{
+    cx.beginPath();cx.strokeStyle=s.color;cx.lineWidth=si===series.length-1?2:1.5;
+    s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-12)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});cx.stroke();
+    // Longest run annotation on hardest chart
+    if(si===series.length-1&&s.maxRun>0){
+      const x0=s.maxRunStart/totalMeasures*W,x1=(s.maxRunStart+s.maxRun)/totalMeasures*W;
+      cx.fillStyle=s.color+'22';cx.fillRect(x0,2,x1-x0,H-4);
+      cx.strokeStyle=s.color;cx.lineWidth=1;cx.setLineDash([2,2]);cx.strokeRect(x0,2,x1-x0,H-4);cx.setLineDash([]);
+      if(x1-x0>24){cx.fillStyle=s.color;cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.maxRun+'m run',(x0+x1)/2,H-4);}
+    }
+    const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:4px';
+    el.innerHTML=`<span style="display:inline-block;width:16px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} Blk${s.block} (peak ${s.peakNPS.toFixed(1)} NPS, longest run ${s.maxRun}m)`;
+    legend.appendChild(el);
+  });
+  cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.textAlign='left';cx.textBaseline='top';cx.fillText('NPS',4,4);
+}
+
+// ── Image generation ──────────────────────────────────────────────
+function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
+async function makeImg(title,artist,w,h,artImg){
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');
+  if(artImg){cx.drawImage(artImg,0,0,w,h);}
+  else{const g=cx.createLinearGradient(0,0,w,h);g.addColorStop(0,'#0a0014');g.addColorStop(1,'#000e1a');cx.fillStyle=g;cx.fillRect(0,0,w,h);cx.globalAlpha=.05;cx.fillStyle='#fff';cx.font=`${Math.min(w,h)*.55}px sans-serif`;cx.textAlign='center';cx.textBaseline='middle';cx.fillText('▼',w/2,h/2);cx.globalAlpha=1;}
+  const og=cx.createLinearGradient(0,h*.45,0,h);og.addColorStop(0,'rgba(0,0,0,0)');og.addColorStop(1,'rgba(0,0,0,.85)');cx.fillStyle=og;cx.fillRect(0,0,w,h);
+  const tfs=w===418?Math.min(20,w/(title.length+2)*1.4):Math.min(36,w/(title.length+2)*1.6);
+  cx.shadowColor='#000';cx.shadowBlur=10;cx.fillStyle='#fff';cx.font=`bold ${tfs}px sans-serif`;cx.textAlign='center';cx.textBaseline='alphabetic';
+  cx.fillText(title,w/2,h-(w===418?20:55));cx.font=`${tfs*.62}px sans-serif`;cx.fillStyle='#aaaaee';cx.fillText(artist,w/2,h-(w===418?4:28));
+  return new Promise(res=>cv.toBlob(res,'image/png'));
+}
+
+// ── PREVIEW button ────────────────────────────────────────────────
+document.getElementById('genBtn').addEventListener('click',async()=>{
   if(!audioBuffer){log('No audio loaded!','err');return;}
-  const btn=document.getElementById('genBtn');
-  btn.disabled=true; btn.textContent='⏳ Generating...';
-  const tick=()=>new Promise(r=>setTimeout(r,0));
+  const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='⏳ Generating...';
   try{
     const title=document.getElementById('songTitle').value||'Unknown';
     const artist=document.getElementById('songArtist').value||'Unknown Artist';
-    const bpm=detectedBPM;
-    const userFine=+document.getElementById('offset').value;
-    const useAutoOff=document.getElementById('ruleAutoOffset').checked;
-    const offset=(useAutoOff?detectedOffset:0)+userFine;
-    const use9ms=document.getElementById('rule9ms').checked;
-    const diffs=getDiffs();
+    const bpm=detectedBPM,diffs=getDiffs();
     const ext=audioFileObj?audioFileObj.name.split('.').pop():'mp3';
     const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
-
     log(`Generating ${diffs.length} chart(s): blocks ${diffs.join(', ')}`);
     const charts=[];
     for(const block of diffs){
-      log(`Building block ${block}...`);
-      await tick();
+      log('Building block '+block+'...');await tick();
       const {notes,rpb}=generateChart(block,bpm,energyCurve,audioBuffer.duration);
       await tick();
       const nc=notes.filter(n=>n>=0&&n<=3).length;
-      log(`  Block ${block}: ${nc} notes`,'ok');
+      log('  Block '+block+': '+nc+' notes','ok');
       charts.push({block,notes,rpb});
     }
-
     drawDensityChart(charts,audioBuffer.duration,bpm);
-
-    // Store for download
-    lastGeneratedData={title,artist,bpm,offset,use9ms,charts,ext,safe};
-
-    // Show download button
-    const dlBtn=document.getElementById('dlBtn');
-    dlBtn.style.display='block';
-    dlBtn.disabled=false;
-    log('Preview ready — review the density chart then click Download','ok');
+    const useAutoOff=document.getElementById('ruleAutoOffset').checked;
+    const userFine=+document.getElementById('offset').value;
+    const use9ms=document.getElementById('rule9ms').checked;
+    const offset=(useAutoOff?detectedOffset:0)+userFine+(use9ms?0.009:0);
+    lastGeneratedData={title,artist,bpm,offset,charts,ext,safe};
+    document.getElementById('dlBtn').style.display='block';
+    log('Preview ready — review density chart then click Download','ok');
   }catch(err){log('Error: '+err.message,'err');console.error(err);}
-  btn.disabled=false; btn.textContent='⚡ PREVIEW CHART';
+  btn.disabled=false;btn.textContent='⚡ PREVIEW CHART';
 });
 
-// ── DOWNLOAD button — pack ZIP and download ───────────────────────
-document.getElementById('dlBtn').addEventListener('click', async()=>{
+// ── DOWNLOAD button ───────────────────────────────────────────────
+document.getElementById('dlBtn').addEventListener('click',async()=>{
   if(!lastGeneratedData){log('Generate first!','err');return;}
-  const btn=document.getElementById('dlBtn');
-  btn.disabled=true; btn.textContent='⏳ Packing...';
-  const tick=()=>new Promise(r=>setTimeout(r,0));
+  const btn=document.getElementById('dlBtn');btn.disabled=true;btn.textContent='⏳ Packing...';
   try{
-    const {title,artist,bpm,offset,use9ms,charts,ext,safe}=lastGeneratedData;
-    const finalOffset=offset+(use9ms?0.009:0);
-
-    log('Writing .sm...'); await tick();
-    const smText=buildSM(title,artist,bpm,finalOffset,charts,ext,safe);
-
-    log('Generating artwork...'); await tick();
+    const{title,artist,bpm,offset,charts,ext,safe}=lastGeneratedData;
+    log('Writing .sm...');await tick();
+    const smText=buildSM(title,artist,bpm,offset,charts,ext,safe);
+    log('Generating artwork...');await tick();
     const artSrc=userArt||embeddedArt||null;
     const artImg=artSrc?await loadImg(artSrc):null;
     const bannerBlob=await makeImg(title,artist,418,164,artImg);
-    const bgBlob    =await makeImg(title,artist,640,480,artImg);
+    const bgBlob=await makeImg(title,artist,640,480,artImg);
     const jacketBlob=await makeImg(title,artist,512,512,artImg);
-
-    log('Packing ZIP...'); await tick();
-    const zip=new JSZip();
-    const folder=zip.folder(safe);
+    log('Packing ZIP...');await tick();
+    const zip=new JSZip();const folder=zip.folder(safe);
     folder.file(`${safe}.sm`,smText);
     folder.file(`${safe}-banner.png`,bannerBlob);
     folder.file(`${safe}-bg.png`,bgBlob);
     folder.file(`${safe}-jacket.png`,jacketBlob);
     if(audioFileObj)folder.file(`${safe}.${ext}`,audioFileObj);
-
     const zipBlob=await zip.generateAsync({type:'blob',compression:'STORE'});
     const url=URL.createObjectURL(zipBlob);
     const a=document.createElement('a');a.href=url;a.download=`${safe}.zip`;a.click();
     URL.revokeObjectURL(url);
-    log(`✓ Downloaded "${safe}.zip"`, 'ok');
+    log(`✓ Downloaded "${safe}.zip"','ok`);
   }catch(err){log('Error: '+err.message,'err');console.error(err);}
-  btn.disabled=false; btn.textContent='⬇ DOWNLOAD ZIP';
+  btn.disabled=false;btn.textContent='⬇ DOWNLOAD ZIP';
 });
 </script>
 </body>

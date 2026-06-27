@@ -122,6 +122,7 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="field"><label>Min break (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
       <div class="field"><label>Max break (beats) <span id="maxBreakVal">16</span></label><input type="range" id="maxBreak" min="4" max="64" value="16" step="2"/></div>
       <div class="field"><label>Melody threshold <span id="melodyThreshVal">30</span>%</label><input type="range" id="melodyThresh" min="5" max="60" value="30" step="5"/></div>
+      <div class="field"><label>Jump density <span id="jumpDensityVal">Medium</span></label><input type="range" id="jumpDensity" min="0" max="4" value="2" step="1"/></div>
       <div class="field"><label>Onset sensitivity <span id="onsetSensVal">0.4</span></label><input type="range" id="onsetSens" min="0.1" max="0.9" value="0.4" step="0.05"/></div>
       <div class="field"><label>Fine-tune offset (s) <span id="offsetVal">0.0</span></label><input type="range" id="offset" min="-0.5" max="2" value="0" step="0.05"/></div>
     </div>
@@ -290,6 +291,13 @@ const activePats=new Set(Object.keys(PATTERNS));
 let audioBuffer=null, audioFileObj=null;
 let detectedBPM=120, detectedOffset=0;
 let energyCurve=[], onsetTimes=[], onsetStrengths=[], onsetBass=[], sectionMap=[], songStructure=[];
+// Spectral features from FFT pass (Phase 1). Per-frame real frequency-band
+// energies, used for onset detection, jumps, and structure.
+let specFrames=[];      // array of Float32Array(NBANDS) — band energy per frame
+let specFrameTimes=[];  // time (s) of each frame
+let specHopSec=0;       // seconds between frames
+const NBANDS=5;         // sub-bass, bass, low-mid, mid, high
+const BAND_NAMES=['subbass','bass','lowmid','mid','high'];
 let embeddedArt=null, userArt=null;
 let lastGeneratedData=null;
 
@@ -325,6 +333,13 @@ const tick=()=>new Promise(r=>setTimeout(r,0));
   });
 });
 document.getElementById('diffCount').addEventListener('change',updateDiffBadges);
+// Jump density slider shows named levels instead of a number.
+const JUMP_LABELS=['None','Low','Medium','High','Max'];
+(function(){
+  const el=document.getElementById('jumpDensity');
+  if(!el)return;
+  el.addEventListener('input',()=>{document.getElementById('jumpDensityVal').textContent=JUMP_LABELS[+el.value]||'Medium';});
+})();
 
 // ── Art ───────────────────────────────────────────────────────────
 document.getElementById('artFile').addEventListener('change',e=>{
@@ -358,7 +373,9 @@ async function handleAudio(file){
   document.getElementById('infoTitle').textContent=document.getElementById('songTitle').value||fname;
   document.getElementById('infoArtist').textContent=document.getElementById('songArtist').value||'Unknown Artist';
 
-  setP(20);log('Analyzing energy...');await tick();computeEnergy();
+  setP(15);log('Spectral analysis (FFT)...');await tick();
+  try{await computeSpectralFeatures();}catch(e){log('FFT skipped: '+e.message,'warn');specFrames=[];}
+  setP(42);log('Analyzing energy...');await tick();computeEnergy();
   setP(45);log('Detecting onsets...');await tick();computeOnsets();
   setP(65);log('Fitting tempo + offset...');await tick();detectedBPM=detectBPM();
   document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
@@ -392,6 +409,95 @@ async function extractID3Art(file){
   }
 }
 
+// ── Spectral analysis (Phase 1: real FFT, real frequency bands) ──────
+// Runs an offline FFT over the whole song (downsampled to mono ~22kHz) and
+// extracts energy in 5 real frequency bands per frame. This replaces the old
+// fake "time-slice bands" with true frequency content, which makes onset
+// detection, jump placement (real kick detection), and structure far better.
+
+// In-place iterative radix-2 Cooley-Tukey FFT. re/im are Float32Array of
+// length N (power of 2). Transforms in place.
+function fftRadix2(re,im){
+  const n=re.length;
+  // bit-reversal permutation
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1)j^=bit;
+    j^=bit;
+    if(i<j){const tr=re[i];re[i]=re[j];re[j]=tr;const ti=im[i];im[i]=im[j];im[j]=ti;}
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len;
+    const wr=Math.cos(ang),wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cwr=1,cwi=0;
+      for(let k=0;k<len/2;k++){
+        const a=i+k,b=i+k+len/2;
+        const xr=re[b]*cwr-im[b]*cwi, xi=re[b]*cwi+im[b]*cwr;
+        re[b]=re[a]-xr; im[b]=im[a]-xi;
+        re[a]+=xr; im[a]+=xi;
+        const ncwr=cwr*wr-cwi*wi; cwi=cwr*wi+cwi*wr; cwr=ncwr;
+      }
+    }
+  }
+}
+
+async function computeSpectralFeatures(){
+  const srcSr=audioBuffer.sampleRate;
+  const src=audioBuffer.getChannelData(0);
+  const src2=audioBuffer.numberOfChannels>1?audioBuffer.getChannelData(1):null;
+  // Downsample to ~22kHz mono for speed (halves the work, no loss for our needs)
+  const targetSr=22050;
+  const ratio=srcSr/targetSr;
+  const dsLen=Math.floor(src.length/ratio);
+  const mono=new Float32Array(dsLen);
+  for(let i=0;i<dsLen;i++){
+    const si=Math.floor(i*ratio);
+    mono[i]=src2?(src[si]+src2[si])*0.5:src[si];
+  }
+  const sr=targetSr;
+
+  const FFT=2048, HOP=512;
+  const nFrames=Math.max(0,Math.floor((mono.length-FFT)/HOP));
+  // Hann window
+  const win=new Float32Array(FFT);
+  for(let i=0;i<FFT;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
+  // Band edges in Hz → FFT bin indices. bin = f / (sr/FFT)
+  const binHz=sr/FFT;
+  const edges=[20,120,250,2000,6000,sr/2]; // 5 bands between these edges
+  const bandBins=[];
+  for(let bnd=0;bnd<NBANDS;bnd++){
+    const lo=Math.max(1,Math.floor(edges[bnd]/binHz));
+    const hi=Math.min(FFT/2,Math.ceil(edges[bnd+1]/binHz));
+    bandBins.push([lo,hi]);
+  }
+
+  specFrames=[]; specFrameTimes=[]; specHopSec=HOP/sr;
+  const re=new Float32Array(FFT), im=new Float32Array(FFT);
+
+  // Process in chunks so the UI can breathe (yield every ~400 frames).
+  for(let f=0;f<nFrames;f++){
+    const base=f*HOP;
+    for(let i=0;i<FFT;i++){re[i]=mono[base+i]*win[i];im[i]=0;}
+    fftRadix2(re,im);
+    const bands=new Float32Array(NBANDS);
+    for(let bnd=0;bnd<NBANDS;bnd++){
+      const [lo,hi]=bandBins[bnd];
+      let sum=0;
+      for(let k=lo;k<hi;k++){sum+=re[k]*re[k]+im[k]*im[k];}
+      bands[bnd]=Math.sqrt(sum/Math.max(1,hi-lo));
+    }
+    specFrames.push(bands);
+    specFrameTimes.push(base/sr);
+    if((f&511)===0){setP(20+Math.round(f/nFrames*22));await tick();}
+  }
+  // Normalize each band to its own max so they're comparable 0-1.
+  const maxB=new Float32Array(NBANDS);
+  for(const fr of specFrames)for(let b=0;b<NBANDS;b++)if(fr[b]>maxB[b])maxB[b]=fr[b];
+  for(const fr of specFrames)for(let b=0;b<NBANDS;b++)fr[b]=maxB[b]?fr[b]/maxB[b]:0;
+  log('Spectral analysis: '+specFrames.length+' frames, '+NBANDS+' bands','ok');
+}
+
 // ── Energy ────────────────────────────────────────────────────────
 function computeEnergy(){
   const d=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
@@ -407,16 +513,54 @@ function computeEnergy(){
 }
 
 // ── Onsets ────────────────────────────────────────────────────────
+// Uses the real frequency bands from computeSpectralFeatures. Spectral flux =
+// sum of positive band-energy increases between frames (a true onset detection
+// function). Bass band drives jump detection. Falls back to the old time-domain
+// method if spectral frames aren't available.
 function computeOnsets(){
-  const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
   const sens=+document.getElementById('onsetSens').value;
+  if(specFrames.length>2){
+    const nF=specFrames.length;
+    // Band weights: emphasize percussive bands (sub-bass, bass, high/hats) for
+    // onset detection. Mids weighted lower (sustained melody flux is noisier).
+    const WGT=[2.2,2.0,1.0,1.2,1.4];
+    const flux=new Float32Array(nF);
+    for(let f=1;f<nF;f++){
+      let s=0;
+      for(let b=0;b<NBANDS;b++){
+        const diff=specFrames[f][b]-specFrames[f-1][b];
+        if(diff>0)s+=diff*WGT[b];
+      }
+      flux[f]=s;
+    }
+    // adaptive peak-pick with local-mean threshold
+    let maxF=0;for(let i=0;i<nF;i++)if(flux[i]>maxF)maxF=flux[i];
+    const PWIN=Math.max(4,Math.round(0.1/specHopSec)); // ~100ms window
+    const MGAP=Math.max(1,Math.round(0.05/specHopSec)); // 50ms min gap
+    onsetTimes=[];onsetStrengths=[];onsetBass=[];let lastPk=-MGAP;
+    for(let i=1;i<nF-1;i++){
+      const v=flux[i];let sum=0,c=0;
+      for(let j=Math.max(0,i-PWIN);j<Math.min(nF,i+PWIN);j++){sum+=flux[j];c++;}
+      const thr=(sum/c)+sens*maxF*0.35;
+      if(v>thr&&v>=flux[i-1]&&v>flux[i+1]&&i-lastPk>=MGAP){
+        onsetTimes.push(specFrameTimes[i]);
+        onsetStrengths.push(maxF?v/maxF:0);
+        // bass strength = sub-bass + bass energy at this frame (real kick info)
+        onsetBass.push(Math.min(1,(specFrames[i][0]+specFrames[i][1])*0.5));
+        lastPk=i;
+      }
+    }
+    log('Onsets (spectral): '+onsetTimes.length,'ok');
+    return;
+  }
+  // ── Fallback: old time-domain method (no FFT available) ──
+  const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
   const USE=Math.min(d.length,sr*120),HOP=1024,DS=8,BANDS=4;
   const WGTS=[3.0,2.0,1.0,0.3];
   const nHops=Math.floor((USE-HOP)/HOP);
   const flux=new Float32Array(nHops),times=new Float32Array(nHops);
-  const bassEnv=new Float32Array(nHops); // low-frequency energy per hop (for jumps)
+  const bassEnv=new Float32Array(nHops);
   const prev=new Float32Array(BANDS);
-  // One-pole low-pass state for bass extraction (~cutoff 150Hz)
   const rc=1/(2*Math.PI*150), dt=1/sr, alpha=dt/(rc+dt);
   let lp=0;
   for(let h=0;h<nHops;h++){
@@ -429,7 +573,6 @@ function computeOnsets(){
       const val=cnt?Math.sqrt(rms/cnt)*WGTS[b]:0;
       const diff=val-prev[b];if(diff>0)flux[h]+=diff;prev[b]=val;
     }
-    // bass envelope: low-pass the raw samples in this hop, take RMS
     for(let i=base;i<base+HOP&&i<USE;i+=DS){lp+=alpha*(d[i]-lp);bassRms+=lp*lp;bcnt++;}
     bassEnv[h]=bcnt?Math.sqrt(bassRms/bcnt):0;
   }
@@ -447,7 +590,7 @@ function computeOnsets(){
       lastHop=i;
     }
   }
-  log('Onsets: '+onsetTimes.length,'ok');
+  log('Onsets (time-domain): '+onsetTimes.length,'ok');
 }
 
 // ── BPM + Offset — ArrowVortex-style joint fit ────────────────────
@@ -830,9 +973,18 @@ function generateChart(block,bpm,energy,duration){
   }
   const onsetsByBeat={};
   for(const o of onsetRows){const b=Math.floor(o.row/RPB);if(!onsetsByBeat[b])onsetsByBeat[b]=[];onsetsByBeat[b].push(o);}
-  // Bass threshold for jumps = 65th percentile of onset bass values present.
+  // Jump density (0=None .. 4=Max) controls how readily strong bass hits become
+  // jumps. Higher density = lower bass percentile cutoff (more onsets qualify)
+  // and looser energy/isolation gates.
+  const jumpDensity=+(document.getElementById('jumpDensity')?.value ?? 2);
+  // percentile cutoff per level: None effectively disables; Max is permissive.
+  const PCTL=[1.01,0.80,0.65,0.50,0.35][jumpDensity]; // None>1 => nothing passes
   const bassVals=onsetRows.map(o=>o.bass).filter(v=>v>0).sort((a,b)=>a-b);
-  const jumpBassThresh=bassVals.length?bassVals[Math.floor(bassVals.length*0.65)]:0.5;
+  const jumpBassThresh=bassVals.length?(bassVals[Math.min(bassVals.length-1,Math.floor(bassVals.length*PCTL))]??Infinity):Infinity;
+  const jumpsEnabled=jumpDensity>0;
+  // energy/isolation gates loosen as density rises
+  const jumpStrengthGate=[1,0.6,0.5,0.42,0.35][jumpDensity];
+  const jumpIsolationGate=[99,1.0,0.75,0.55,0.4][jumpDensity]; // beats of gap required
 
   // Pattern turn state
   let lastTurnCat='',lastTurnName='',recentTurns=[],beatsSinceTurn=0;
@@ -922,8 +1074,8 @@ function generateChart(block,bpm,energy,duration){
           const nextRow=oi+1<bo.length?bo[oi+1].row:Math.min(totalRows-1,o.row+RPB*2);
           const holdLen=nextRow-o.row-1;
           // Strong bass + isolated (not a fast melodic run) → JUMP on the thump
-          const isolated=o.gapToNext>beatDur*0.75;
-          if(block>=3 && o.bass>=jumpBassThresh && o.strength>0.5 && isolated){
+          const isolated=o.gapToNext>beatDur*jumpIsolationGate;
+          if(jumpsEnabled && block>=3 && o.bass>=jumpBassThresh && o.strength>jumpStrengthGate && isolated){
             placeJump(o.row);
           }
           // Long gap until next note → sustained note → HOLD
@@ -948,8 +1100,8 @@ function generateChart(block,bpm,energy,duration){
       if(medRunBeats>=medMaxRun){medBreakBeats++;if(medBreakBeats>=medMinBreak){medRunBeats=0;medBreakBeats=0;}b++;continue;}
       medBreakBeats=0;
       const bo=onsetsByBeat[b]||[];
-      const strongBass=bo.find(o=>!o.isRepeat&&o.bass>=jumpBassThresh&&o.strength>0.55);
-      if(block>=4 && strongBass && strongBass.row%2===0){
+      const strongBass=bo.find(o=>!o.isRepeat&&o.bass>=jumpBassThresh&&o.strength>jumpStrengthGate);
+      if(jumpsEnabled && block>=4 && strongBass && strongBass.row%2===0){
         placeJump(strongBass.row);
         if(startRow+2<totalRows && strongBass.row!==startRow+2)placeNote(startRow+2);
       } else if(!can8th){

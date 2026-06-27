@@ -753,6 +753,82 @@ function computeOnsets(){
   }
   log('Onsets: ' + onsetTimes.length, 'ok');
 }
+// ── Foot helper ──────────────────────────────────────────────────
+function footOf(p){ return (p===0||p===1) ? 'L' : 'R'; }
+function seqEndFoot(seq){ return footOf(seq[seq.length-1]); }
+function seqValid(seq, startFoot){
+  if(!seq||!seq.length) return false;
+  let f = startFoot;
+  for(const p of seq){
+    if(footOf(p)===f) return false;
+    f = footOf(p);
+  }
+  return true;
+}
+
+// ── BPM detection — fast IOI histogram ───────────────────────────
+function detectBPM(){
+  const sr  = audioBuffer.sampleRate;
+  const raw = audioBuffer.getChannelData(0);
+
+  // Use onsets if we have enough
+  if(onsetTimes && onsetTimes.length >= 4){
+    const cs     = onsetTimes.map(t => Math.round(t * 100)); // centiseconds
+    const MIN_P  = Math.round(6000/220);  // min period cs
+    const MAX_P  = Math.round(6000/60);   // max period cs
+    const hist   = new Float32Array(MAX_P + 1);
+
+    for(let i = 0; i < cs.length; i++){
+      for(let j = i+1; j < Math.min(i+8, cs.length); j++){
+        let gap = cs[j] - cs[i];
+        if(gap <= 0) continue;
+        const wt = 1.0 / (j - i);
+        let g = gap;
+        while(g > MAX_P) g = Math.round(g/2);
+        while(g < MIN_P && g > 0) g = Math.round(g*2);
+        if(g >= MIN_P && g <= MAX_P) hist[g] += wt;
+      }
+    }
+
+    let best = -1, bestP = MIN_P;
+    for(let p = MIN_P; p <= MAX_P; p++){
+      const sm = (hist[Math.max(MIN_P,p-1)] + hist[p]*2 + hist[Math.min(MAX_P,p+1)]) / 4;
+      let score = sm;
+      const half = Math.round(p/2);
+      if(half >= MIN_P) score += hist[half] * 0.4;
+      const bpmH = 6000/p;
+      if(bpmH >= 120 && bpmH <= 175) score *= 1.1;
+      if(score > best){ best = score; bestP = p; }
+    }
+
+    let bpm = 6000 / bestP;
+    while(bpm < 80)  bpm *= 2;
+    while(bpm > 185) bpm /= 2;
+    const r = Math.round(bpm);
+    return Math.round((Math.abs(bpm-r) < 0.6 ? r : bpm) * 10) / 10;
+  }
+
+  // Fallback: tiny autocorrelation on 5s downsampled by 64x
+  log('BPM: using autocorrelation fallback','warn');
+  const DS  = 64;
+  const USE = Math.min(raw.length, sr * 5);
+  const ds  = [];
+  for(let i = 0; i < USE; i += DS) ds.push(raw[i]);
+  const dsSR = sr / DS;
+  const minL = Math.max(1, Math.floor(60/185 * dsSR));
+  const maxL = Math.ceil(60/60 * dsSR);
+  let bL = minL, bC = -Infinity;
+  for(let lag = minL; lag <= maxL; lag++){
+    let c = 0;
+    for(let i = 0; i < ds.length - lag; i++) c += ds[i] * ds[i+lag];
+    if(c > bC){ bC = c; bL = lag; }
+  }
+  let bpm = 60 / (bL / dsSR);
+  while(bpm < 80)  bpm *= 2;
+  while(bpm > 185) bpm /= 2;
+  return Math.round(bpm * 10) / 10;
+}
+
 function buildSectionMap(bpm, duration) {
   const staminaMode  = document.getElementById('staminaMode').checked;
   const melodyThresh = +document.getElementById('melodyThresh').value / 100;

@@ -642,8 +642,8 @@ async function handleAudio(file){
   document.getElementById('songInfoBar').classList.add('on');
   document.getElementById('infoTitle').textContent=document.getElementById('songTitle').value||fname;
   document.getElementById('infoArtist').textContent=document.getElementById('songArtist').value||'Unknown Artist';
-  setP(25);log('Analyzing energy...');computeEnergy();setP(45);
-  log('Detecting onsets...');computeOnsets();setP(65);
+  setP(25);log('Analyzing energy...');computeEnergy();setP(40);
+  log('Detecting onsets (up to 90s)...');computeOnsets();setP(65);
   log('Detecting BPM...');detectedBPM=detectBPM();
   document.getElementById('bpmBadge').textContent=detectedBPM.toFixed(1)+' BPM';
   log('BPM: '+detectedBPM.toFixed(1),'ok');setP(80);
@@ -683,8 +683,11 @@ function computeEnergy(){
 // increases frame-to-frame (flux). Peaks = note onsets.
 function computeOnsets(){
   const sr      = audioBuffer.sampleRate;
-  const data    = audioBuffer.getChannelData(0);
-  const HOP     = 256;
+  const rawData = audioBuffer.getChannelData(0);
+  // Cap to first 90s — enough for reliable onset/BPM detection, much faster
+  const MAX_SAMPLES = Math.min(rawData.length, sr * 90);
+  const data    = rawData.subarray(0, MAX_SAMPLES);
+  const HOP     = 512;   // larger hop = fewer frames = faster (was 256)
   const WIN     = 1024;
   const sensitivity = +document.getElementById('onsetSens').value;
 
@@ -692,9 +695,9 @@ function computeOnsets(){
   const hann = new Float32Array(WIN);
   for(let i=0;i<WIN;i++) hann[i]=0.5*(1-Math.cos(2*Math.PI*i/WIN));
 
-  // 16 frequency subbands, weighted toward bass/low-mid (where beats live)
-  const NUM_BANDS = 16;
-  const WEIGHTS   = [2.0,2.0,1.8,1.5,1.3,1.2,1.0,1.0,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1];
+  // 8 frequency subbands (was 16) — still accurate, 2x faster
+  const NUM_BANDS = 8;
+  const WEIGHTS   = [2.0,1.8,1.5,1.2,1.0,0.7,0.4,0.2];
   const numHops   = Math.floor((data.length - WIN) / HOP);
   const prevBands = new Float32Array(NUM_BANDS);
   const fluxArr   = new Float32Array(numHops);
@@ -1364,14 +1367,17 @@ function detectBPM(){
 
   // ── Step 1: Find intense sections via energy ──────────────────
   // Compute RMS in 500ms windows, find top 30% by energy
-  const WIN_S  = 0.5;  // window size seconds
+  const WIN_S  = 1.0;  // 1s windows — fewer to compute
   const WIN    = Math.floor(WIN_S * sr);
-  const numWin = Math.floor(data.length / WIN);
+  // Cap to 90s of audio for speed (same data computeOnsets used)
+  const MAX_S  = Math.min(data.length, sr * 90);
+  const numWin = Math.floor(MAX_S / WIN);
   const winRMS = new Float32Array(numWin);
   for(let i=0;i<numWin;i++){
     let s=0;
-    for(let j=i*WIN;j<(i+1)*WIN&&j<data.length;j++) s+=data[j]*data[j];
-    winRMS[i]=Math.sqrt(s/WIN);
+    const end=Math.min((i+1)*WIN,MAX_S);
+    for(let j=i*WIN;j<end;j++) s+=data[j]*data[j];
+    winRMS[i]=Math.sqrt(s/(end-i*WIN));
   }
   // Sort to find 70th percentile threshold
   const sorted=[...winRMS].sort((a,b)=>b-a);
@@ -1448,7 +1454,7 @@ function detectBPM(){
 
     // ── Step 4: Autocorrelation verification on intense audio ────
     // Concatenate RMS frames from intense windows only
-    const STEP=256;
+    const STEP=1024; // larger step = fewer frames (was 256)
     const rmsAll=[];
     for(let i=0;i<numWin;i++){
       if(winRMS[i]<thresh70) continue;
@@ -1457,7 +1463,9 @@ function detectBPM(){
         let s=0;
         for(let j=0;j<STEP;j++) s+=data[k+j]*data[k+j];
         rmsAll.push(Math.sqrt(s/STEP));
+        if(rmsAll.length>=1500) break; // cap to bound autocorrelation time
       }
+      if(rmsAll.length>=1500) break;
     }
 
     if(rmsAll.length>50){

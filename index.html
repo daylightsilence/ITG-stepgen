@@ -529,20 +529,42 @@ function computeOnsets(){
     const PWIN=Math.max(4,Math.round(0.1/specHopSec)); // ~100ms window
     const MGAP=Math.max(1,Math.round(0.05/specHopSec)); // 50ms min gap
     onsetTimes=[];onsetStrengths=[];onsetBass=[];onsetCentroid=[];let lastPk=-MGAP;
-    // band center frequencies (approx, for centroid): subbass,bass,lowmid,mid,high
     const BAND_CTR=[70,185,600,4000,9000];
+    // For ADAPTIVE MELODY SENSITIVITY we also compute a melody-weighted flux that
+    // emphasizes the mid bands (vocal/lead) instead of percussion. In frames
+    // where the BEAT is weak (low sub-bass/bass energy), we lower the detection
+    // threshold and lean on this melodic flux, so soft melody/vocal hits that the
+    // percussion-tuned detector would miss still register. Busy beat-driven
+    // frames are unaffected.
+    const MEL_WGT=[0.4,0.6,1.8,2.0,1.0]; // emphasize low-mid & mid (melody/harmony)
+    const melFlux=new Float32Array(nF);
+    for(let f=1;f<nF;f++){
+      let s=0;
+      for(let b=0;b<NBANDS;b++){const d=specFrames[f][b]-specFrames[f-1][b];if(d>0)s+=d*MEL_WGT[b];}
+      melFlux[f]=s;
+    }
+    let maxMel=0;for(let i=0;i<nF;i++)if(melFlux[i]>maxMel)maxMel=melFlux[i];
+    // typical bass level, to judge what counts as a "weak beat" frame
+    const bassLevels=[];for(let i=0;i<nF;i++)bassLevels.push((specFrames[i][0]+specFrames[i][1])*0.5);
+    const bassSorted=[...bassLevels].sort((a,b)=>a-b);
+    const bassMedian=bassSorted[Math.floor(bassSorted.length*0.5)]||0;
     for(let i=1;i<nF-1;i++){
-      const v=flux[i];let sum=0,c=0;
-      for(let j=Math.max(0,i-PWIN);j<Math.min(nF,i+PWIN);j++){sum+=flux[j];c++;}
-      const thr=(sum/c)+sens*maxF*0.35;
-      if(v>thr&&v>=flux[i-1]&&v>flux[i+1]&&i-lastPk>=MGAP){
+      // Is the beat weak here? (bass below ~70% of the song's median bass)
+      const beatWeak = bassLevels[i] < bassMedian*0.7;
+      // Pick which flux + threshold to use. In weak-beat frames use the melodic
+      // flux with a LOWER threshold so soft melody hits get caught.
+      const useFlux = beatWeak ? melFlux : flux;
+      const useMax  = beatWeak ? maxMel : maxF;
+      const v=useFlux[i];
+      let sum=0,c=0;
+      for(let j=Math.max(0,i-PWIN);j<Math.min(nF,i+PWIN);j++){sum+=useFlux[j];c++;}
+      // weak-beat frames get a gentler threshold (×0.6) so melody registers
+      const thrScale = beatWeak ? 0.21 : 0.35;
+      const thr=(sum/c)+sens*useMax*thrScale;
+      if(v>thr&&v>=useFlux[i-1]&&v>useFlux[i+1]&&i-lastPk>=MGAP){
         onsetTimes.push(specFrameTimes[i]);
-        onsetStrengths.push(maxF?v/maxF:0);
-        // bass strength = sub-bass + bass energy at this frame (real kick info)
+        onsetStrengths.push(useMax?v/useMax:0);
         onsetBass.push(Math.min(1,(specFrames[i][0]+specFrames[i][1])*0.5));
-        // spectral centroid = energy-weighted mean frequency. Higher = brighter
-        // = melody is higher-pitched. Tracking how this MOVES between onsets
-        // tells us melodic direction (up/down) for arrow contour.
         let num=0,den=0;
         for(let b=0;b<NBANDS;b++){num+=specFrames[i][b]*BAND_CTR[b];den+=specFrames[i][b];}
         onsetCentroid.push(den>0?num/den:0);
@@ -832,6 +854,34 @@ function generateChart(block,bpm,energy,duration){
   }
   // contourBias: -1 (falling → Down) .. +1 (rising → Up)
   let recentTransitions=[];
+  let recentNotes=[]; // last committed panels, for drill (A-B-A-B) detection
+  // Drill penalty: discourage repeated two-arrow back-and-forth (A-B-A-B...).
+  // Two reps (A-B-A-B) are acceptable texture; a 3rd rep is strongly avoided,
+  // and even starting an oscillation is mildly discouraged so drills stay rare.
+  function drillPenalty(candidate){
+    const n=recentNotes;
+    const L=n.length;
+    if(L<1) return 0;
+    const a=candidate;
+    // Would this choice continue an oscillation? Look at how many alternating
+    // reps of (a,b) already precede it.
+    const b=n[L-1];
+    if(a===b) return 0; // same-panel handled elsewhere; not a 2-arrow drill
+    // count how far back the strict a,b,a,b,... alternation runs
+    let reps=0, expect=b;
+    for(let i=L-1;i>=0;i--){
+      if(n[i]===expect){reps++; expect=(expect===a?b:a);}
+      else break;
+    }
+    // reps = length of the trailing alternation that 'a' would extend.
+    // After 1 prior note (b): choosing a starts a 2-cycle → mild.
+    // After 3 (b,a,b): choosing a completes A-B-A-B (2 reps) → still ok, small.
+    // After 5 (b,a,b,a,b): choosing a makes 3 reps → strong penalty.
+    if(reps>=5) return 7.0;  // would create 3rd repetition — essentially block
+    if(reps>=3) return 1.6;  // would complete/extend a 2-rep drill — discourage
+    if(reps>=1) return 0.5;  // starting an oscillation — mild, keeps drills rare
+    return 0;
+  }
   // Choose a panel for the given foot. A foot freely uses its home outer arrow
   // and BOTH center arrows (natural pivoting/facing). The opposite outer arrow
   // is a real crossover and is rare.
@@ -839,6 +889,7 @@ function generateChart(block,bpm,energy,duration){
     if(candidates.length===1){
       const p=candidates[0];
       recentTransitions.push(lastPanel+'>'+p); if(recentTransitions.length>6)recentTransitions.shift();
+      recentNotes.push(p); if(recentNotes.length>8)recentNotes.shift();
       return p;
     }
     const maxUse=Math.max(...candidates.map(p=>panelUse[p]),1);
@@ -848,20 +899,18 @@ function generateChart(block,bpm,energy,duration){
       const contourMag=Math.abs(contourBias||0);
       const balance=(maxUse-panelUse[p]+1)*0.7*(1-contourMag*0.6);
       const facePen=facingPenalty(p,foot);
-      // No home-corner lean and no special reach bonus needed: the natural reach
-      // (home outer + both centers) is already balanced by the use-count term,
-      // which spreads notes evenly across those three arrows. Crossovers are
-      // handled purely by the strong facePen above.
       let contour=0;
       if(p===2) contour=(contourBias||0)*3.2;        // Up rewarded by rising melody
       else if(p===1) contour=-(contourBias||0)*3.2;  // Down rewarded by falling melody
       const cyclePen=(transCount[p]||0)*1.2;
+      const drillPen=drillPenalty(p);
       const rand=Math.random()*(2.2-contourMag*1.2);
-      return Math.max(0.05, balance - facePen + contour - cyclePen + rand);
+      return Math.max(0.05, balance - facePen + contour - cyclePen - drillPen + rand);
     });
     let total=weights.reduce((a,b)=>a+b,0), r=Math.random()*total, chosen=candidates[candidates.length-1];
     for(let i=0;i<candidates.length;i++){r-=weights[i];if(r<=0){chosen=candidates[i];break;}}
     recentTransitions.push(lastPanel+'>'+chosen); if(recentTransitions.length>6)recentTransitions.shift();
+    recentNotes.push(chosen); if(recentNotes.length>8)recentNotes.shift();
     return chosen;
   }
   // commit a step for a SPECIFIC foot (foot tracked independently of panel)
@@ -1055,13 +1104,16 @@ function generateChart(block,bpm,energy,duration){
         let step=0;
         if(staminaMode){
           // Stamina: bridge into a CONTINUOUS stream at the BPM-appropriate
-          // resolution wherever the section is at least groove-dense. This is
-          // what makes long unbroken stamina runs.
-          if(dens>=4) step=staminaStep;
+          // resolution — but only where the section is GENUINELY driving, not
+          // merely present. A higher density bar (≥6, was ≥4) keeps mild beats
+          // from being inflated into streams; those fall through to medium
+          // (8ths/quarters) below.
+          if(dens>=6) step=staminaStep;
+          else if(dens>=4) step=2; // groove-level: 8th steps, not a stream
         } else {
           // Non-stamina: resolution follows local density (16ths only where the
           // music is genuinely busy), eased a little at higher difficulty.
-          const dens16 = block>=9 ? 5 : block>=7 ? 6 : 8;
+          const dens16 = block>=9 ? 6 : block>=7 ? 7 : 9;
           if(dens>=dens16) step=1;
           else if(dens>=4) step=2;
         }

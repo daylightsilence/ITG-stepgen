@@ -132,6 +132,7 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="field"><label>Jump density <span id="jumpDensityVal">High</span></label><input type="range" id="jumpDensity" min="0" max="4" value="3" step="1"/></div>
       <div class="field"><label>Hold density <span id="holdDensityVal">High</span></label><input type="range" id="holdDensity" min="0" max="4" value="3" step="1"/></div>
       <div class="field"><label>Onset sensitivity <span id="onsetSensVal">0.4</span></label><input type="range" id="onsetSens" min="0.1" max="0.9" value="0.4" step="0.05"/></div>
+      <div class="field"><label>Stream intensity <span id="streamIntenseVal">Medium</span></label><input type="range" id="streamIntense" min="0" max="4" value="2" step="1"/></div>
       <div class="field"><label>Fine-tune offset (s) <span id="offsetVal">0.0</span></label><input type="range" id="offset" min="-0.5" max="2" value="0" step="0.05"/></div>
     </div>
     <div>
@@ -341,6 +342,13 @@ const JUMP_LABELS=['None','Low','Medium','High','Max'];
   if(!el)return;
   el.addEventListener('input',()=>{document.getElementById(vid).textContent=JUMP_LABELS[+el.value]||'Medium';});
 });
+// Stream intensity slider: how intense a section must be to become a stream.
+// Higher = only the really intense parts stream; lower = pulls medium-intensity
+// sections into streams too.
+const STREAM_LABELS=['Very Low','Low','Medium','High','Very High'];
+(()=>{const el=document.getElementById('streamIntense');if(!el)return;
+  el.addEventListener('input',()=>{document.getElementById('streamIntenseVal').textContent=STREAM_LABELS[+el.value]||'Medium';});
+})();
 
 // ── Art (three independent slots; each falls back to embeddedArt) ──
 function wireArtSlot(inputId, previewId, setter){
@@ -958,6 +966,15 @@ function generateChart(block,bpm,energy,duration){
     if(row<0||row>=totalRows||notes[row]!==-1)return;
     const foot=(lastFoot==='L')?'R':'L';
     let ch=reachablePanels(foot).filter(p=>p!==lastPanel);
+    // Also avoid any panel used on the immediately-preceding filled row — this
+    // prevents a step from repeating a panel that a JUMP just placed (jumps set
+    // notes[] directly and can leave a panel the next step would otherwise hit,
+    // producing an unintended double-tap).
+    const prevRow=row-1>=0?row-1:-1, prevRow2=row-2>=0?row-2:-1;
+    const avoid=new Set();
+    [prevRow,prevRow2].forEach(pr=>{ if(pr>=0){ const jr=jumpRows[pr]; if(jr){jr.forEach(p=>avoid.add(p));} else if(notes[pr]>=0&&notes[pr]<4)avoid.add(notes[pr]); } });
+    let ch2=ch.filter(p=>!avoid.has(p));
+    if(ch2.length)ch=ch2;
     if(!ch.length)ch=reachablePanels(foot);
     commit(row,choosePanel(ch,foot,contourBias),foot);
   }
@@ -974,10 +991,22 @@ function generateChart(block,bpm,energy,duration){
   }
   function placeJump(row){
     if(row<0||row>=totalRows||notes[row]!==-1||jumpRows[row])return;
-    const lp=choosePanel([0,1],'L',0), rp=choosePanel([2,3],'R',0);
+    // Avoid panels on the immediately preceding filled row so the step→jump
+    // boundary doesn't repeat a panel (an unintended double-tap on one foot).
+    const avoid=new Set();
+    for(let pr=row-1;pr>=Math.max(0,row-2);pr--){
+      const jrp=jumpRows[pr];
+      if(jrp){jrp.forEach(p=>avoid.add(p));}
+      else if(notes[pr]>=0&&notes[pr]<4)avoid.add(notes[pr]);
+    }
+    let lCands=[0,1].filter(p=>!avoid.has(p)); if(!lCands.length)lCands=[0,1];
+    let rCands=[2,3].filter(p=>!avoid.has(p)); if(!rCands.length)rCands=[2,3];
+    const lp=choosePanel(lCands,'L',0), rp=choosePanel(rCands,'R',0);
     notes[row]=lp; jumpRows[row]=[lp,rp];
     panelUse[lp]++; panelUse[rp]++;
     leftFootPanel=lp; rightFootPanel=rp;
+    // A jump uses BOTH feet; set state so the next step alternates cleanly.
+    lastFoot='R'; lastPanel=rp;
   }
 
   // ── Build the musical event list from onsets ──
@@ -1052,10 +1081,20 @@ function generateChart(block,bpm,energy,duration){
   const jumpDensity=+(document.getElementById('jumpDensity')?.value ?? 3);
   const jumpsEnabled=jumpDensity>0;
   const bassVals=evs.map(e=>e.bass).filter(v=>v>0).sort((a,b)=>a-b);
-  const PCTL=[1.01,0.82,0.68,0.55,0.42][jumpDensity];
+  // Bass percentile per density. Lower percentile = more onsets qualify as jump
+  // candidates. Relaxed so jumps reliably appear on real songs (whose bass is
+  // less uniformly strong than synthetic test tones). The cooldown still keeps
+  // them from clustering, so a looser gate just means they land where the music
+  // actually punches rather than almost never.
+  const PCTL=[1.01,0.72,0.55,0.42,0.28][jumpDensity];
   const jumpBassThresh=bassVals.length?(bassVals[Math.min(bassVals.length-1,Math.floor(bassVals.length*PCTL))]??Infinity):Infinity;
-  const jumpStrengthGate=[1,0.55,0.45,0.38,0.30][jumpDensity];
+  const jumpStrengthGate=[1,0.45,0.36,0.28,0.20][jumpDensity];
   const jumpCooldown=[99,RPB*3,RPB*2,RPB*1.5,RPB][jumpDensity]; // higher density = shorter cooldown
+  // Stream intensity slider: the density a section must reach to become a
+  // stream. Higher slider = higher bar = only the most intense parts stream;
+  // lower slider = lower bar = medium-intensity sections also become streams.
+  const streamIntense=+(document.getElementById('streamIntense')?.value ?? 2);
+  const streamDensBar=[4,5,6,8,10][streamIntense];  // Medium(2)→6 keeps prior default
 
   // hold-density slider — controls how readily sustained notes become holds.
   // Higher density loosens the required gap and allows holds off the downbeat.
@@ -1146,7 +1185,7 @@ function generateChart(block,bpm,energy,duration){
     // total dense length. Everything else streams as continuous 8ths. This makes
     // "X% of the song is 16th-stream" mean contiguous stream, and makes higher
     // blocks promote MORE (and longer) regions.
-    const isDenseGap=(k)=> (k+1<kept.length) && (kept[k+1].row-kept[k].row<=8) && (localDensity(k)>=6);
+    const isDenseGap=(k)=> (k+1<kept.length) && (kept[k+1].row-kept[k].row<=8) && (localDensity(k)>=streamDensBar);
     const regions=[]; // {startK, endK, len, score}
     {
       let k=0;
@@ -1190,9 +1229,10 @@ function generateChart(block,bpm,energy,duration){
         let step=0;
         if(staminaMode){
           // Stamina: bridge into a CONTINUOUS stream wherever the section is
-          // genuinely driving (dens>=6). Whole dense regions are either 16th
-          // (the most intense, per the block's frac16) or continuous 8th.
-          if(dens>=6){
+          // intense enough (streamDensBar, set by the Stream intensity slider).
+          // Whole dense regions are either 16th (the most intense, per the
+          // block's frac16) or continuous 8th.
+          if(dens>=streamDensBar){
             step = gapIs16[k] ? 1 : 2;   // 16th region, else continuous 8th
           } else if(dens>=4){
             step=2; // groove-level: 8th steps
@@ -1205,7 +1245,13 @@ function generateChart(block,bpm,energy,duration){
           else if(dens>=4) step=2;
         }
         if(step && gap>=step && gap<=maxBridge){
-          for(let r=kept[k].row+step;r<kept[k+1].row;r+=step){
+          // Fill the gap at the chosen resolution. For 8th bridging (step=2) we
+          // snap fills to the EVEN (8th) grid so the stream is regular and has
+          // no off-by-one holes at region boundaries — irregular gaps inside a
+          // run are what break flow. 16th bridging (step=1) fills every row.
+          let startR = kept[k].row + step;
+          if(step===2 && (startR % 2 !== 0)) startR++; // align to 8th grid
+          for(let r=startR;r<kept[k+1].row;r+=step){
             if((kept[k+1].row-r)>=1)
               linked.push({row:r, e:{strength:0.4,bass:0,centroid:kept[k].e.centroid,gap:rowDur}, i:kept[k].i, filler:true});
           }
@@ -1318,10 +1364,13 @@ function generateChart(block,bpm,energy,duration){
     // jump cooldown scales with density: higher density = jumps can be closer.
     const jumpReady=(row-lastJumpRow)>=jumpCooldown;
 
-    // JUMP: a strong bass hit on a beat. It does NOT need to be isolated — real
-    // charts place jumps inside streams and on strong downbeats. The cooldown
-    // (jumpReady) is what keeps them from clustering; isolation is not required.
-    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && jumpReady){
+    // Is this row buried inside a dense 16th stream? Only suppress jumps there —
+    // that's where they're awkward to hit and collide with bridged filler. In
+    // 8th streams and sparser moments, jumps on strong downbeats are fine.
+    const inSixteenthStream = (prevGap<=1 && nextGap<=1);
+
+    // JUMP: a strong bass hit on a beat, not buried inside a 16th stream.
+    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && jumpReady && !inSixteenthStream){
       placeJump(row); lastJumpRow=row;
     }
     else if(holdsEnabled && !e.filler && nextGap>=holdGapGate && (!holdNeedsDownbeat || isDownbeat)){

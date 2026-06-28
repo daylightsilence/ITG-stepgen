@@ -805,22 +805,27 @@ function generateChart(block,bpm,energy,duration){
   const PX=[0,1,1,2]; // horizontal position of L,D,U,R
   let recentPanels=[];
 
+  // ── CROSSOVER vs FACING (these are different things) ──
+  // FACING/PIVOT: hitting the center arrows (Up=2, Down=1) with either foot is
+  //   natural — the player just pivots. NOT a crossover.
+  // CROSSOVER: a foot reaching the OPPOSITE outer arrow — right foot to Left(0),
+  //   or left foot to Right(3) — physically crosses the legs. This is hard and
+  //   should be RARE, not a constant.
+  // Each foot's natural reach = its own outer arrow + both center arrows.
+  function isCrossover(panel,foot){
+    return (foot==='R' && panel===0) || (foot==='L' && panel===3);
+  }
   function facingPenalty(panel,foot){
-    // Where would each foot be if THIS foot steps on THIS panel?
-    const lf=foot==='L'?panel:leftFootPanel, rf=foot==='R'?panel:rightFootPanel;
-    const cross=PX[lf]-PX[rf]; // >0 = left foot is right of right foot = crossed
-    if(cross>1) return 1.6;   // deep crossover — discouraged but allowed
-    if(cross>0) return 0.6;   // slight crossover — mild
-    if(cross===0) return 0.25;// squared up (both center) — fine
-    return 0;                 // natural facing
+    // Strong penalty ONLY for true crossovers (foot reaching the far outer
+    // arrow). Center arrows and the home outer arrow are all natural.
+    if(isCrossover(panel,foot)) return 6.0; // true crossover — heavily discouraged
+    return 0;
   }
   // contourBias: -1 (falling → Down) .. +1 (rising → Up)
   let recentTransitions=[];
-  // Choose a panel for the given foot. EITHER foot may reach ANY of the four
-  // panels — the foot is tracked independently of the arrow, so the left foot
-  // can hit Up/Right (a crossover or reach) and the right foot can hit Down/Left.
-  // This is what gives real charts their facing variety. Deep crossovers are
-  // penalized (not banned) so they appear as occasional spice, not constantly.
+  // Choose a panel for the given foot. A foot freely uses its home outer arrow
+  // and BOTH center arrows (natural pivoting/facing). The opposite outer arrow
+  // is a real crossover and is rare.
   function choosePanel(candidates,foot,contourBias){
     if(candidates.length===1){
       const p=candidates[0];
@@ -830,29 +835,20 @@ function generateChart(block,bpm,energy,duration){
     const maxUse=Math.max(...candidates.map(p=>panelUse[p]),1);
     const transCount={};
     for(const t of recentTransitions){const tp=+t.split('>')[1]; transCount[tp]=(transCount[tp]||0)+1;}
-    // Track how often each foot has reached each panel, to actively balance
-    // cross-reaches (right foot→Down, left foot→Up) rather than leaning home.
     const weights=candidates.map(p=>{
       const contourMag=Math.abs(contourBias||0);
       const balance=(maxUse-panelUse[p]+1)*0.7*(1-contourMag*0.6);
       const facePen=facingPenalty(p,foot);
-      // The Down(1) and Up(2) arrows are CENTER — either foot hits them
-      // naturally, so no home bias there. Only the far corners (Left=0 for the
-      // right foot, Right=3 for the left foot) get a small home nudge, and even
-      // that is light so reaches still happen.
-      let homeBias=0;
-      if(foot==='L' && p===0) homeBias=0.4;       // left foot ↔ Left arrow: natural
-      else if(foot==='R' && p===3) homeBias=0.4;  // right foot ↔ Right arrow: natural
-      // actively REWARD the cross-reaches that were missing, so they appear:
-      let reachBonus=0;
-      if(foot==='R' && p===1) reachBonus=0.5;     // right foot → Down
-      else if(foot==='L' && p===2) reachBonus=0.5;// left foot → Up
+      // No home-corner lean and no special reach bonus needed: the natural reach
+      // (home outer + both centers) is already balanced by the use-count term,
+      // which spreads notes evenly across those three arrows. Crossovers are
+      // handled purely by the strong facePen above.
       let contour=0;
-      if(p===2) contour=(contourBias||0)*3.2;
-      else if(p===1) contour=-(contourBias||0)*3.2;
+      if(p===2) contour=(contourBias||0)*3.2;        // Up rewarded by rising melody
+      else if(p===1) contour=-(contourBias||0)*3.2;  // Down rewarded by falling melody
       const cyclePen=(transCount[p]||0)*1.2;
       const rand=Math.random()*(2.2-contourMag*1.2);
-      return Math.max(0.05, balance + homeBias + reachBonus - facePen + contour - cyclePen + rand);
+      return Math.max(0.05, balance - facePen + contour - cyclePen + rand);
     });
     let total=weights.reduce((a,b)=>a+b,0), r=Math.random()*total, chosen=candidates[candidates.length-1];
     for(let i=0;i<candidates.length;i++){r-=weights[i];if(r<=0){chosen=candidates[i];break;}}

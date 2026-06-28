@@ -117,11 +117,8 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div>
       <div class="sec">Stream Rules</div>
-      <div class="field"><label>Patterns per chain <span id="chainLenVal">4</span></label><input type="range" id="chainLen" min="2" max="8" value="4"/></div>
       <div class="field"><label>Max run length (beats) <span id="maxRunVal">32</span></label><input type="range" id="maxRun" min="8" max="128" value="32" step="4"/></div>
-      <div class="field"><label>Min break (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
-      <div class="field"><label>Max break (beats) <span id="maxBreakVal">16</span></label><input type="range" id="maxBreak" min="4" max="64" value="16" step="2"/></div>
-      <div class="field"><label>Melody threshold <span id="melodyThreshVal">30</span>%</label><input type="range" id="melodyThresh" min="5" max="60" value="30" step="5"/></div>
+      <div class="field"><label>Break length (beats) <span id="minBreakVal">4</span></label><input type="range" id="minBreak" min="1" max="16" value="4"/></div>
       <div class="field"><label>Jump density <span id="jumpDensityVal">Medium</span></label><input type="range" id="jumpDensity" min="0" max="4" value="2" step="1"/></div>
       <div class="field"><label>Onset sensitivity <span id="onsetSensVal">0.4</span></label><input type="range" id="onsetSens" min="0.1" max="0.9" value="0.4" step="0.05"/></div>
       <div class="field"><label>Fine-tune offset (s) <span id="offsetVal">0.0</span></label><input type="range" id="offset" min="-0.5" max="2" value="0" step="0.05"/></div>
@@ -131,18 +128,10 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="rules-group">Rhythm &amp; Sync</div>
       <div class="tog-row"><label>ITG 9ms sync bias</label><label class="toggle"><input type="checkbox" id="rule9ms" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Auto-detect beat offset</label><label class="toggle"><input type="checkbox" id="ruleAutoOffset" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Snap steps to melody</label><label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Double tap repeats</label><label class="toggle"><input type="checkbox" id="doubleTap" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Snap steps to melody grid</label><label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label></div>
       <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
-      <div class="rules-group">Pattern Rules</div>
-      <div class="tog-row"><label>No same pattern back to back</label><label class="toggle"><input type="checkbox" id="ruleNoRepeat" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>No same category back to back</label><label class="toggle"><input type="checkbox" id="ruleNoSameCat" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Cycle categories before repeat</label><label class="toggle"><input type="checkbox" id="ruleCycleCats" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>4-pattern repeat window</label><label class="toggle"><input type="checkbox" id="ruleRepeatWindow" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Prefer mirrored variety</label><label class="toggle"><input type="checkbox" id="ruleMirrorAlt" checked/><span class="sl"></span></label></div>
       <div class="rules-group">Intensity &amp; Stamina</div>
-      <div class="tog-row"><label>Stamina mode (runs on strong beat)</label><label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Energy-aware pattern selection</label><label class="toggle"><input type="checkbox" id="ruleEnergyPats" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label>Stamina mode (long continuous streams)</label><label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label></div>
     </div>
   </div>
   <div class="content">
@@ -321,9 +310,8 @@ const tick=()=>new Promise(r=>setTimeout(r,0));
 
 // ── Sliders ───────────────────────────────────────────────────────
 [['diffMin','diffMinVal',''],['diffMax','diffMaxVal',''],
- ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],['maxBreak','maxBreakVal',''],
- ['offset','offsetVal','s'],['onsetSens','onsetSensVal',''],
- ['melodyThresh','melodyThreshVal','%'],['chainLen','chainLenVal','']
+ ['maxRun','maxRunVal',''],['minBreak','minBreakVal',''],
+ ['offset','offsetVal','s'],['onsetSens','onsetSensVal','']
 ].forEach(([id,vid,u])=>{
   const el=document.getElementById(id);
   if(!el) return;
@@ -716,7 +704,7 @@ function detectOffset(bpm){return detectedOffset;} // already set by fitTempo
 // ── Section map — three tiers ─────────────────────────────────────
 function buildSectionMap(bpm,duration){
   const staminaMode=document.getElementById('staminaMode').checked;
-  const melodyThresh=+document.getElementById('melodyThresh').value/100;
+  const melodyThresh=+(document.getElementById('melodyThresh')?.value ?? 30)/100;
   const beatDur=60/bpm,totalBeats=Math.floor(duration/beatDur);
   const wPerB=beatDur/0.2;
   const bE=[];
@@ -793,6 +781,13 @@ function detectSongStructure(bpm,duration){
 //      so a busy chorus streams and a sparse verse breathes, automatically.
 function generateChart(block,bpm,energy,duration){
   const diffFactor=(block-1)/11;
+  const staminaMode=document.getElementById('staminaMode')?.checked ?? true;
+  const onsetSnap=document.getElementById('onsetSnap')?.checked ?? true;     // snap notes to grid vs raw onset rows
+  const forceBreaks=document.getElementById('forceBreaks')?.checked ?? true; // insert breaks in quiet sections
+  // Run-length controls (meaningful for stamina streams): cap continuous run
+  // length and set the break length between runs.
+  const userMaxRun=+(document.getElementById('maxRun')?.value ?? 32);   // beats
+  const userMinBreak=+(document.getElementById('minBreak')?.value ?? 4); // beats
   const leadIn=+document.getElementById('offset').value;
   const RPB=4, beatDur=60/bpm, rowDur=beatDur/RPB;
   const totalBeats=Math.min(Math.floor(duration/beatDur),Math.floor(600/beatDur));
@@ -813,8 +808,12 @@ function generateChart(block,bpm,energy,duration){
   function facingPenalty(panel,foot){
     const lf=foot==='L'?panel:leftFootPanel, rf=foot==='R'?panel:rightFootPanel;
     const cross=PX[lf]-PX[rf];
-    if(cross>0) return 2.5;
-    if(cross===0) return 0.8;
+    // Mild discouragement of deep crossovers, but NOT a hard block — players
+    // turn their bodies naturally and a chart that never crosses feels stiff
+    // and "always facing forward". Allow turns; just don't overuse them.
+    if(cross>1) return 1.2;   // deep crossover — mild penalty
+    if(cross>0) return 0.4;   // slight crossover — barely discouraged
+    if(cross===0) return 0.2; // squared up — fine
     return 0;
   }
   // contourBias: -1 (melody falling → favor Down/Left) .. +1 (rising → Up/Right)
@@ -928,33 +927,39 @@ function generateChart(block,bpm,energy,duration){
   }
 
   // ── Difficulty: how much of the music to keep ──
-  // Easy keeps only the strongest onsets; Hard keeps nearly everything.
-  // keepFrac scales with block. Also a per-difficulty minimum subdivision:
-  // low blocks quantize onsets to coarser grid (quarters/8ths), high blocks
-  // allow 16ths — but the NOTES still come from real onsets, not grid fill.
-  const keepFrac = Math.min(1, 0.18 + diffFactor*0.92); // blk1≈0.18 .. blk12≈1.0
+  const keepFrac = Math.min(1, 0.18 + diffFactor*0.92);
   const strengths=evs.map(e=>e.strength).sort((a,b)=>a-b);
   const cutIdx=Math.floor((1-keepFrac)*strengths.length);
   const strengthCut=strengths[Math.min(strengths.length-1,Math.max(0,cutIdx))]||0;
 
-  // Subdivision quantization by difficulty: snap onset rows to the finest grid
-  // this difficulty allows, so easy charts feel like quarters/8ths even though
-  // they follow real onsets.
-  const minSub = block<3?RPB : block<5?2 : 1; // quarters / 8ths / 16ths
-  function quantize(row){ return Math.round(row/minSub)*minSub; }
+  // Snap an onset to the COARSEST grid line it's close to. A note that lands on
+  // the beat becomes a quarter note (row%4==0); only genuinely off-beat notes
+  // become 8ths or 16ths. This is what makes the beat read as quarter notes
+  // instead of everything looking like 16ths. Returns the snapped row.
+  const minSub = block<3?RPB : block<5?2 : 1; // coarsest allowed: quarter/8th/16th
+  function snapRow(row){
+    // When "snap to melody" is OFF, keep the raw onset row (still clamped to the
+    // 16th grid since that's our resolution) so notes sit exactly on the onsets.
+    if(!onsetSnap) return Math.round(row); // raw 16th-grid position
+    // Otherwise snap to the COARSEST grid line this difficulty allows, so a note
+    // on the beat reads as a quarter rather than a 16th.
+    for(const grid of [RPB,2,1]){
+      if(grid<minSub) break;
+      const snapped=Math.round(row/grid)*grid;
+      if(Math.abs(snapped-row)<=grid*0.34) return snapped;
+    }
+    return Math.round(row/minSub)*minSub;
+  }
 
   // jump-density slider
   const jumpDensity=+(document.getElementById('jumpDensity')?.value ?? 2);
   const jumpsEnabled=jumpDensity>0;
   const bassVals=evs.map(e=>e.bass).filter(v=>v>0).sort((a,b)=>a-b);
-  const PCTL=[1.01,0.80,0.65,0.50,0.35][jumpDensity];
+  const PCTL=[1.01,0.82,0.68,0.55,0.42][jumpDensity];
   const jumpBassThresh=bassVals.length?(bassVals[Math.min(bassVals.length-1,Math.floor(bassVals.length*PCTL))]??Infinity):Infinity;
-  const jumpStrengthGate=[1,0.6,0.5,0.42,0.35][jumpDensity];
-  const jumpIsoGate=[99,1.0,0.75,0.55,0.4][jumpDensity];
+  const jumpStrengthGate=[1,0.55,0.45,0.38,0.30][jumpDensity];
 
-  // contour: track melodic direction from centroid changes between events.
-  // Normalize by the typical step size (mean absolute delta) so the bias is
-  // meaningful regardless of absolute frequency scale.
+  // contour
   const cents=evs.map(e=>e.centroid);
   let deltaSum=0,deltaN=0;
   for(let i=1;i<cents.length;i++){if(cents[i]&&cents[i-1]){deltaSum+=Math.abs(cents[i]-cents[i-1]);deltaN++;}}
@@ -962,45 +967,114 @@ function generateChart(block,bpm,energy,duration){
   function contourAt(i){
     if(i<=0||!evs[i].centroid||!evs[i-1].centroid) return 0;
     const d=evs[i].centroid-evs[i-1].centroid;
-    // scale by typical delta: a normal up-step ≈ +1, down-step ≈ -1
     return Math.max(-1,Math.min(1, d/(typicalDelta*1.5)));
   }
 
-  // ── Place notes from the kept events ──
-  let placed=0, lastPlacedRow=-99;
+  // ── Build the kept-note list (rows that survive difficulty) ──
+  const kept=[]; // {row, e, i}
+  let lastRow=-99;
   for(let i=0;i<evs.length;i++){
     const e=evs[i];
-    if(e.strength<strengthCut) continue;        // dropped by difficulty
-    let row=quantize(e.row);
+    if(e.strength<strengthCut) continue;
+    let row=snapRow(e.row);
     if(row<0||row>=totalRows) continue;
-    if(row===lastPlacedRow) continue;           // already used this row
-    // enforce a minimum spacing for low difficulties so it stays readable
-    const minSpacing = block<3?RPB : block<5?2 : 1;
-    if(row-lastPlacedRow < minSpacing && lastPlacedRow>=0){
-      // too close for this difficulty — skip unless it's a strong beat
-      if(e.strength < 0.75) continue;
-      row=lastPlacedRow+minSpacing;
-      if(row>=totalRows) continue;
-    }
+    // Enforce minimum spacing. If too close to the previous note, DROP this one
+    // (don't shift it — shifting causes row collisions that break alternation).
+    if(lastRow>=0 && row-lastRow<minSub){ continue; }
+    if(row===lastRow) continue;
+    kept.push({row,e,i});
+    lastRow=row;
+  }
 
+  // ── STREAM / PATTERN LINKING ──
+  // Stamina ON: bridge gaps aggressively into long continuous streams.
+  // Stamina OFF: link only notes that are ALREADY tightly spaced (a real
+  // melodic run) into short patterns, and leave natural gaps between phrases.
+  // This gives melody-following sets of patterns rather than 162 scattered
+  // single notes OR one endless stream.
+  if(block>=5){
+    const maxBridge = staminaMode ? 8 : 2;  // ON bridges up to a half-beat; OFF only 8th gaps
+    const linked=[];
+    for(let k=0;k<kept.length;k++){
+      linked.push(kept[k]);
+      if(k+1<kept.length){
+        const gap=kept[k+1].row-kept[k].row;
+        if(gap>=2 && gap<=maxBridge){
+          for(let r=kept[k].row+1;r<kept[k+1].row;r++){
+            linked.push({row:r, e:{strength:0.4,bass:0,centroid:kept[k].e.centroid,gap:rowDur}, i:kept[k].i, filler:true});
+          }
+        }
+      }
+    }
+    let merged=[];
+    const seen=new Set();
+    for(const n of linked.sort((a,b)=>a.row-b.row)){ if(!seen.has(n.row)){seen.add(n.row);merged.push(n);} }
+
+    // maxRun / minBreak: cap how long a continuous stream runs, then drop a
+    // break. Scales the user's beat values by difficulty (harder = longer runs
+    // allowed). Only applies in stamina mode (where long runs are the point).
+    if(staminaMode){
+      const maxRunRows=Math.max(RPB*4, Math.round(userMaxRun*(0.4+0.7*diffFactor))*RPB);
+      const breakRows=Math.max(2, Math.round(userMinBreak*(1.6-1.0*diffFactor))*RPB/RPB);
+      const out=[]; let runStart=null, runLen=0;
+      for(let k=0;k<merged.length;k++){
+        const n=merged[k];
+        const prev=out.length?out[out.length-1]:null;
+        const contiguous = prev && (n.row-prev.row)<=2;
+        if(contiguous){ runLen=n.row-runStart; }
+        else { runStart=n.row; runLen=0; }
+        // if this continuous run has exceeded the cap, drop notes to make a break
+        if(runLen>maxRunRows){
+          // skip notes until we've created a break of breakRows
+          const breakUntil=runStart+maxRunRows+breakRows;
+          if(n.row<breakUntil){ continue; }       // inside the forced break — drop
+          runStart=n.row; runLen=0;                 // resume after the break
+        }
+        out.push(n);
+      }
+      merged=out;
+    }
+    kept.length=0; kept.push(...merged);
+  }
+
+  // ── Place the notes ──
+  // forceBreaks: in quiet stretches (low surrounding strength), drop filler
+  // notes so the chart breathes instead of streaming through soft passages.
+  let quietThresh=0;
+  if(forceBreaks){
+    const allStr=kept.filter(n=>!n.filler).map(n=>n.e.strength).sort((a,b)=>a-b);
+    quietThresh=allStr.length?allStr[Math.floor(allStr.length*0.22)]:0; // bottom 22%
+  }
+  let placed=0, lastJumpRow=-99;
+  for(let k=0;k<kept.length;k++){
+    const {row,e,i}=kept[k];
+    if(notes[row]!==-1) continue;
+    // forceBreaks: skip filler (bridged) notes whose anchor is in a quiet part
+    if(forceBreaks && e.filler && e.centroid!==undefined){
+      // look at the nearest real note's strength via the bracketing kept entries
+      const anchor=kept[i]?kept[i].e:null;
+      if(anchor && anchor.strength<quietThresh) continue;
+    }
     const cb=contourAt(i);
     const isDownbeat=(row%RPB===0);
+    const nextGap=(k+1<kept.length?kept[k+1].row-row:RPB*2);
+    const prevGap=(k>0?row-kept[k-1].row:RPB*2);
+    const isolated=(nextGap>=2 && prevGap>=2);
+    // jump cooldown: don't place jumps back-to-back (at least 2 beats apart),
+    // so they stay special punches rather than a wall.
+    const jumpReady=(row-lastJumpRow)>=RPB*2;
 
-    // JUMP: strong isolated bass hit
-    if(jumpsEnabled && block>=3 && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && e.gap>beatDur*jumpIsoGate){
-      placeJump(row);
+    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && isolated && nextGap>=RPB && jumpReady){
+      placeJump(row); lastJumpRow=row;
     }
-    // HOLD: sustained tone (big gap to next onset) on a downbeat
-    else if(e.gap>beatDur*1.5 && isDownbeat && block<=8){
-      const holdLen=Math.min(Math.round(e.gap/rowDur)-1, RPB*4);
+    else if(!e.filler && nextGap>=RPB*1.5 && isDownbeat){
+      const holdLen=Math.min(nextGap-1, RPB*4);
       if(holdLen>=RPB) placeHold(row,holdLen,cb);
       else placeStep(row,cb);
     }
-    // STEP following melodic contour
     else{
       placeStep(row,cb);
     }
-    lastPlacedRow=row;
     placed++;
   }
 

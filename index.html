@@ -1222,11 +1222,13 @@ function generateChart(block,bpm,energy,duration){
     const isDownbeat=(row%RPB===0);
     const nextGap=(k+1<kept.length?kept[k+1].row-row:RPB*2);
     const prevGap=(k>0?row-kept[k-1].row:RPB*2);
-    const isolated=(nextGap>=2 && prevGap>=2);
     // jump cooldown scales with density: higher density = jumps can be closer.
     const jumpReady=(row-lastJumpRow)>=jumpCooldown;
 
-    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && isolated && nextGap>=RPB && jumpReady){
+    // JUMP: a strong bass hit on a beat. It does NOT need to be isolated — real
+    // charts place jumps inside streams and on strong downbeats. The cooldown
+    // (jumpReady) is what keeps them from clustering; isolation is not required.
+    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && jumpReady){
       placeJump(row); lastJumpRow=row;
     }
     else if(holdsEnabled && !e.filler && nextGap>=holdGapGate && (!holdNeedsDownbeat || isDownbeat)){

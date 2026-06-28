@@ -930,11 +930,20 @@ function generateChart(block,bpm,energy,duration){
     for(const t of recentTransitions){const tp=+t.split('>')[1]; transCount[tp]=(transCount[tp]||0)+1;}
     const weights=candidates.map(p=>{
       const contourMag=Math.abs(contourBias||0);
-      const balance=(maxUse-panelUse[p]+1)*0.7*(1-contourMag*0.6);
+      // Balance term: under-used panels get weight. Kept strong and only lightly
+      // reduced by contour so all four arrows stay represented — without this the
+      // outer arrows (esp. Right) get starved while centers dominate.
+      const balance=(maxUse-panelUse[p]+1)*1.1*(1-contourMag*0.25);
       const facePen=facingPenalty(p,foot);
+      // Contour follows melody: rising → Up, falling → Down. The OUTER arrows
+      // also get a (smaller) contour nudge so they aren't starved when contour
+      // is strong — Right for rising, Left for falling — keeping all four arrows
+      // in play rather than collapsing onto the two centers.
       let contour=0;
-      if(p===2) contour=(contourBias||0)*3.2;        // Up rewarded by rising melody
-      else if(p===1) contour=-(contourBias||0)*3.2;  // Down rewarded by falling melody
+      if(p===2) contour=(contourBias||0)*2.6;        // Up — rising melody
+      else if(p===1) contour=-(contourBias||0)*2.6;  // Down — falling melody
+      else if(p===3) contour=(contourBias||0)*1.3;   // Right — also rising
+      else if(p===0) contour=-(contourBias||0)*1.3;  // Left — also falling
       const cyclePen=(transCount[p]||0)*1.2;
       const drillPen=drillPenalty(p);
       const rand=Math.random()*(2.2-contourMag*1.2);
@@ -966,13 +975,17 @@ function generateChart(block,bpm,energy,duration){
     if(row<0||row>=totalRows||notes[row]!==-1)return;
     const foot=(lastFoot==='L')?'R':'L';
     let ch=reachablePanels(foot).filter(p=>p!==lastPanel);
-    // Also avoid any panel used on the immediately-preceding filled row — this
-    // prevents a step from repeating a panel that a JUMP just placed (jumps set
-    // notes[] directly and can leave a panel the next step would otherwise hit,
-    // producing an unintended double-tap).
-    const prevRow=row-1>=0?row-1:-1, prevRow2=row-2>=0?row-2:-1;
+    // Avoid repeating a panel that a JUMP placed on the immediately-preceding
+    // row(s) — jumps set notes[] directly, so a following step could otherwise
+    // double-tap a jump panel. This ONLY guards against jump panels; normal
+    // step-to-step variety is handled by choosePanel's balance/anti-cycle logic
+    // (guarding every preceding panel here would over-constrain and flatten
+    // pattern variety).
     const avoid=new Set();
-    [prevRow,prevRow2].forEach(pr=>{ if(pr>=0){ const jr=jumpRows[pr]; if(jr){jr.forEach(p=>avoid.add(p));} else if(notes[pr]>=0&&notes[pr]<4)avoid.add(notes[pr]); } });
+    for(let pr=row-1;pr>=Math.max(0,row-2);pr--){
+      const jr=jumpRows[pr];
+      if(jr) jr.forEach(p=>avoid.add(p));
+    }
     let ch2=ch.filter(p=>!avoid.has(p));
     if(ch2.length)ch=ch2;
     if(!ch.length)ch=reachablePanels(foot);
@@ -989,7 +1002,8 @@ function generateChart(block,bpm,energy,duration){
     lastFoot=foot; lastPanel=panel; panelUse[panel]++;
     if(foot==='L')leftFootPanel=panel; else rightFootPanel=panel;
   }
-  function placeJump(row){
+  const jumpSkipRows=new Set(); // rows to clear after a jump (gap protection)
+  function placeJump(row, inStream){
     if(row<0||row>=totalRows||notes[row]!==-1||jumpRows[row])return;
     // Avoid panels on the immediately preceding filled row so the step→jump
     // boundary doesn't repeat a panel (an unintended double-tap on one foot).
@@ -1007,6 +1021,14 @@ function generateChart(block,bpm,energy,duration){
     leftFootPanel=lp; rightFootPanel=rp;
     // A jump uses BOTH feet; set state so the next step alternates cleanly.
     lastFoot='R'; lastPanel=rp;
+    // GAP PROTECTION: if this jump landed inside a 16th stream, carve a one-16th
+    // gap on each side so it isn't crammed between stream notes. Clear the
+    // immediately-preceding stream note, and mark the next row to be skipped.
+    if(inStream){
+      const pr=row-1;
+      if(pr>=0 && notes[pr]>=0 && notes[pr]<4 && !jumpRows[pr]){ notes[pr]=-1; }
+      jumpSkipRows.add(row+1);
+    }
   }
 
   // ── Build the musical event list from onsets ──
@@ -1351,6 +1373,7 @@ function generateChart(block,bpm,energy,duration){
   for(let k=0;k<kept.length;k++){
     const {row,e,i}=kept[k];
     if(notes[row]!==-1) continue;
+    if(jumpSkipRows.has(row)) continue; // cleared for jump gap-protection
     // forceBreaks: skip filler (bridged) notes whose anchor is in a quiet part
     if(forceBreaks && e.filler && e.centroid!==undefined){
       // look at the nearest real note's strength via the bracketing kept entries
@@ -1364,14 +1387,17 @@ function generateChart(block,bpm,energy,duration){
     // jump cooldown scales with density: higher density = jumps can be closer.
     const jumpReady=(row-lastJumpRow)>=jumpCooldown;
 
-    // Is this row buried inside a dense 16th stream? Only suppress jumps there —
-    // that's where they're awkward to hit and collide with bridged filler. In
-    // 8th streams and sparser moments, jumps on strong downbeats are fine.
-    const inSixteenthStream = (prevGap<=1 && nextGap<=1);
+    // Two-tier jump placement:
+    //  • Ideally jumps land in the CLEAR (a downbeat with no adjacent stream
+    //    note) — at breaks, transitions, sparser spots.
+    //  • If the strong downbeat falls INSIDE a 16th stream, we still place the
+    //    jump (so streamy songs aren't jumpless) but carve a one-16th gap before
+    //    and after it so it isn't crammed between stream notes.
+    const inSixteenthStream = (prevGap<=1 || nextGap<=1);
 
-    // JUMP: a strong bass hit on a beat, not buried inside a 16th stream.
-    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && jumpReady && !inSixteenthStream){
-      placeJump(row); lastJumpRow=row;
+    // JUMP: a strong bass hit on a beat. Allowed even in streams (with gap).
+    if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && jumpReady){
+      placeJump(row, inSixteenthStream); lastJumpRow=row;
     }
     else if(holdsEnabled && !e.filler && nextGap>=holdGapGate && (!holdNeedsDownbeat || isDownbeat)){
       const holdLen=Math.min(nextGap-1, RPB*4);

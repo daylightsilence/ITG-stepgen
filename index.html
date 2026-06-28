@@ -806,20 +806,21 @@ function generateChart(block,bpm,energy,duration){
   let recentPanels=[];
 
   function facingPenalty(panel,foot){
+    // Where would each foot be if THIS foot steps on THIS panel?
     const lf=foot==='L'?panel:leftFootPanel, rf=foot==='R'?panel:rightFootPanel;
-    const cross=PX[lf]-PX[rf];
-    // Mild discouragement of deep crossovers, but NOT a hard block — players
-    // turn their bodies naturally and a chart that never crosses feels stiff
-    // and "always facing forward". Allow turns; just don't overuse them.
-    if(cross>1) return 1.2;   // deep crossover — mild penalty
-    if(cross>0) return 0.4;   // slight crossover — barely discouraged
-    if(cross===0) return 0.2; // squared up — fine
-    return 0;
+    const cross=PX[lf]-PX[rf]; // >0 = left foot is right of right foot = crossed
+    if(cross>1) return 1.6;   // deep crossover — discouraged but allowed
+    if(cross>0) return 0.6;   // slight crossover — mild
+    if(cross===0) return 0.25;// squared up (both center) — fine
+    return 0;                 // natural facing
   }
-  // contourBias: -1 (melody falling → favor Down/Left) .. +1 (rising → Up/Right)
-  // Anti-cycle: track the last few (foot→panel) transitions and penalize
-  // repeating the exact same one, which is what produces the LUDR treadmill.
+  // contourBias: -1 (falling → Down) .. +1 (rising → Up)
   let recentTransitions=[];
+  // Choose a panel for the given foot. EITHER foot may reach ANY of the four
+  // panels — the foot is tracked independently of the arrow, so the left foot
+  // can hit Up/Right (a crossover or reach) and the right foot can hit Down/Left.
+  // This is what gives real charts their facing variety. Deep crossovers are
+  // penalized (not banned) so they appear as occasional spice, not constantly.
   function choosePanel(candidates,foot,contourBias){
     if(candidates.length===1){
       const p=candidates[0];
@@ -827,58 +828,62 @@ function generateChart(block,bpm,energy,duration){
       return p;
     }
     const maxUse=Math.max(...candidates.map(p=>panelUse[p]),1);
-    // how often has each candidate-transition appeared recently?
     const transCount={};
     for(const t of recentTransitions){const tp=+t.split('>')[1]; transCount[tp]=(transCount[tp]||0)+1;}
+    // Track how often each foot has reached each panel, to actively balance
+    // cross-reaches (right foot→Down, left foot→Up) rather than leaning home.
     const weights=candidates.map(p=>{
-      // When melodic contour is strong, it should win over balance pressure —
-      // real charters follow the melody and accept some arrow imbalance. Fade
-      // the balance weight as |contourBias| grows.
       const contourMag=Math.abs(contourBias||0);
-      const balance=(maxUse-panelUse[p]+1)*0.7*(1-contourMag*0.7);
-      const facePen=foot?facingPenalty(p,foot):0;
+      const balance=(maxUse-panelUse[p]+1)*0.7*(1-contourMag*0.6);
+      const facePen=facingPenalty(p,foot);
+      // The Down(1) and Up(2) arrows are CENTER — either foot hits them
+      // naturally, so no home bias there. Only the far corners (Left=0 for the
+      // right foot, Right=3 for the left foot) get a small home nudge, and even
+      // that is light so reaches still happen.
+      let homeBias=0;
+      if(foot==='L' && p===0) homeBias=0.4;       // left foot ↔ Left arrow: natural
+      else if(foot==='R' && p===3) homeBias=0.4;  // right foot ↔ Right arrow: natural
+      // actively REWARD the cross-reaches that were missing, so they appear:
+      let reachBonus=0;
+      if(foot==='R' && p===1) reachBonus=0.5;     // right foot → Down
+      else if(foot==='L' && p===2) reachBonus=0.5;// left foot → Up
       let contour=0;
-      if(p===2) contour=(contourBias||0)*3.5;       // Up rewarded by rising
-      else if(p===1) contour=-(contourBias||0)*3.5; // Down rewarded by falling
-      const cyclePen=(transCount[p]||0)*1.3;
-      const rand=Math.random()*(2.0-contourMag*1.3); // less randomness when contour is clear
-      return Math.max(0.05, balance - facePen + contour - cyclePen + rand);
+      if(p===2) contour=(contourBias||0)*3.2;
+      else if(p===1) contour=-(contourBias||0)*3.2;
+      const cyclePen=(transCount[p]||0)*1.2;
+      const rand=Math.random()*(2.2-contourMag*1.2);
+      return Math.max(0.05, balance + homeBias + reachBonus - facePen + contour - cyclePen + rand);
     });
     let total=weights.reduce((a,b)=>a+b,0), r=Math.random()*total, chosen=candidates[candidates.length-1];
     for(let i=0;i<candidates.length;i++){r-=weights[i];if(r<=0){chosen=candidates[i];break;}}
     recentTransitions.push(lastPanel+'>'+chosen); if(recentTransitions.length>6)recentTransitions.shift();
     return chosen;
   }
-  function commit(row,panel){
+  // commit a step for a SPECIFIC foot (foot tracked independently of panel)
+  function commit(row,panel,foot){
     notes[row]=panel;
-    const foot=(panel===0||panel===1)?'L':'R';
     lastFoot=foot; lastPanel=panel; panelUse[panel]++;
     if(foot==='L')leftFootPanel=panel; else rightFootPanel=panel;
     recentPanels.push(panel); if(recentPanels.length>8)recentPanels.shift();
   }
-  // place a single tap on the opposite foot, following contour
+  // place a single tap on the opposite foot, following contour. The foot
+  // alternates; the panel it reaches is chosen from ALL four arrows.
   function placeStep(row,contourBias){
     if(row<0||row>=totalRows||notes[row]!==-1)return;
     const foot=(lastFoot==='L')?'R':'L';
-    const fp=foot==='R'?R_PANELS:L_PANELS;
-    // Both panels of the opposite foot are valid choices. Only avoid an exact
-    // immediate repeat of the same panel; let choosePanel handle variety so we
-    // don't over-constrain down to a single forced option (the cycle trap).
-    let ch=fp.filter(p=>p!==lastPanel);
-    if(!ch.length)ch=fp.slice();
-    commit(row,choosePanel(ch,foot,contourBias));
+    // any of the 4 panels except an exact immediate repeat
+    let ch=[0,1,2,3].filter(p=>p!==lastPanel);
+    commit(row,choosePanel(ch,foot,contourBias),foot);
   }
   function placeHold(headRow,len,contourBias){
     if(headRow<0||headRow>=totalRows||notes[headRow]!==-1)return;
     const foot=(lastFoot==='L')?'R':'L';
-    const fp=foot==='R'?R_PANELS:L_PANELS;
-    const nj=fp.filter(x=>x!==lastPanel);
-    const panel=choosePanel(nj.length?nj:fp,foot,contourBias);
+    const ch=[0,1,2,3].filter(x=>x!==lastPanel);
+    const panel=choosePanel(ch,foot,contourBias);
     const tailRow=Math.min(totalRows-1,headRow+len);
     notes[headRow]=panel+10; notes[tailRow]=panel+20;
-    const f=(panel===0||panel===1)?'L':'R';
-    lastFoot=f; lastPanel=panel; panelUse[panel]++;
-    if(f==='L')leftFootPanel=panel; else rightFootPanel=panel;
+    lastFoot=foot; lastPanel=panel; panelUse[panel]++;
+    if(foot==='L')leftFootPanel=panel; else rightFootPanel=panel;
   }
   function placeJump(row){
     if(row<0||row>=totalRows||notes[row]!==-1||jumpRows[row])return;
@@ -889,12 +894,17 @@ function generateChart(block,bpm,energy,duration){
   }
 
   // ── Build the musical event list from onsets ──
-  // Snap each onset to the row grid; keep strength, bass, centroid, gap.
+  // Anchor the note grid to the SAME beat phase that gets written to #OFFSET,
+  // so the chart's grid and the game's playback offset agree. detectedOffset is
+  // the time of the first beat; subtracting it puts beat 0 at row 0, beat 1 at
+  // row 4, etc. (onsets on the beat → quarter-note rows). leadIn is the user's
+  // manual fine-tune on top of that.
+  const gridAnchor = (document.getElementById('ruleAutoOffset')?.checked ?? true) ? detectedOffset : 0;
   const events=[];
   if(onsetTimes.length){
     for(let i=0;i<onsetTimes.length;i++){
-      const t=onsetTimes[i]-leadIn;
-      if(t<0) continue;
+      const t=onsetTimes[i]-gridAnchor-leadIn;
+      if(t<-rowDur*0.5) continue; // allow a tiny pre-beat tolerance
       const row=Math.round(t/rowDur);
       if(row<0||row>=totalRows) continue;
       const gap=(i+1<onsetTimes.length?onsetTimes[i+1]-onsetTimes[i]:beatDur*2);
@@ -994,14 +1004,37 @@ function generateChart(block,bpm,energy,duration){
   // single notes OR one endless stream.
   if(block>=5){
     const maxBridge = staminaMode ? 8 : 2;  // ON bridges up to a half-beat; OFF only 8th gaps
+    // A gap should only be bridged into a 16th stream if it sits in a genuinely
+    // DENSE region (the music is streaming there). In sparse/slow sections we
+    // leave the notes as quarters/8ths so those parts breathe rhythmically
+    // instead of everything becoming a 16th wall. Density = how many notes fall
+    // within a 2-beat window around the gap.
+    function localDensity(k){
+      const center=kept[k].row;
+      let cnt=0;
+      for(let j=Math.max(0,k-6);j<Math.min(kept.length,k+6);j++){
+        if(Math.abs(kept[j].row-center)<=RPB*2) cnt++;
+      }
+      return cnt; // notes within ~2 beats
+    }
     const linked=[];
     for(let k=0;k<kept.length;k++){
       linked.push(kept[k]);
       if(k+1<kept.length){
         const gap=kept[k+1].row-kept[k].row;
-        if(gap>=2 && gap<=maxBridge){
-          for(let r=kept[k].row+1;r<kept[k+1].row;r++){
-            linked.push({row:r, e:{strength:0.4,bass:0,centroid:kept[k].e.centroid,gap:rowDur}, i:kept[k].i, filler:true});
+        const dens=localDensity(k);
+        // Bridge resolution depends on how busy the section is:
+        //   very dense (>=12 notes/2beats ≈ 16ths around) → fill every 16th
+        //   moderately busy (>=5 ≈ 8th density)          → fill every 8th
+        //   sparse                                       → don't bridge (leave
+        //   the natural quarter/8th onsets alone)
+        let step=0;
+        if(dens>=8) step=1;        // 16th stream (dense section)
+        else if(dens>=4) step=2;   // 8th notes — slower/groove sections
+        if(step && gap>=step && gap<=maxBridge){
+          for(let r=kept[k].row+step;r<kept[k+1].row;r+=step){
+            if((kept[k+1].row-r)>=1)
+              linked.push({row:r, e:{strength:0.4,bass:0,centroid:kept[k].e.centroid,gap:rowDur}, i:kept[k].i, filler:true});
           }
         }
       }

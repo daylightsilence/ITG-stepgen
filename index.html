@@ -1112,14 +1112,75 @@ function generateChart(block,bpm,energy,duration){
       }
       return cnt; // notes within ~2 beats
     }
-    // ── Stream resolution: 8th vs 16th ──
-    // For STAMINA streams the resolution is driven primarily by BPM, so the
-    // note rate stays playable: 16th notes at 150 BPM already = 10 notes/sec.
-    // Convention: stream 16ths up to ~150 BPM, then drop to 8ths above that so a
-    // fast song doesn't become an impossible 16th wall. (16ths at 130 BPM ≈ 8.7
-    // notes/sec is hard but doable; at 180 it would be 12/sec — unreasonable.)
-    // The bridge below uses staminaStep when stamina mode is on.
-    const staminaStep = bpm>165 ? 2 : 1;   // >165 BPM → 8th streams, else 16th
+    // ── Stream resolution: 8th vs 16th — STAMINA DIFFICULTY LADDER ──
+    // Resolution is set by THREE things working together:
+    //   1. BPM cap: above ~165 BPM, 16ths are unreasonable, so streams are 8ths
+    //      regardless of block (a fast song doesn't become a 16th wall).
+    //   2. Block (difficulty): this is the training ladder —
+    //        • blocks 4–8  → almost all 8th streams (endurance at manageable
+    //          speed; 16ths essentially absent)
+    //        • blocks 9–10 → mostly 8ths with a FEW 16th stretches at the most
+    //          intense peaks
+    //        • blocks 11+  → progressively MORE and LONGER 16th streams as the
+    //          block climbs (16ths become dominant)
+    //   3. Local intensity: within a stream, the 16ths are spent on the most
+    //      intense stretches first. Lower blocks keep only the very peaks as
+    //      16ths; higher blocks keep nearly everything.
+    // The "16th fraction" is the continuous knob tying block → how much of a
+    // stream stays 16ths vs. demotes to 8ths. This directly controls 16th-stream
+    // length in MEASURES, which is how real charters set a stamina block level.
+    const bpmForces8th = bpm>165;
+    function sixteenthFraction(blk){
+      if(blk<=8) return 0.0;             // training tier: pure 8th streams
+      if(blk<=10) return (blk-8)*0.14;   // 9→0.14, 10→0.28 : a few 16th regions
+      // 11+: ramp upward — 11≈0.45, climbing toward nearly all-16ths
+      return Math.min(0.95, 0.45 + (blk-11)*0.12);
+    }
+    const frac16 = bpmForces8th ? 0 : sixteenthFraction(block);
+    // ── Assign 16ths to whole CONTIGUOUS dense REGIONS, not per-gap ──
+    // The 16ths must form continuous streams (that's what stamina is), so we
+    // can't decide 16th-vs-8th independently per gap — that shatters a chorus
+    // into confetti. Instead: find each contiguous dense region (a run of gaps
+    // where the music is streaming), score it by intensity, and promote whole
+    // regions to 16ths — most intense first — until we've covered frac16 of the
+    // total dense length. Everything else streams as continuous 8ths. This makes
+    // "X% of the song is 16th-stream" mean contiguous stream, and makes higher
+    // blocks promote MORE (and longer) regions.
+    const isDenseGap=(k)=> (k+1<kept.length) && (kept[k+1].row-kept[k].row<=8) && (localDensity(k)>=6);
+    const regions=[]; // {startK, endK, len, score}
+    {
+      let k=0;
+      while(k<kept.length-1){
+        if(isDenseGap(k)){
+          let j=k, sum=0, n=0;
+          while(j<kept.length-1 && isDenseGap(j)){ sum+=localDensity(j); n++; j++; }
+          const len=kept[Math.min(j,kept.length-1)].row - kept[k].row;
+          regions.push({startK:k, endK:j, len, score:sum/Math.max(1,n)});
+          k=j+1;
+        } else k++;
+      }
+    }
+    // Total dense length, and the target length to cover with 16ths.
+    const totalDenseLen = regions.reduce((a,r)=>a+r.len,0);
+    const target16Len = frac16*totalDenseLen;
+    // Promote regions to 16ths, highest intensity first, until target reached.
+    const sixteenthRegions = new Set();
+    if(frac16>0){
+      const byScore=[...regions].sort((a,b)=>b.score-a.score);
+      let acc=0;
+      for(const r of byScore){
+        if(acc>=target16Len) break;
+        sixteenthRegions.add(r.startK);
+        acc+=r.len;
+      }
+    }
+    // Map each gap index to whether it's inside a promoted 16th region.
+    const gapIs16 = new Array(kept.length).fill(false);
+    for(const r of regions){
+      if(sixteenthRegions.has(r.startK)){
+        for(let g=r.startK; g<r.endK; g++) gapIs16[g]=true;
+      }
+    }
     const linked=[];
     for(let k=0;k<kept.length;k++){
       linked.push(kept[k]);
@@ -1128,13 +1189,14 @@ function generateChart(block,bpm,energy,duration){
         const dens=localDensity(k);
         let step=0;
         if(staminaMode){
-          // Stamina: bridge into a CONTINUOUS stream at the BPM-appropriate
-          // resolution — but only where the section is GENUINELY driving, not
-          // merely present. A higher density bar (≥6, was ≥4) keeps mild beats
-          // from being inflated into streams; those fall through to medium
-          // (8ths/quarters) below.
-          if(dens>=6) step=staminaStep;
-          else if(dens>=4) step=2; // groove-level: 8th steps, not a stream
+          // Stamina: bridge into a CONTINUOUS stream wherever the section is
+          // genuinely driving (dens>=6). Whole dense regions are either 16th
+          // (the most intense, per the block's frac16) or continuous 8th.
+          if(dens>=6){
+            step = gapIs16[k] ? 1 : 2;   // 16th region, else continuous 8th
+          } else if(dens>=4){
+            step=2; // groove-level: 8th steps
+          }
         } else {
           // Non-stamina: resolution follows local density (16ths only where the
           // music is genuinely busy), eased a little at higher difficulty.
@@ -1200,10 +1262,17 @@ function generateChart(block,bpm,energy,duration){
 
     // maxRun / minBreak: cap how long a continuous stream runs, then drop a
     // break. Scales the user's beat values by difficulty (harder = longer runs
-    // allowed). Only applies in stamina mode (where long runs are the point).
-    if(staminaMode){
-      const maxRunRows=Math.max(RPB*4, Math.round(userMaxRun*(0.4+0.7*diffFactor))*RPB);
-      const breakRows=Math.max(2, Math.round(userMinBreak*(1.6-1.0*diffFactor))*RPB/RPB);
+    // allowed). In stamina mode long runs are the point, so the cap is generous.
+    // In stamina-OFF the mode is phrased bursts, so we apply a SHORT cap (~4
+    // measures) to stop dense regions from bridging into long continuous streams
+    // — those broken runs then get phrased into 2-3 note bursts below/above.
+    {
+      const maxRunRows = staminaMode
+        ? Math.max(RPB*4, Math.round(userMaxRun*(0.4+0.7*diffFactor))*RPB)
+        : RPB*4*4;  // stamina OFF: cap continuous runs at ~4 measures
+      const breakRows = staminaMode
+        ? Math.max(2, Math.round(userMinBreak*(1.6-1.0*diffFactor))*RPB/RPB)
+        : 2;        // stamina OFF: a short break is enough to phrase
       const out=[]; let runStart=null, runLen=0;
       for(let k=0;k<merged.length;k++){
         const n=merged[k];
@@ -1213,7 +1282,6 @@ function generateChart(block,bpm,energy,duration){
         else { runStart=n.row; runLen=0; }
         // if this continuous run has exceeded the cap, drop notes to make a break
         if(runLen>maxRunRows){
-          // skip notes until we've created a break of breakRows
           const breakUntil=runStart+maxRunRows+breakRows;
           if(n.row<breakUntil){ continue; }       // inside the forced break — drop
           runStart=n.row; runLen=0;                 // resume after the break
@@ -1415,10 +1483,10 @@ function drawDensityChart(charts,duration,bpm){
       const x0=s.runStartMeas/totalMeasures*W,x1=(s.runStartMeas+s.runMeasSpan)/totalMeasures*W;
       cx.fillStyle=s.color+'22';cx.fillRect(x0,2,x1-x0,H-4);
       cx.strokeStyle=s.color;cx.lineWidth=1;cx.setLineDash([2,2]);cx.strokeRect(x0,2,x1-x0,H-4);cx.setLineDash([]);
-      if(x1-x0>30){cx.fillStyle=s.color;cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.runNotes+'-note run',(x0+x1)/2,H-4);}
+      if(x1-x0>30){cx.fillStyle=s.color;cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.runMeasSpan.toFixed(1)+'m run',(x0+x1)/2,H-4);}
     }
     const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:4px';
-    const runTxt=s.runNotes>=rpm?`longest run ${s.runNotes} notes (${s.runMeasSpan.toFixed(1)}m)`:'no sustained stream';
+    const runTxt=s.runNotes>=rpm?`longest stream ${s.runMeasSpan.toFixed(1)} measures (${s.runNotes} notes)`:'no sustained stream';
     el.innerHTML=`<span style="display:inline-block;width:16px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} Blk${s.block} (peak ${s.peakNPS.toFixed(1)} NPS, ${runTxt})`;
     legend.appendChild(el);
   });

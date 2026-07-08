@@ -24,7 +24,7 @@ input[type=text],select{background:var(--bg);border:1px solid var(--border);colo
 input[type=text]:focus,select:focus{border-color:var(--accent);}
 input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
 .tog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
-.tog-row label:first-child{font-size:12px;color:var(--muted);}
+.tog-row label:first-child{font-size:12px;color:var(--muted);cursor:pointer;}
 .toggle{position:relative;width:36px;height:20px;flex-shrink:0;}
 .toggle input{opacity:0;width:0;height:0;}
 .sl{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:background .2s;}
@@ -67,9 +67,23 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
 .db.med{color:#ffb800;border-color:#ffb800;background:rgba(255,184,0,.08);}
 .db.hard{color:#ff3cac;border-color:#ff3cac;background:rgba(255,60,172,.08);}
 .pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px;}
-.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;}
+.pat-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:10px;color:var(--muted);cursor:pointer;text-align:center;transition:border-color .15s,color .15s;user-select:none;position:relative;}
+.pat-tip{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 6px);background:#1a1a26;border:1px solid var(--accent3);border-radius:6px;padding:7px 10px;z-index:50;white-space:nowrap;box-shadow:0 4px 14px #000a;pointer-events:none;}
+.pat-chip:hover .pat-tip{display:block;}
+.pat-tip-arrows{display:flex;gap:5px;justify-content:center;margin-bottom:4px;}
+.pt-a{font-size:20px;line-height:1;font-weight:bold;}
+.pt-a0{color:#ff5d8f;}   /* Left */
+.pt-a1{color:#4ecdc4;}   /* Down */
+.pt-a2{color:#ffd166;}   /* Up */
+.pt-a3{color:#6a8dff;}   /* Right */
+.pat-tip-info{font-size:9px;color:var(--muted);text-align:center;}
 .pat-chip.on{border-color:var(--accent3);color:var(--text);background:rgba(123,47,255,.12);}
 .toggle-all{background:var(--bg);border:1px solid var(--accent3);color:var(--accent);font-family:'Inter',sans-serif;font-size:9px;padding:2px 8px;border-radius:3px;cursor:pointer;text-transform:none;letter-spacing:0;}
+.paint-mode{background:var(--bg);border:1px solid var(--border);color:var(--muted);font-family:'Inter',sans-serif;font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;}
+.paint-mode.on{border-color:var(--accent);color:var(--accent);background:#00f0ff11;}
+.diff-sel{background:var(--bg);border:1px solid var(--border);color:var(--muted);font-family:'Inter',sans-serif;font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;}
+.diff-sel.on{border-color:var(--accent2);color:var(--accent2);background:#ff3cac11;}
+#manualCanvas{cursor:crosshair;}
 .toggle-all:hover{background:rgba(123,47,255,.15);}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 </style>
@@ -132,18 +146,18 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <div class="field"><label>Jump density <span id="jumpDensityVal">High</span></label><input type="range" id="jumpDensity" min="0" max="4" value="3" step="1"/></div>
       <div class="field"><label>Hold density <span id="holdDensityVal">High</span></label><input type="range" id="holdDensity" min="0" max="4" value="3" step="1"/></div>
       <div class="field"><label>Onset sensitivity <span id="onsetSensVal">0.4</span></label><input type="range" id="onsetSens" min="0.1" max="0.9" value="0.4" step="0.05"/></div>
-      <div class="field"><label>Stream intensity <span id="streamIntenseVal">Medium</span></label><input type="range" id="streamIntense" min="0" max="4" value="2" step="1"/></div>
-      <div class="field"><label>Fine-tune offset (s) <span id="offsetVal">0.0</span></label><input type="range" id="offset" min="-0.5" max="2" value="0" step="0.05"/></div>
+      <div class="field"><label>Fine-tune offset (s) <span id="offsetVal">0.000</span></label><input type="range" id="offset" min="-0.1" max="0.1" value="0" step="0.001"/></div>
     </div>
     <div>
       <div class="sec">Rules</div>
       <div class="rules-group">Rhythm &amp; Sync</div>
-      <div class="tog-row"><label>ITG 9ms sync bias</label><label class="toggle"><input type="checkbox" id="rule9ms" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Auto-detect beat offset</label><label class="toggle"><input type="checkbox" id="ruleAutoOffset" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Snap steps to melody grid</label><label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label></div>
-      <div class="tog-row"><label>Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label for="rule9ms">ITG 9ms sync bias</label><label class="toggle"><input type="checkbox" id="rule9ms" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label for="ruleAutoOffset">Auto-detect beat offset</label><label class="toggle"><input type="checkbox" id="ruleAutoOffset" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label for="onsetSnap">Snap steps to melody grid</label><label class="toggle"><input type="checkbox" id="onsetSnap" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label for="melodyClose">Follow melody closely <span style="color:var(--muted);font-size:9px">(quiet parts)</span></label><label class="toggle"><input type="checkbox" id="melodyClose"/><span class="sl"></span></label></div>
+      <div class="tog-row"><label for="forceBreaks">Force breaks in quiet sections</label><label class="toggle"><input type="checkbox" id="forceBreaks" checked/><span class="sl"></span></label></div>
       <div class="rules-group">Intensity &amp; Stamina</div>
-      <div class="tog-row"><label>Stamina mode (long continuous streams)</label><label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label></div>
+      <div class="tog-row"><label for="staminaMode">Stamina mode (long continuous streams)</label><label class="toggle"><input type="checkbox" id="staminaMode" checked/><span class="sl"></span></label></div>
     </div>
   </div>
   <div class="content">
@@ -172,6 +186,50 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
       <canvas id="structureCanvas" height="28"></canvas>
       <div id="structureLegend" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;font-size:10px;color:var(--muted)"></div>
     </div>
+    <div class="wave-sec" id="manualSection" style="display:none">
+      <div class="wave-label" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <span style="display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:11px;color:var(--accent)">
+            <input type="checkbox" id="manualToggle"/> Manual mode
+          </label>
+          <span style="color:var(--muted);font-size:10px">Paint stream regions by measure</span>
+        </span>
+        <span style="display:flex;gap:6px;align-items:center">
+          <button id="manualPlayBtn" class="toggle-all" style="min-width:54px">▶ Play</button>
+          <button id="manualStopBtn" class="toggle-all">■ Stop</button>
+          <button id="manualSaveBtn" class="toggle-all" title="Save painted regions to a file">⤓ Save</button>
+          <button id="manualLoadBtn" class="toggle-all" title="Load painted regions from a file">⤒ Load</button>
+          <input type="file" id="manualLoadInput" accept=".json" style="display:none"/>
+          <span id="manualMeasNow" style="font-size:11px;color:var(--accent);font-family:'Orbitron',monospace;min-width:64px;text-align:right">m —</span>
+        </span>
+      </div>
+      <div id="manualSyncRow" style="display:flex;gap:8px;margin:4px 0;font-size:10px;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--accent)">
+          <input type="checkbox" id="metroToggle"/> Beat clap
+        </label>
+        <input type="range" id="metroVol" min="0" max="3" value="1.5" step="0.1" title="Clap volume" style="width:70px"/>
+        <span style="color:var(--muted)">Sync by ear:</span>
+        <button id="offsetDownBtn" class="toggle-all" title="Beat feels late → arrows earlier">− offset</button>
+        <span id="offsetLiveVal" style="font-family:'Orbitron',monospace;color:var(--accent2);min-width:70px;text-align:center">0.000s</span>
+        <button id="offsetUpBtn" class="toggle-all" title="Beat feels early → arrows later">+ offset</button>
+        <span style="color:var(--muted);font-size:9px">clap should land on the beat</span>
+      </div>
+      <div id="manualDiffRow" style="display:flex;gap:6px;margin:4px 0;font-size:10px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--muted)">Editing:</span>
+        <button class="diff-sel" data-diff="0">Easy</button>
+        <button class="diff-sel" data-diff="1">Medium</button>
+        <button class="diff-sel on" data-diff="2">Hard</button>
+        <span id="manualInheritNote" style="color:var(--muted)"></span>
+      </div>
+      <div id="manualPaintModes" style="display:flex;gap:6px;margin:4px 0;font-size:10px;flex-wrap:wrap">
+        <button class="paint-mode on" data-mode="s16">16th stream</button>
+        <button class="paint-mode" data-mode="s8">8th stream</button>
+        <button class="paint-mode" data-mode="erase">Erase</button>
+        <span id="manualHint" style="color:var(--muted);align-self:center">Click-drag across measures to paint. Unpainted = melody-follow.</span>
+      </div>
+      <canvas id="manualCanvas" height="90"></canvas>
+      <div id="manualReadout" style="font-size:10px;color:var(--muted);margin-top:3px"></div>
+    </div>
     <div class="wave-sec" id="densitySection">
       <div class="wave-label">Step Density — NPS per difficulty</div>
       <canvas id="densityCanvas" height="90"></canvas>
@@ -179,6 +237,10 @@ canvas{width:100%;border-radius:4px;display:block;background:var(--panel);border
     </div>
     <div class="log-box" id="log"><span style="color:var(--muted)">Waiting for audio...</span><br/></div>
     <button class="gen-btn" id="genBtn" disabled>⚡ PREVIEW CHART</button>
+    <div id="exportPicker" style="display:none;margin:6px 0;font-size:11px">
+      <div style="color:var(--muted);margin-bottom:4px">Export which difficulties?</div>
+      <div id="exportPickerList" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+    </div>
     <button class="dl-btn" id="dlBtn">⬇ DOWNLOAD ZIP</button>
   </div>
 </div>
@@ -209,8 +271,12 @@ const PATTERNS = {
   "Sweep A":       {seq:[0,3,0,2,1,2],      cat:"spiral",  group:"stamina",minDiff:4},
   "Sweep B":       {seq:[3,0,3,1,2,1],      cat:"spiral",  group:"stamina",minDiff:4},
   // ── TECH: intentionally non-alternating ──────────────────────────
-  "Gallop L":      {seq:[0,1,1,2],          cat:"gallop",     group:"tech",   minDiff:3},
-  "Gallop R":      {seq:[3,2,2,1],          cat:"gallop",     group:"tech",   minDiff:3},
+  // (Names/shapes checked against ITG Wiki tech notation + DDRCommunity pattern
+  // guide: jacks = repeated same arrow; sideswitch = repeated SIDE panel with
+  // alternating feet, usually entered via crossover; candle = a foot passing
+  // over the center, e.g. Up-Left-Down; drill = long two-arrow alternation.)
+  "Jacks L":       {seq:[0,1,1,2],          cat:"gallop",     group:"tech",   minDiff:3},
+  "Jacks R":       {seq:[3,2,2,1],          cat:"gallop",     group:"tech",   minDiff:3},
   "Candle A":      {seq:[2,0,1],            cat:"candle",     group:"tech",   minDiff:3},
   "Candle B":      {seq:[1,3,2],            cat:"candle",     group:"tech",   minDiff:3},
   "Crossover L":   {seq:[0,1,3,2],          cat:"crossover",  group:"tech",   minDiff:4},
@@ -221,10 +287,10 @@ const PATTERNS = {
   "Anchor R":      {seq:[3,1,3,2,3,0],      cat:"anchor",     group:"tech",   minDiff:4},
   "Footswitch L":  {seq:[0,0,1,2],          cat:"footswitch", group:"tech",   minDiff:5},
   "Footswitch R":  {seq:[3,3,2,1],          cat:"footswitch", group:"tech",   minDiff:5},
-  "Sideswitch L":  {seq:[0,1,0,2,0,1],      cat:"sideswitch", group:"tech",   minDiff:6},
-  "Sideswitch R":  {seq:[3,2,3,1,3,2],      cat:"sideswitch", group:"tech",   minDiff:6},
-  "Split LU":      {seq:[0,2,1,3],          cat:"split",      group:"tech",   minDiff:7},
-  "Split DR":      {seq:[1,3,0,2],          cat:"split",      group:"tech",   minDiff:7},
+  "Sideswitch L":  {seq:[1,0,0,2],          cat:"sideswitch", group:"tech",   minDiff:6},
+  "Sideswitch R":  {seq:[2,3,3,1],          cat:"sideswitch", group:"tech",   minDiff:6},
+  "Spread A":      {seq:[2,0,3,1],          cat:"split",      group:"tech",   minDiff:7},
+  "Spread B":      {seq:[1,3,0,2],          cat:"split",      group:"tech",   minDiff:7},
 };
 
 // Tag each pattern with whether it strictly alternates feet, and validate
@@ -259,13 +325,19 @@ const activePats=new Set(Object.keys(PATTERNS).filter(n=>PATTERNS[n].cat!=='cros
 (function(){
   const grids={stamina:document.getElementById('patGridStamina'),tech:document.getElementById('patGridTech')};
   const chipFor={};
+  const GLYPH=['←','↓','↑','→'];
   Object.keys(PATTERNS).forEach(name=>{
     const p=PATTERNS[name];
     if(p.mirror) return;
     const chip=document.createElement('div');
     chip.className='pat-chip'+(activePats.has(name)?' on':'');
     chip.textContent=name;
-    chip.title=p.cat+' · min block '+p.minDiff;
+    // Hover example: the pattern rendered as its arrow sequence, plus info line.
+    const tip=document.createElement('div');
+    tip.className='pat-tip';
+    tip.innerHTML='<div class="pat-tip-arrows">'+p.seq.map(x=>'<span class="pt-a pt-a'+x+'">'+GLYPH[x]+'</span>').join('')+'</div>'
+      +'<div class="pat-tip-info">'+p.cat+' · min block '+p.minDiff+(p.alt?' · alternating':' · tech (non-alt)')+'</div>';
+    chip.appendChild(tip);
     chip.addEventListener('click',()=>{
       const mn=name+' ⟳';
       if(activePats.has(name)){activePats.delete(name);activePats.delete(mn);chip.classList.remove('on');}
@@ -342,13 +414,6 @@ const JUMP_LABELS=['None','Low','Medium','High','Max'];
   if(!el)return;
   el.addEventListener('input',()=>{document.getElementById(vid).textContent=JUMP_LABELS[+el.value]||'Medium';});
 });
-// Stream intensity slider: how intense a section must be to become a stream.
-// Higher = only the really intense parts stream; lower = pulls medium-intensity
-// sections into streams too.
-const STREAM_LABELS=['Very Low','Low','Medium','High','Very High'];
-(()=>{const el=document.getElementById('streamIntense');if(!el)return;
-  el.addEventListener('input',()=>{document.getElementById('streamIntenseVal').textContent=STREAM_LABELS[+el.value]||'Medium';});
-})();
 
 // ── Art (three independent slots; each falls back to embeddedArt) ──
 function wireArtSlot(inputId, previewId, setter){
@@ -412,6 +477,7 @@ async function handleAudio(file){
   log('Detecting structure...');detectSongStructure(detectedBPM,audioBuffer.duration);setP(93);
   await tick();
   drawWaveform();drawEnergy();drawStructure(audioBuffer.duration);
+  showManualTimeline();
   document.getElementById('waveSection').style.display='flex';setP(100);
   updateDiffBadges();document.getElementById('genBtn').disabled=false;log('Ready!','ok');
 }
@@ -466,63 +532,415 @@ function fftRadix2(re,im){
   }
 }
 
-async function computeSpectralFeatures(){
-  const srcSr=audioBuffer.sampleRate;
-  const src=audioBuffer.getChannelData(0);
-  const src2=audioBuffer.numberOfChannels>1?audioBuffer.getChannelData(1):null;
-  // Downsample to ~22kHz mono for speed (halves the work, no loss for our needs)
-  const targetSr=22050;
-  const ratio=srcSr/targetSr;
-  const dsLen=Math.floor(src.length/ratio);
-  const mono=new Float32Array(dsLen);
-  for(let i=0;i<dsLen;i++){
-    const si=Math.floor(i*ratio);
-    mono[i]=src2?(src[si]+src2[si])*0.5:src[si];
+// ═══════════════════════════════════════════════════════════════════
+// V2 AUDIO ENGINE — ArrowVortex-style analysis
+// Based on Bram van de Wetering, "Non-causal Beat Tracking for Rhythm
+// Games" (the algorithm inside ArrowVortex), adapted to JS.
+//
+// Pipeline:
+//   1. STFT (1024 window / 256 hop, Hann) → log-magnitude spectra
+//   2. Onset detection: spectral flux (full-band for beat; mid-band
+//      250–4000 Hz for melody in weak-beat sections), adaptive
+//      threshold, leading-edge timestamps. Per-onset bass energy and
+//      spectral centroid preserved for the generator's melody logic.
+//   3. Tempo: gap-confidence method — wrap onsets modulo candidate
+//      beat intervals (sample domain, 89–205 BPM), score phase
+//      positions with a Hamming window (+0.5× offbeat support),
+//      detrend fitness with a cubic polynomial fit (removes the
+//      long-interval bias that octave-folding hacks around), refine,
+//      dedupe, evidence-based integer rounding.
+//   4. Offset: best gap position at the winning tempo, then resolve
+//      beat-vs-offbeat with a waveform slope envelope (50 ms rising-
+//      energy), then wrap to the nearest beat for a small ±ms offset.
+// ═══════════════════════════════════════════════════════════════════
+// (specFrames/specFrameTimes/specHopSec declared globally above)
+let odfN=0, odfSr=44100, odfHop=256, odfWin=1024;
+let odfFlux=null, odfMel=null, odfBass=null, odfCent=null, odfBassFlux=null;
+let monoData=null; // mono samples kept for the slope-based offset stage
+
+function _fftRadix2(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1)j^=bit;
+    j|=bit;
+    if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t;}
   }
-  const sr=targetSr;
-
-  const FFT=2048, HOP=512;
-  const nFrames=Math.max(0,Math.floor((mono.length-FFT)/HOP));
-  // Hann window
-  const win=new Float32Array(FFT);
-  for(let i=0;i<FFT;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
-  // Band edges in Hz → FFT bin indices. bin = f / (sr/FFT)
-  const binHz=sr/FFT;
-  const edges=[20,120,250,2000,6000,sr/2]; // 5 bands between these edges
-  const bandBins=[];
-  for(let bnd=0;bnd<NBANDS;bnd++){
-    const lo=Math.max(1,Math.floor(edges[bnd]/binHz));
-    const hi=Math.min(FFT/2,Math.ceil(edges[bnd+1]/binHz));
-    bandBins.push([lo,hi]);
-  }
-
-  specFrames=[]; specFrameTimes=[]; specHopSec=HOP/sr;
-  const re=new Float32Array(FFT), im=new Float32Array(FFT);
-
-  // Process in chunks so the UI can breathe (yield every ~400 frames).
-  for(let f=0;f<nFrames;f++){
-    const base=f*HOP;
-    for(let i=0;i<FFT;i++){re[i]=mono[base+i]*win[i];im[i]=0;}
-    fftRadix2(re,im);
-    const bands=new Float32Array(NBANDS);
-    for(let bnd=0;bnd<NBANDS;bnd++){
-      const [lo,hi]=bandBins[bnd];
-      let sum=0;
-      for(let k=lo;k<hi;k++){sum+=re[k]*re[k]+im[k]*im[k];}
-      bands[bnd]=Math.sqrt(sum/Math.max(1,hi-lo));
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cwr=1,cwi=0;
+      for(let k=0;k<len/2;k++){
+        const ur=re[i+k],ui=im[i+k];
+        const vr=re[i+k+len/2]*cwr-im[i+k+len/2]*cwi;
+        const vi=re[i+k+len/2]*cwi+im[i+k+len/2]*cwr;
+        re[i+k]=ur+vr;im[i+k]=ui+vi;
+        re[i+k+len/2]=ur-vr;im[i+k+len/2]=ui-vi;
+        const nwr=cwr*wr-cwi*wi;cwi=cwr*wi+cwi*wr;cwr=nwr;
+      }
     }
-    specFrames.push(bands);
-    specFrameTimes.push(base/sr);
-    if((f&511)===0){setP(20+Math.round(f/nFrames*22));await tick();}
   }
-  // Normalize each band to its own max so they're comparable 0-1.
-  const maxB=new Float32Array(NBANDS);
-  for(const fr of specFrames)for(let b=0;b<NBANDS;b++)if(fr[b]>maxB[b])maxB[b]=fr[b];
-  for(const fr of specFrames)for(let b=0;b<NBANDS;b++)fr[b]=maxB[b]?fr[b]/maxB[b]:0;
-  log('Spectral analysis: '+specFrames.length+' frames, '+NBANDS+' bands','ok');
 }
 
-// ── Energy ────────────────────────────────────────────────────────
+async function computeSpectralFeatures(){
+  const sr=audioBuffer.sampleRate; odfSr=sr;
+  // mono mixdown (also kept for the offset slope stage)
+  const c0=audioBuffer.getChannelData(0);
+  if(audioBuffer.numberOfChannels>1){
+    const c1=audioBuffer.getChannelData(1);
+    monoData=new Float32Array(c0.length);
+    for(let i=0;i<c0.length;i++)monoData[i]=(c0[i]+c1[i])*0.5;
+  }else monoData=c0;
+  const WIN=1024,HOP=256; odfWin=WIN; odfHop=HOP;
+  const useLen=Math.min(monoData.length, Math.floor(sr*150)); // analyze ≤150s
+  const nF=Math.max(0,Math.floor((useLen-WIN)/HOP));
+  odfN=nF;
+  odfFlux=new Float32Array(nF); odfMel=new Float32Array(nF);
+  odfBass=new Float32Array(nF); odfCent=new Float32Array(nF);
+  odfBassFlux=new Float32Array(nF);
+  if(nF<3){specFrames=[];return;}
+  specFrames=new Array(nF); // legacy truthy length for old checks
+  specHopSec=HOP/sr;
+  const hann=new Float32Array(WIN);
+  for(let i=0;i<WIN;i++)hann[i]=0.5-0.5*Math.cos(2*Math.PI*i/(WIN-1));
+  const re=new Float32Array(WIN), im=new Float32Array(WIN);
+  const nBins=WIN/2, binHz=sr/WIN;
+  const bMelLo=Math.max(1,Math.round(250/binHz)), bMelHi=Math.min(nBins-1,Math.round(4000/binHz));
+  const bBassLo=Math.max(1,Math.round(25/binHz)), bBassHi=Math.min(nBins-1,Math.round(200/binHz));
+  let prev=new Float32Array(nBins), cur=new Float32Array(nBins);
+  for(let f=0;f<nF;f++){
+    const off=f*HOP;
+    for(let i=0;i<WIN;i++){re[i]=monoData[off+i]*hann[i];im[i]=0;}
+    _fftRadix2(re,im);
+    let flux=0,mel=0,bass=0,bflux=0,cnum=0,cden=0;
+    for(let b=1;b<nBins;b++){
+      const m=Math.sqrt(re[b]*re[b]+im[b]*im[b]);
+      const lm=Math.log1p(8*m);
+      cur[b]=lm;
+      const d=lm-prev[b];
+      if(d>0){flux+=d; if(b>=bMelLo&&b<=bMelHi)mel+=d; if(b>=bBassLo&&b<=bBassHi)bflux+=d;}
+      if(b>=bBassLo&&b<=bBassHi)bass+=m;
+      cnum+=m*(b*binHz); cden+=m;
+    }
+    odfFlux[f]=flux; odfMel[f]=mel; odfBass[f]=bass; odfBassFlux[f]=bflux;
+    odfCent[f]=cden>1e-9?cnum/cden:0;
+    const t=prev;prev=cur;cur=t;
+    if((f&2047)===0){setP(15+Math.round(25*f/nF));await new Promise(r=>setTimeout(r,0));}
+  }
+}
+
+function computeOnsets(){
+  const sens=+document.getElementById('onsetSens').value;
+  onsetTimes=[];onsetStrengths=[];onsetBass=[];onsetCentroid=[];
+  if(odfN>2){
+    const nF=odfN;
+    let maxF=0,maxM=0,maxBF=0;
+    for(let i=0;i<nF;i++){if(odfFlux[i]>maxF)maxF=odfFlux[i];if(odfMel[i]>maxM)maxM=odfMel[i];if(odfBassFlux[i]>maxBF)maxBF=odfBassFlux[i];}
+    if(maxF<=0)maxF=1;if(maxM<=0)maxM=1;if(maxBF<=0)maxBF=1;
+    // Detection ODF: each band's flux normalized to its OWN max, then combined
+    // with bass emphasized. A 55 Hz kick lives in 1-2 FFT bins while a hat
+    // spans all 511 — under a single full-band normalizer the kick is ~3% of
+    // a hat and never crosses threshold. Per-band normalization (as in v1's
+    // 5-band design and SuperFlux) lets narrowband bass compete fairly.
+    const D=new Float32Array(nF);
+    let maxD=0;
+    for(let i=0;i<nF;i++){
+      const v=odfBassFlux[i]/maxBF + 0.6*odfMel[i]/maxM + 0.4*odfFlux[i]/maxF;
+      D[i]=v; if(v>maxD)maxD=v;
+    }
+    // typical bass level → "weak beat" frames lean on melodic flux (quiet-part
+    // melody pickup, ported from v1 which pad-tested well)
+    const bl=[...odfBass].sort((a,b)=>a-b);
+    const bassMed=bl[Math.floor(bl.length*0.5)]||0;
+    let maxBass=bl[Math.floor(bl.length*0.95)]||1; if(maxBass<=0)maxBass=1;
+    const PWIN=Math.max(4,Math.round(0.35/specHopSec));
+    const MGAP=Math.max(1,Math.round(0.05/specHopSec));
+    // Look-ahead bass max per frame: at an attack frame the STFT window only
+    // partially overlaps the sound, so instantaneous bass is near zero even
+    // for a kick — the body arrives a few frames later. Routing the detector
+    // (beat vs melody flux) and reporting onsetBass off the instantaneous
+    // value made kicks invisible; the ~40ms look-ahead max fixes both.
+    const bassAhead=new Float32Array(nF);
+    for(let i=0;i<nF;i++){let m=0;for(let k=i;k<Math.min(nF,i+7);k++)if(odfBass[k]>m)m=odfBass[k];bassAhead[i]=m;}
+    let lastPk=-MGAP;
+    for(let i=1;i<nF-1;i++){
+      // weak-beat frames (no kick nearby) use a lower threshold so quiet
+      // melody onsets are picked up (v1's melody-close behavior, preserved)
+      const beatWeak=bassAhead[i]<bassMed*0.7;
+      const v=D[i];
+      let sum=0,c=0;
+      for(let j=Math.max(0,i-PWIN);j<Math.min(nF,i+PWIN);j++){sum+=D[j];c++;}
+      const thrScale=beatWeak?0.21:0.35;
+      const thr=(sum/c)+sens*maxD*thrScale;
+      if(v>thr&&v>=D[i-1]&&v>D[i+1]&&i-lastPk>=MGAP){
+        // Timestamp at the flux-peak frame, window-center convention, plus a
+        // fixed calibration measured against synthetic ground truth (+4.5ms —
+        // the STFT frame-convention bias; verified rise-time-invariant, so a
+        // constant is the correct model, and it brings offsets to ≈±0.5ms).
+        onsetTimes.push((i*odfHop+odfWin*0.5)/odfSr+0.0045);
+        onsetStrengths.push(maxD?v/maxD:0);
+        // Bass/centroid are sampled over a short look-ahead window: at the
+        // flux-peak frame the STFT window only partially overlaps the sound's
+        // body, so bass hasn't built up yet — the kick's true bass energy
+        // arrives a few frames later (~35ms). Without this, kicks read as
+        // bass≈0.02 and the generator's jump/quiet-zone logic goes blind.
+        onsetBass.push(Math.min(1,bassAhead[i]/maxBass));
+        let cAcc=0,cN=0;
+        for(let k=i;k<Math.min(nF,i+7);k++){cAcc+=odfCent[k];cN++;}
+        onsetCentroid.push(cN?cAcc/cN:odfCent[i]);
+        lastPk=i;
+      }
+    }
+    log('Onsets (spectral flux): '+onsetTimes.length,'ok');
+    return;
+  }
+  // ── Fallback: time-domain (no FFT) ──
+  const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
+  const USE=Math.min(d.length,sr*120),HOP=1024;
+  const nHops=Math.floor((USE-HOP)/HOP);
+  const flux=new Float32Array(nHops),times=new Float32Array(nHops);
+  let prevE=0;
+  for(let h=0;h<nHops;h++){
+    let e=0;const base=h*HOP;
+    for(let i=base;i<base+HOP;i+=4)e+=d[i]*d[i];
+    const v=Math.max(0,e-prevE);prevE=e;flux[h]=v;times[h]=base/sr;
+  }
+  let maxF=0;for(let i=0;i<nHops;i++)if(flux[i]>maxF)maxF=flux[i];
+  const PWIN=10,MGAP=Math.max(1,Math.round(0.05*sr/HOP));let lastHop=-MGAP;
+  for(let i=1;i<nHops-1;i++){
+    const v=flux[i];let sum=0;
+    for(let j=Math.max(0,i-PWIN);j<Math.min(nHops,i+PWIN);j++)sum+=flux[j];
+    const thr=(sum/(PWIN*2))+sens*maxF*0.4;
+    if(v>thr&&v>flux[i-1]&&v>flux[i+1]&&i-lastHop>=MGAP){
+      onsetTimes.push(times[i]);onsetStrengths.push(v/(maxF||1));
+      onsetBass.push(0.5);onsetCentroid.push(0);
+      lastHop=i;
+    }
+  }
+  log('Onsets (time-domain): '+onsetTimes.length,'ok');
+}
+
+// ── Tempo + offset (ArrowVortex gap-confidence method) ─────────────
+let bpmCandidates=[];
+function fitTempo(){
+  bpmCandidates=[];
+  if(!onsetTimes||onsetTimes.length<8){detectedOffset=0;return 120;}
+  const sr=odfSr||audioBuffer.sampleRate;
+  const N=onsetTimes.length;
+  const pos=new Float64Array(N), str=new Float64Array(N);
+  for(let i=0;i<N;i++){pos[i]=onsetTimes[i]*sr; str[i]=onsetStrengths[i]||1;}
+  const MinBPM=89, MaxBPM=205;
+  const minInt=Math.round(sr*60/MaxBPM), maxInt=Math.round(sr*60/MinBPM);
+  const numInt=maxInt-minInt;
+  // Candidate gap positions = the strongest onsets (cost bound), as in AV
+  // where every onset's wrapped position is a candidate.
+  const candIdx=[...Array(N).keys()].sort((a,b)=>str[b]-str[a]).slice(0,120);
+
+  // Hamming windows for the gap-confidence correlation
+  function hamming(n){const w=new Float64Array(n),t=2*Math.PI/(n-1);for(let i=0;i<n;i++)w[i]=0.54-0.46*Math.cos(i*t);return w;}
+  const WFULL=2048, hammCache={};
+  function getHamm(ds){const n=WFULL>>ds;if(!hammCache[n])hammCache[n]=hamming(n);return hammCache[n];}
+
+  // Windowed area of the wrapped-onset histogram around gapPos (wraps ends).
+  function gapWindowArea(hist,histN,gapPos,win){
+    const half=win.length>>1;let area=0;
+    let b=gapPos-half,e=gapPos+half;
+    if(b<0){const wb=b+histN;for(let i=wb;i<histN;i++)area+=hist[i]*win[i-wb];b=0;}
+    if(e>histN){const we=e-histN,io=win.length-we;for(let i=0;i<we;i++)area+=hist[i]*win[i+io];e=histN;}
+    for(let i=b;i<e;i++)area+=hist[i]*win[i-b];
+    return area;
+  }
+  // Confidence of the best gap for an integer interval (sample count).
+  function confInterval(interval,ds,useStrength){
+    const histN=(interval>>ds)+1;
+    const hist=new Float64Array(histN);
+    const wrapped=new Int32Array(N);
+    for(let i=0;i<N;i++){
+      const p=(pos[i]%interval)>>ds;
+      wrapped[i]=p; hist[p]+=useStrength?str[i]:1;
+    }
+    const win=getHamm(ds);const half=(interval>>ds)>>1;
+    let best=0,bestPos=0;
+    for(const ci of candIdx){
+      const p=wrapped[ci];
+      let c=gapWindowArea(hist,histN-1,p,win);
+      c+=0.5*gapWindowArea(hist,histN-1,(p+half)%(histN-1||1),win);
+      if(c>best){best=c;bestPos=p;}
+    }
+    return {conf:best,pos:bestPos<<ds};
+  }
+  // Same but for a float BPM (AV's GetConfidenceForBPM, float modulo).
+  function confBPM(bpm,ds,useStrength,winN){
+    const intervalf=sr*60/bpm, interval=Math.round(intervalf);
+    const histN=(interval>>ds)+1;
+    const hist=new Float64Array(histN);
+    const wrapped=new Int32Array(N);
+    for(let i=0;i<N;i++){
+      const p=Math.floor(pos[i]%intervalf)>>ds;
+      const pc=Math.min(p,histN-1);
+      wrapped[i]=pc; hist[pc]+=useStrength?str[i]:1;
+    }
+    const win=winN?(hammCache['n'+winN]||(hammCache['n'+winN]=hamming(winN))):getHamm(ds);
+    const half=(interval>>ds)>>1;
+    let best=0,bestPos=0;
+    for(const ci of candIdx){
+      const p=wrapped[ci];
+      let c=gapWindowArea(hist,histN-1,p,win);
+      c+=0.5*gapWindowArea(hist,histN-1,(p+half)%(histN-1||1),win);
+      if(c>best){best=c;bestPos=p;}
+    }
+    return {conf:best,pos:bestPos<<ds};
+  }
+  // Cubic least-squares fit y≈c0+c1x+c2x²+c3x³ (detrends interval bias, as AV).
+  function polyfit3(xs,ys){
+    const n=xs.length;const S=new Float64Array(7),T=new Float64Array(4);
+    for(let i=0;i<n;i++){
+      let xp=1;const y=ys[i];
+      for(let k=0;k<7;k++){S[k]+=xp;if(k<4)T[k]+=y*xp;xp*=xs[i];}
+    }
+    const A=[[S[0],S[1],S[2],S[3],T[0]],[S[1],S[2],S[3],S[4],T[1]],[S[2],S[3],S[4],S[5],T[2]],[S[3],S[4],S[5],S[6],T[3]]];
+    for(let col=0;col<4;col++){
+      let piv=col;for(let r=col+1;r<4;r++)if(Math.abs(A[r][col])>Math.abs(A[piv][col]))piv=r;
+      const tmp=A[col];A[col]=A[piv];A[piv]=tmp;
+      if(Math.abs(A[col][col])<1e-12)continue;
+      for(let r=0;r<4;r++){
+        if(r===col)continue;
+        const f=A[r][col]/A[col][col];
+        for(let k=col;k<5;k++)A[r][k]-=f*A[col][k];
+      }
+    }
+    const c=[0,0,0,0];
+    for(let i=0;i<4;i++)c[i]=Math.abs(A[i][i])>1e-12?A[i][4]/A[i][i]:0;
+    return c;
+  }
+  const polyAt=(c,x)=>c[0]+c[1]*x+c[2]*x*x+c[3]*x*x*x;
+
+  // 1. Coarse scan: every 10th interval, downsample 3 (AV constants).
+  const DELTA=10, DSC=3;
+  const fit=new Float64Array(numInt);
+  const cxs=[],cys=[];
+  for(let i=0;i<numInt;i+=DELTA){
+    const r=confInterval(minInt+i,DSC,true);
+    fit[i]=Math.max(0.001,r.conf);
+    cxs.push(minInt+i);cys.push(fit[i]);
+  }
+  // 2. Detrend with cubic fit; find max.
+  const coefs=polyfit3(cxs,cys);
+  let maxFit=0.001;
+  for(let i=0;i<numInt;i+=DELTA){
+    fit[i]-=polyAt(coefs,minInt+i);
+    if(fit[i]>maxFit)maxFit=fit[i];
+  }
+  // 3. Refine ranges around strong coarse points.
+  let cands=[];
+  const thresh=maxFit*0.4;
+  for(let i=0;i<numInt;i+=DELTA){
+    if(fit[i]<=thresh)continue;
+    const b=Math.max(0,i-DELTA),e=Math.min(numInt,i+DELTA);
+    for(let j=b;j<e;j++){
+      if(fit[j]===0){
+        const r=confInterval(minInt+j,DSC,true);
+        fit[j]=Math.max(0.1,r.conf-polyAt(coefs,minInt+j));
+      }
+    }
+    let bi=b;for(let j=b;j<e;j++)if(fit[j]>fit[bi])bi=j;
+    cands.push({bpm:sr*60/(minInt+bi),fitness:fit[bi]});
+  }
+  if(!cands.length){detectedOffset=0;return 120;}
+  cands.sort((a,b)=>b.fitness-a.fitness);
+  // 4. Dedupe near-equal / double / half (AV RemoveDuplicates).
+  for(let i=0;i<cands.length;i++){
+    const b=cands[i].bpm;
+    for(let j=cands.length-1;j>i;j--){
+      const v=cands[j].bpm;
+      if(Math.min(Math.abs(v-b),Math.abs(v-2*b),Math.abs(v-0.5*b))<0.1)cands.splice(j,1);
+    }
+  }
+  // 5. Evidence-based integer rounding (AV RoundBPMValues), full resolution.
+  for(const t of cands){
+    const r=Math.round(t.bpm), d=Math.abs(t.bpm-r);
+    if(d<0.01)t.bpm=r;
+    else if(d<0.08){
+      // Rounding test uses a SHARP 512-sample (~12ms) window: at that width
+      // the true tempo's wrapped-onset spike is fully captured while a
+      // 0.03-off candidate smears past the window edge — so the evidence
+      // genuinely discriminates. (The default 46ms window cannot tell them
+      // apart; both areas match within noise.)
+      const old=confBPM(t.bpm,0,true,512).conf, cur=confBPM(r,0,true,512).conf;
+      if(cur>old*0.99)t.bpm=r;
+    }
+  }
+  // 6. Close call between top two → second opinion at full resolution.
+  if(cands.length>=2&&cands[0].fitness/cands[1].fitness<1.05){
+    for(const t of cands)t.fitness=confBPM(t.bpm,0,true).conf;
+    cands.sort((a,b)=>b.fitness-a.fitness);
+  }
+  cands=cands.slice(0,3);
+  bpmCandidates=cands.map(c=>({bpm:Math.round(c.bpm*100)/100,score:c.fitness}));
+  let bestBpm=cands[0].bpm;
+  // ── Octave guard (kick spacing) ──
+  // With offbeat hats detected, a true 100 BPM song scores higher at 200
+  // (ALL onsets land on the 200-grid vs hats at half-weight on the 100-grid).
+  // AV resolves this by showing a human the top-3; we auto-pick, so check the
+  // KICK spacing: if strong-bass onsets land every ~2 beats of the chosen
+  // tempo, the tempo is doubled — halve it. The ≥95 floor keeps genuine
+  // half-time-kick stamina songs (e.g. 170 with kicks on every other beat)
+  // from being wrongly halved into the slow range.
+  {
+    const kicks=[];
+    for(let i=0;i<N;i++)if((onsetBass[i]||0)>0.5)kicks.push(onsetTimes[i]);
+    if(kicks.length>=8&&bestBpm/2>=95){
+      const gaps=[];
+      for(let i=1;i<kicks.length;i++){const g=kicks[i]-kicks[i-1];if(g>0.05&&g<2)gaps.push(g);}
+      if(gaps.length>=6){
+        gaps.sort((a,b)=>a-b);
+        const med=gaps[Math.floor(gaps.length/2)], p=60/bestBpm;
+        if(med>p*1.7&&med<p*2.3)bestBpm=bestBpm/2;
+      }
+    }
+  }
+
+  // ── OFFSET (AV CalculateOffset) ──
+  const beatSec=60/bestBpm, intervalf=sr*beatSec;
+  // base offset: best gap position at full resolution, unit strengths (AV)
+  const base=confBPM(bestBpm,0,false);
+  let offset=base.pos/sr;
+  // resolve beat vs offbeat with the waveform slope envelope
+  if(monoData&&monoData.length>sr){
+    const nFr=Math.min(monoData.length,Math.floor(sr*150));
+    const wh=Math.floor(sr/20);
+    if(nFr>wh*2){
+      const slopes=new Float32Array(nFr);
+      let sumL=0,sumR=0;
+      for(let i=0,j=wh;i<wh;i++,j++){sumL+=Math.abs(monoData[i]);sumR+=Math.abs(monoData[j]);}
+      const scal=1/wh;
+      for(let i=wh,end=nFr-wh;i<end;i++){
+        slopes[i]=Math.max(0,(sumR-sumL)*scal);
+        const cur=Math.abs(monoData[i]);
+        sumL-=Math.abs(monoData[i-wh]);sumL+=cur;
+        sumR-=cur;sumR+=Math.abs(monoData[i+wh]);
+      }
+      let offbeat=offset+beatSec*0.5;
+      if(offbeat>beatSec)offbeat-=beatSec;
+      let pA=offset*sr,pB=offbeat*sr,sA=0,sB=0;
+      for(;pA<nFr&&pB<nFr;pA+=intervalf,pB+=intervalf){
+        sA+=slopes[Math.floor(pA)];sB+=slopes[Math.floor(pB)];
+      }
+      if(sB>sA)offset=offbeat;
+    }
+  }
+  // wrap to nearest beat: a whole-beat lead-in belongs in note rows, not #OFFSET
+  let ph=((offset%beatSec)+beatSec)%beatSec;
+  if(ph>beatSec/2)ph-=beatSec;
+  detectedOffset=ph;
+
+  const finalBpm=Math.abs(bestBpm-Math.round(bestBpm))<1e-9?Math.round(bestBpm):Math.round(bestBpm*100)/100;
+  log('Tempo fit: '+finalBpm+' BPM, offset '+(detectedOffset*1000).toFixed(1)+'ms','ok');
+  if(bpmCandidates.length>1)log('Other BPM candidates: '+bpmCandidates.slice(1).map(c=>c.bpm.toFixed(1)).join(', '),'');
+  log('Fit confidence: '+(cands[0].fitness).toFixed(1)+(cands.length>1?' (next: '+cands[1].fitness.toFixed(1)+')':''),'ok');
+  return finalBpm;
+}
+
 function computeEnergy(){
   const d=audioBuffer.getChannelData(0),sr=audioBuffer.sampleRate;
   const WS=Math.floor(sr*0.2),DS=16;
@@ -536,224 +954,6 @@ function computeEnergy(){
   if(mx>0)for(let i=0;i<energyCurve.length;i++)energyCurve[i]/=mx;
 }
 
-// ── Onsets ────────────────────────────────────────────────────────
-// Uses the real frequency bands from computeSpectralFeatures. Spectral flux =
-// sum of positive band-energy increases between frames (a true onset detection
-// function). Bass band drives jump detection. Falls back to the old time-domain
-// method if spectral frames aren't available.
-function computeOnsets(){
-  const sens=+document.getElementById('onsetSens').value;
-  if(specFrames.length>2){
-    const nF=specFrames.length;
-    // Band weights: emphasize percussive bands (sub-bass, bass, high/hats) for
-    // onset detection. Mids weighted lower (sustained melody flux is noisier).
-    const WGT=[2.2,2.0,1.0,1.2,1.4];
-    const flux=new Float32Array(nF);
-    for(let f=1;f<nF;f++){
-      let s=0;
-      for(let b=0;b<NBANDS;b++){
-        const diff=specFrames[f][b]-specFrames[f-1][b];
-        if(diff>0)s+=diff*WGT[b];
-      }
-      flux[f]=s;
-    }
-    // adaptive peak-pick with local-mean threshold
-    let maxF=0;for(let i=0;i<nF;i++)if(flux[i]>maxF)maxF=flux[i];
-    const PWIN=Math.max(4,Math.round(0.1/specHopSec)); // ~100ms window
-    const MGAP=Math.max(1,Math.round(0.05/specHopSec)); // 50ms min gap
-    onsetTimes=[];onsetStrengths=[];onsetBass=[];onsetCentroid=[];let lastPk=-MGAP;
-    const BAND_CTR=[70,185,600,4000,9000];
-    // For ADAPTIVE MELODY SENSITIVITY we also compute a melody-weighted flux that
-    // emphasizes the mid bands (vocal/lead) instead of percussion. In frames
-    // where the BEAT is weak (low sub-bass/bass energy), we lower the detection
-    // threshold and lean on this melodic flux, so soft melody/vocal hits that the
-    // percussion-tuned detector would miss still register. Busy beat-driven
-    // frames are unaffected.
-    const MEL_WGT=[0.4,0.6,1.8,2.0,1.0]; // emphasize low-mid & mid (melody/harmony)
-    const melFlux=new Float32Array(nF);
-    for(let f=1;f<nF;f++){
-      let s=0;
-      for(let b=0;b<NBANDS;b++){const d=specFrames[f][b]-specFrames[f-1][b];if(d>0)s+=d*MEL_WGT[b];}
-      melFlux[f]=s;
-    }
-    let maxMel=0;for(let i=0;i<nF;i++)if(melFlux[i]>maxMel)maxMel=melFlux[i];
-    // typical bass level, to judge what counts as a "weak beat" frame
-    const bassLevels=[];for(let i=0;i<nF;i++)bassLevels.push((specFrames[i][0]+specFrames[i][1])*0.5);
-    const bassSorted=[...bassLevels].sort((a,b)=>a-b);
-    const bassMedian=bassSorted[Math.floor(bassSorted.length*0.5)]||0;
-    for(let i=1;i<nF-1;i++){
-      // Is the beat weak here? (bass below ~70% of the song's median bass)
-      const beatWeak = bassLevels[i] < bassMedian*0.7;
-      // Pick which flux + threshold to use. In weak-beat frames use the melodic
-      // flux with a LOWER threshold so soft melody hits get caught.
-      const useFlux = beatWeak ? melFlux : flux;
-      const useMax  = beatWeak ? maxMel : maxF;
-      const v=useFlux[i];
-      let sum=0,c=0;
-      for(let j=Math.max(0,i-PWIN);j<Math.min(nF,i+PWIN);j++){sum+=useFlux[j];c++;}
-      // weak-beat frames get a gentler threshold (×0.6) so melody registers
-      const thrScale = beatWeak ? 0.21 : 0.35;
-      const thr=(sum/c)+sens*useMax*thrScale;
-      if(v>thr&&v>=useFlux[i-1]&&v>useFlux[i+1]&&i-lastPk>=MGAP){
-        onsetTimes.push(specFrameTimes[i]);
-        onsetStrengths.push(useMax?v/useMax:0);
-        onsetBass.push(Math.min(1,(specFrames[i][0]+specFrames[i][1])*0.5));
-        let num=0,den=0;
-        for(let b=0;b<NBANDS;b++){num+=specFrames[i][b]*BAND_CTR[b];den+=specFrames[i][b];}
-        onsetCentroid.push(den>0?num/den:0);
-        lastPk=i;
-      }
-    }
-    log('Onsets (spectral): '+onsetTimes.length,'ok');
-    return;
-  }
-  // ── Fallback: old time-domain method (no FFT available) ──
-  const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
-  const USE=Math.min(d.length,sr*120),HOP=1024,DS=8,BANDS=4;
-  const WGTS=[3.0,2.0,1.0,0.3];
-  const nHops=Math.floor((USE-HOP)/HOP);
-  const flux=new Float32Array(nHops),times=new Float32Array(nHops);
-  const bassEnv=new Float32Array(nHops);
-  const prev=new Float32Array(BANDS);
-  const rc=1/(2*Math.PI*150), dt=1/sr, alpha=dt/(rc+dt);
-  let lp=0;
-  for(let h=0;h<nHops;h++){
-    const base=h*HOP;times[h]=base/sr;
-    let bassRms=0,bcnt=0;
-    for(let b=0;b<BANDS;b++){
-      const s0=base+b*Math.floor(HOP/BANDS),s1=s0+Math.floor(HOP/BANDS);
-      let rms=0,cnt=0;
-      for(let i=s0;i<s1&&i<USE;i+=DS){rms+=d[i]*d[i];cnt++;}
-      const val=cnt?Math.sqrt(rms/cnt)*WGTS[b]:0;
-      const diff=val-prev[b];if(diff>0)flux[h]+=diff;prev[b]=val;
-    }
-    for(let i=base;i<base+HOP&&i<USE;i+=DS){lp+=alpha*(d[i]-lp);bassRms+=lp*lp;bcnt++;}
-    bassEnv[h]=bcnt?Math.sqrt(bassRms/bcnt):0;
-  }
-  let maxBass=0;for(let i=0;i<nHops;i++)if(bassEnv[i]>maxBass)maxBass=bassEnv[i];
-  const PWIN=10,MGAP=Math.max(1,Math.round(0.05*sr/HOP));
-  let maxF=0;for(let i=0;i<nHops;i++)if(flux[i]>maxF)maxF=flux[i];
-  onsetTimes=[];onsetStrengths=[];onsetBass=[];onsetCentroid=[];let lastHop=-MGAP;
-  for(let i=1;i<nHops-1;i++){
-    const v=flux[i];let sum=0;
-    for(let j=Math.max(0,i-PWIN);j<Math.min(nHops,i+PWIN);j++)sum+=flux[j];
-    const thr=(sum/(PWIN*2))+sens*maxF*0.4;
-    if(v>thr&&v>flux[i-1]&&v>flux[i+1]&&i-lastHop>=MGAP){
-      onsetTimes.push(times[i]);onsetStrengths.push(v/(maxF||1));
-      onsetBass.push(maxBass?bassEnv[i]/maxBass:0);
-      onsetCentroid.push(0); // no spectral info in fallback
-      lastHop=i;
-    }
-  }
-  log('Onsets (time-domain): '+onsetTimes.length,'ok');
-}
-
-// ── BPM + Offset — ArrowVortex-style joint fit ────────────────────
-// AV finds tempo and offset together: it sweeps candidate BPMs, and for
-// each one finds the phase (offset) where weighted onset energy best lands
-// on the beat grid. The (bpm, offset) pair with the highest alignment wins,
-// then both are refined at fine resolution. Returns BPM; stores offset in
-// detectedOffset and a candidate list in bpmCandidates.
-let bpmCandidates=[];
-function fitTempo(){
-  bpmCandidates=[];
-  if(!onsetTimes||onsetTimes.length<4){detectedOffset=0;return 120;}
-  // For performance, fit against the strongest onsets (up to 400), but keep
-  // them in time order so phase math stays correct.
-  let idx=onsetTimes.map((t,i)=>i);
-  if(idx.length>400){
-    idx.sort((a,b)=>(onsetStrengths[b]||0)-(onsetStrengths[a]||0));
-    idx=idx.slice(0,400).sort((a,b)=>a-b);
-  }
-  const T=idx.map(i=>onsetTimes[i]);
-  const S=idx.map(i=>(onsetStrengths&&onsetStrengths[i])||1);
-  const span=T[T.length-1]-T[0]||1;
-
-  // Weighted alignment score for a given period & phase.
-  // Each onset contributes strength * gaussian(distance to nearest grid line).
-  function align(period, phase){
-    let score=0, wsum=0;
-    const sigma=period*0.06; // ~6% of beat tolerance, like AV's tight snap
-    for(let i=0;i<T.length;i++){
-      const ph=((T[i]-phase)%period+period)%period;
-      const dist=Math.min(ph, period-ph);
-      score+=S[i]*Math.exp(-(dist*dist)/(2*sigma*sigma));
-      wsum+=S[i];
-    }
-    return wsum?score/wsum:0;
-  }
-  // Best phase for a period: scan 64 sub-positions, return {phase,score}.
-  function bestPhase(period){
-    let bestP=0,bestS=-1;
-    const STEPS=64;
-    for(let k=0;k<STEPS;k++){
-      const phase=k*period/STEPS;
-      const s=align(period,phase);
-      if(s>bestS){bestS=s;bestP=phase;}
-    }
-    return {phase:bestP,score:bestS};
-  }
-
-  // Coarse BPM sweep across the playable range (60–220), 0.5 BPM steps.
-  const results=[];
-  for(let bpm=60;bpm<=220;bpm+=0.5){
-    const period=60/bpm;
-    if(span/period<4) continue; // need several beats of evidence
-    const {phase,score}=bestPhase(period);
-    results.push({bpm,period,phase,score});
-  }
-  if(!results.length){detectedOffset=0;return 120;}
-
-  // Octave normalization: fold each result into 80–185 and keep the strongest
-  // representative per rounded-BPM bucket. AV reports a few distinct options.
-  results.sort((a,b)=>b.score-a.score);
-  const seen=new Map();
-  for(const r of results){
-    let bpm=r.bpm;
-    while(bpm<80)bpm*=2; while(bpm>185)bpm/=2;
-    // stamina prior nudges toward the 120–175 zone
-    const prior=(bpm>=120&&bpm<=175)?1.12:(bpm>=95&&bpm<=185?1.0:0.85);
-    const adjScore=r.score*prior;
-    const key=Math.round(bpm);
-    if(!seen.has(key)||seen.get(key).adjScore<adjScore)
-      seen.set(key,{bpm,period:60/bpm,phase:r.phase,score:r.score,adjScore});
-  }
-  let cands=[...seen.values()].sort((a,b)=>b.adjScore-a.adjScore).slice(0,5);
-
-  // Refine the top candidate: fine BPM search (±1 BPM, 0.02 steps) with
-  // re-fitted phase, then fine offset polish.
-  const best=cands[0];
-  let refBpm=best.bpm,refScore=best.score,refPhase=best.phase;
-  for(let bpm=best.bpm-1;bpm<=best.bpm+1;bpm+=0.02){
-    if(bpm<60||bpm>220)continue;
-    const period=60/bpm;
-    const {phase,score}=bestPhase(period);
-    if(score>refScore){refScore=score;refBpm=bpm;refPhase=phase;}
-  }
-  // Fine offset polish at ~1ms resolution around refPhase.
-  const period=60/refBpm;
-  let polishPhase=refPhase,polishScore=refScore;
-  for(let off=refPhase-period*0.1;off<=refPhase+period*0.1;off+=0.001){
-    const s=align(period,off);
-    if(s>polishScore){polishScore=s;polishPhase=off;}
-  }
-  // Normalize phase into [0, period) and convert to a "first beat" offset
-  // (time of the first beat). AV's #OFFSET is this value, written negative.
-  let phase=((polishPhase%period)+period)%period;
-  // The offset we want is the time gap from audio start to the first beat,
-  // which is simply the phase (first grid line at or after t=0).
-  detectedOffset=phase;
-
-  // Round BPM nicely if very close to an integer.
-  const r=Math.round(refBpm);
-  const finalBpm=Math.abs(refBpm-r)<0.04?r:Math.round(refBpm*100)/100;
-
-  bpmCandidates=cands.map(c=>({bpm:Math.round(c.bpm*100)/100,score:c.adjScore}));
-  log('Tempo fit: '+finalBpm+' BPM, offset '+(detectedOffset*1000).toFixed(1)+'ms','ok');
-  if(cands.length>1) log('Other BPM candidates: '+cands.slice(1).map(c=>c.bpm.toFixed(1)).join(', '),'');
-  log('Fit confidence: '+polishScore.toFixed(3),'ok');
-  return finalBpm;
-}
 
 // Back-compat wrappers
 function detectBPM(){return fitTempo();}
@@ -837,8 +1037,29 @@ function detectSongStructure(bpm,duration){
 //   4. Holds on sustained tones, jumps on strong isolated bass hits.
 //   5. Streams, breaks, and density all emerge from what the music does —
 //      so a busy chorus streams and a sparse verse breathes, automatically.
-function generateChart(block,bpm,energy,duration){
+function generateChart(block,bpm,energy,duration,manualRegions){
   const diffFactor=(block-1)/11;
+  // Manual mode: if painted regions are supplied, they OVERRIDE auto stream
+  // detection — painted 16th regions become solid continuous 16th streams,
+  // painted 8th regions solid 8th streams, and unpainted measures fall back to
+  // the normal onset-following. Arrow selection (foot alternation, patterns,
+  // crossover gating, drills) is unchanged — same engine as auto.
+  const manualOn = Array.isArray(manualRegions) && manualRegions.length>0;
+  const RPM=16; // rows per measure (16th resolution)
+  // Build a per-row resolution map from the regions: 1=16th, 2=8th, 0=none.
+  const manualRowRes = manualOn ? (()=>{
+    const map=new Int8Array( Math.ceil(duration/(60/bpm*4))*RPM + RPM ).fill(0);
+    for(const r of manualRegions){
+      const startRow=Math.round(r.startMeas*RPM), endRow=Math.round(r.endMeas*RPM);
+      const step = r.type==='s16' ? 1 : 2;
+      for(let row=startRow; row<endRow && row<map.length; row++){
+        // mark rows that are ON this resolution's grid as forced-fill
+        if(step===1) map[row]=1;
+        else if(row%2===0) map[row]=2; // 8th grid: even rows only
+      }
+    }
+    return map;
+  })() : null;
   const staminaMode=document.getElementById('staminaMode')?.checked ?? true;
   const onsetSnap=document.getElementById('onsetSnap')?.checked ?? true;     // snap notes to grid vs raw onset rows
   const forceBreaks=document.getElementById('forceBreaks')?.checked ?? true; // insert breaks in quiet sections
@@ -846,7 +1067,11 @@ function generateChart(block,bpm,energy,duration){
   // length and set the break length between runs.
   const userMaxRun=+(document.getElementById('maxRun')?.value ?? 32);   // beats
   const userMinBreak=+(document.getElementById('minBreak')?.value ?? 4); // beats
-  const leadIn=+document.getElementById('offset').value;
+  // NOTE: the user's fine-tune offset is deliberately NOT applied here. It is
+  // applied exactly once, to the exported #OFFSET (and the beat-clap grid), so
+  // nudging shifts playback sync without moving notes. Applying it in both
+  // places double-shifted the sync (the original bug this replaces).
+  const leadIn=0;
   const RPB=4, beatDur=60/bpm, rowDur=beatDur/RPB;
   const totalBeats=Math.min(Math.floor(duration/beatDur),Math.floor(600/beatDur));
   const totalRows=totalBeats*RPB;
@@ -918,7 +1143,7 @@ function generateChart(block,bpm,energy,duration){
   // Choose a panel for the given foot. A foot freely uses its home outer arrow
   // and BOTH center arrows (natural pivoting/facing). The opposite outer arrow
   // is a real crossover and is rare.
-  function choosePanel(candidates,foot,contourBias){
+  function choosePanel(candidates,foot,contourBias,drillMult=1){
     if(candidates.length===1){
       const p=candidates[0];
       recentTransitions.push(lastPanel+'>'+p); if(recentTransitions.length>6)recentTransitions.shift();
@@ -930,24 +1155,22 @@ function generateChart(block,bpm,energy,duration){
     for(const t of recentTransitions){const tp=+t.split('>')[1]; transCount[tp]=(transCount[tp]||0)+1;}
     const weights=candidates.map(p=>{
       const contourMag=Math.abs(contourBias||0);
-      // Balance term: under-used panels get weight. Kept strong and only lightly
-      // reduced by contour so all four arrows stay represented — without this the
-      // outer arrows (esp. Right) get starved while centers dominate.
-      const balance=(maxUse-panelUse[p]+1)*1.1*(1-contourMag*0.25);
+      const balance=(maxUse-panelUse[p]+1)*0.7*(1-contourMag*0.6);
       const facePen=facingPenalty(p,foot);
-      // Contour follows melody: rising → Up, falling → Down. The OUTER arrows
-      // also get a (smaller) contour nudge so they aren't starved when contour
-      // is strong — Right for rising, Left for falling — keeping all four arrows
-      // in play rather than collapsing onto the two centers.
       let contour=0;
-      if(p===2) contour=(contourBias||0)*2.6;        // Up — rising melody
-      else if(p===1) contour=-(contourBias||0)*2.6;  // Down — falling melody
-      else if(p===3) contour=(contourBias||0)*1.3;   // Right — also rising
-      else if(p===0) contour=-(contourBias||0)*1.3;  // Left — also falling
+      if(p===2) contour=(contourBias||0)*3.2;        // Up rewarded by rising melody
+      else if(p===1) contour=-(contourBias||0)*3.2;  // Down rewarded by falling melody
       const cyclePen=(transCount[p]||0)*1.2;
-      const drillPen=drillPenalty(p);
+      // Drill penalty is applied MULTIPLICATIVELY after the additive floor.
+      // (Applying it additively inside the floor let a large penalty push ALL
+      // candidates onto the 0.05 floor in streams, erasing the relative
+      // difference and making the pick a coin flip — which INCREASED drills.)
+      // drillMult doubles the effect at stream spacing, where A-B-A-B is a
+      // real physical drill; sparse placements keep the base rate.
+      const drillPen=drillPenalty(p)*drillMult;
       const rand=Math.random()*(2.2-contourMag*1.2);
-      return Math.max(0.05, balance - facePen + contour - cyclePen - drillPen + rand);
+      const base=Math.max(0.05, balance - facePen + contour - cyclePen + rand);
+      return base/(1+drillPen);
     });
     let total=weights.reduce((a,b)=>a+b,0), r=Math.random()*total, chosen=candidates[candidates.length-1];
     for(let i=0;i<candidates.length;i++){r-=weights[i];if(r<=0){chosen=candidates[i];break;}}
@@ -971,25 +1194,19 @@ function generateChart(block,bpm,energy,duration){
     if(!crossoversAllowed) p=p.filter(x=>!isCrossover(x,foot));
     return p;
   }
+  let lastStepRow=-99;
   function placeStep(row,contourBias){
     if(row<0||row>=totalRows||notes[row]!==-1)return;
     const foot=(lastFoot==='L')?'R':'L';
     let ch=reachablePanels(foot).filter(p=>p!==lastPanel);
-    // Avoid repeating a panel that a JUMP placed on the immediately-preceding
-    // row(s) — jumps set notes[] directly, so a following step could otherwise
-    // double-tap a jump panel. This ONLY guards against jump panels; normal
-    // step-to-step variety is handled by choosePanel's balance/anti-cycle logic
-    // (guarding every preceding panel here would over-constrain and flatten
-    // pattern variety).
-    const avoid=new Set();
-    for(let pr=row-1;pr>=Math.max(0,row-2);pr--){
-      const jr=jumpRows[pr];
-      if(jr) jr.forEach(p=>avoid.add(p));
-    }
-    let ch2=ch.filter(p=>!avoid.has(p));
-    if(ch2.length)ch=ch2;
     if(!ch.length)ch=reachablePanels(foot);
-    commit(row,choosePanel(ch,foot,contourBias),foot);
+    // Stream spacing (≤2 rows = 8th or faster since the previous step) makes an
+    // A-B-A-B oscillation a real physical drill → double the anti-drill penalty
+    // there. Sparse placements keep the base rate (slow ABAB isn't a drill).
+    const gap=row-lastStepRow;
+    const drillMult=(gap>0&&gap<=2)?2.0:1.0;
+    commit(row,choosePanel(ch,foot,contourBias,drillMult),foot);
+    lastStepRow=row;
   }
   function placeHold(headRow,len,contourBias){
     if(headRow<0||headRow>=totalRows||notes[headRow]!==-1)return;
@@ -1002,33 +1219,12 @@ function generateChart(block,bpm,energy,duration){
     lastFoot=foot; lastPanel=panel; panelUse[panel]++;
     if(foot==='L')leftFootPanel=panel; else rightFootPanel=panel;
   }
-  const jumpSkipRows=new Set(); // rows to clear after a jump (gap protection)
-  function placeJump(row, inStream){
+  function placeJump(row){
     if(row<0||row>=totalRows||notes[row]!==-1||jumpRows[row])return;
-    // Avoid panels on the immediately preceding filled row so the step→jump
-    // boundary doesn't repeat a panel (an unintended double-tap on one foot).
-    const avoid=new Set();
-    for(let pr=row-1;pr>=Math.max(0,row-2);pr--){
-      const jrp=jumpRows[pr];
-      if(jrp){jrp.forEach(p=>avoid.add(p));}
-      else if(notes[pr]>=0&&notes[pr]<4)avoid.add(notes[pr]);
-    }
-    let lCands=[0,1].filter(p=>!avoid.has(p)); if(!lCands.length)lCands=[0,1];
-    let rCands=[2,3].filter(p=>!avoid.has(p)); if(!rCands.length)rCands=[2,3];
-    const lp=choosePanel(lCands,'L',0), rp=choosePanel(rCands,'R',0);
+    const lp=choosePanel([0,1],'L',0), rp=choosePanel([2,3],'R',0);
     notes[row]=lp; jumpRows[row]=[lp,rp];
     panelUse[lp]++; panelUse[rp]++;
     leftFootPanel=lp; rightFootPanel=rp;
-    // A jump uses BOTH feet; set state so the next step alternates cleanly.
-    lastFoot='R'; lastPanel=rp;
-    // GAP PROTECTION: if this jump landed inside a 16th stream, carve a one-16th
-    // gap on each side so it isn't crammed between stream notes. Clear the
-    // immediately-preceding stream note, and mark the next row to be skipped.
-    if(inStream){
-      const pr=row-1;
-      if(pr>=0 && notes[pr]>=0 && notes[pr]<4 && !jumpRows[pr]){ notes[pr]=-1; }
-      jumpSkipRows.add(row+1);
-    }
   }
 
   // ── Build the musical event list from onsets ──
@@ -1080,6 +1276,23 @@ function generateChart(block,bpm,energy,duration){
   const cutIdx=Math.floor((1-keepFrac)*strengths.length);
   const strengthCut=strengths[Math.min(strengths.length-1,Math.max(0,cutIdx))]||0;
 
+  // ── MELODY IN QUIET SECTIONS ──
+  // Outside streams / in quiet sections (low bass = no strong beat masking the
+  // melody), we can rely more on the melody onsets themselves. The "Follow
+  // melody closely" toggle controls how many of them we keep there:
+  //   ON  → close follow: keep most melodic onsets (lenient cut)
+  //   OFF → sparse: only the stronger melodic hits (near the normal cut)
+  // A "quiet" onset is one whose bass energy is well below the song's median —
+  // i.e. the melody, not a kick. In painted-manual mode the unpainted regions
+  // are quiet by the user's own declaration; in auto mode we detect it by bass.
+  const melodyClose = document.getElementById('melodyClose')?.checked ?? false;
+  const bassesQ=evs.map(e=>e.bass).filter(v=>v>0).sort((a,b)=>a-b);
+  const bassMedianQ = bassesQ.length? bassesQ[Math.floor(bassesQ.length*0.5)] : 0;
+  // lenient cut for quiet-zone melody: keep more (lower bar) when close-follow on
+  const meloCutIdx=Math.floor((1-Math.min(1, keepFrac + (melodyClose?0.45:0.12)))*strengths.length);
+  const melodyCut=strengths[Math.min(strengths.length-1,Math.max(0,meloCutIdx))]||0;
+  const isQuietOnset=(e)=> e.bass < bassMedianQ*0.7;  // melody, not a strong beat
+
   // Snap an onset to the COARSEST grid line it's close to. A note that lands on
   // the beat becomes a quarter note (row%4==0); only genuinely off-beat notes
   // become 8ths or 16ths. This is what makes the beat read as quarter notes
@@ -1103,20 +1316,10 @@ function generateChart(block,bpm,energy,duration){
   const jumpDensity=+(document.getElementById('jumpDensity')?.value ?? 3);
   const jumpsEnabled=jumpDensity>0;
   const bassVals=evs.map(e=>e.bass).filter(v=>v>0).sort((a,b)=>a-b);
-  // Bass percentile per density. Lower percentile = more onsets qualify as jump
-  // candidates. Relaxed so jumps reliably appear on real songs (whose bass is
-  // less uniformly strong than synthetic test tones). The cooldown still keeps
-  // them from clustering, so a looser gate just means they land where the music
-  // actually punches rather than almost never.
-  const PCTL=[1.01,0.72,0.55,0.42,0.28][jumpDensity];
+  const PCTL=[1.01,0.82,0.68,0.55,0.42][jumpDensity];
   const jumpBassThresh=bassVals.length?(bassVals[Math.min(bassVals.length-1,Math.floor(bassVals.length*PCTL))]??Infinity):Infinity;
-  const jumpStrengthGate=[1,0.45,0.36,0.28,0.20][jumpDensity];
+  const jumpStrengthGate=[1,0.55,0.45,0.38,0.30][jumpDensity];
   const jumpCooldown=[99,RPB*3,RPB*2,RPB*1.5,RPB][jumpDensity]; // higher density = shorter cooldown
-  // Stream intensity slider: the density a section must reach to become a
-  // stream. Higher slider = higher bar = only the most intense parts stream;
-  // lower slider = lower bar = medium-intensity sections also become streams.
-  const streamIntense=+(document.getElementById('streamIntense')?.value ?? 2);
-  const streamDensBar=[4,5,6,8,10][streamIntense];  // Medium(2)→6 keeps prior default
 
   // hold-density slider — controls how readily sustained notes become holds.
   // Higher density loosens the required gap and allows holds off the downbeat.
@@ -1141,7 +1344,11 @@ function generateChart(block,bpm,energy,duration){
   let lastRow=-99;
   for(let i=0;i<evs.length;i++){
     const e=evs[i];
-    if(e.strength<strengthCut) continue;
+    // Quiet melodic onsets get the lenient melody cut; everything else the
+    // normal difficulty cut. This catches melody in quiet sections (more when
+    // "Follow melody closely" is on) without thickening the loud/beat parts.
+    const cut = isQuietOnset(e) ? melodyCut : strengthCut;
+    if(e.strength<cut) continue;
     let row=snapRow(e.row);
     if(row<0||row>=totalRows) continue;
     // Enforce minimum spacing. If too close to the previous note, DROP this one
@@ -1173,75 +1380,14 @@ function generateChart(block,bpm,energy,duration){
       }
       return cnt; // notes within ~2 beats
     }
-    // ── Stream resolution: 8th vs 16th — STAMINA DIFFICULTY LADDER ──
-    // Resolution is set by THREE things working together:
-    //   1. BPM cap: above ~165 BPM, 16ths are unreasonable, so streams are 8ths
-    //      regardless of block (a fast song doesn't become a 16th wall).
-    //   2. Block (difficulty): this is the training ladder —
-    //        • blocks 4–8  → almost all 8th streams (endurance at manageable
-    //          speed; 16ths essentially absent)
-    //        • blocks 9–10 → mostly 8ths with a FEW 16th stretches at the most
-    //          intense peaks
-    //        • blocks 11+  → progressively MORE and LONGER 16th streams as the
-    //          block climbs (16ths become dominant)
-    //   3. Local intensity: within a stream, the 16ths are spent on the most
-    //      intense stretches first. Lower blocks keep only the very peaks as
-    //      16ths; higher blocks keep nearly everything.
-    // The "16th fraction" is the continuous knob tying block → how much of a
-    // stream stays 16ths vs. demotes to 8ths. This directly controls 16th-stream
-    // length in MEASURES, which is how real charters set a stamina block level.
-    const bpmForces8th = bpm>165;
-    function sixteenthFraction(blk){
-      if(blk<=8) return 0.0;             // training tier: pure 8th streams
-      if(blk<=10) return (blk-8)*0.14;   // 9→0.14, 10→0.28 : a few 16th regions
-      // 11+: ramp upward — 11≈0.45, climbing toward nearly all-16ths
-      return Math.min(0.95, 0.45 + (blk-11)*0.12);
-    }
-    const frac16 = bpmForces8th ? 0 : sixteenthFraction(block);
-    // ── Assign 16ths to whole CONTIGUOUS dense REGIONS, not per-gap ──
-    // The 16ths must form continuous streams (that's what stamina is), so we
-    // can't decide 16th-vs-8th independently per gap — that shatters a chorus
-    // into confetti. Instead: find each contiguous dense region (a run of gaps
-    // where the music is streaming), score it by intensity, and promote whole
-    // regions to 16ths — most intense first — until we've covered frac16 of the
-    // total dense length. Everything else streams as continuous 8ths. This makes
-    // "X% of the song is 16th-stream" mean contiguous stream, and makes higher
-    // blocks promote MORE (and longer) regions.
-    const isDenseGap=(k)=> (k+1<kept.length) && (kept[k+1].row-kept[k].row<=8) && (localDensity(k)>=streamDensBar);
-    const regions=[]; // {startK, endK, len, score}
-    {
-      let k=0;
-      while(k<kept.length-1){
-        if(isDenseGap(k)){
-          let j=k, sum=0, n=0;
-          while(j<kept.length-1 && isDenseGap(j)){ sum+=localDensity(j); n++; j++; }
-          const len=kept[Math.min(j,kept.length-1)].row - kept[k].row;
-          regions.push({startK:k, endK:j, len, score:sum/Math.max(1,n)});
-          k=j+1;
-        } else k++;
-      }
-    }
-    // Total dense length, and the target length to cover with 16ths.
-    const totalDenseLen = regions.reduce((a,r)=>a+r.len,0);
-    const target16Len = frac16*totalDenseLen;
-    // Promote regions to 16ths, highest intensity first, until target reached.
-    const sixteenthRegions = new Set();
-    if(frac16>0){
-      const byScore=[...regions].sort((a,b)=>b.score-a.score);
-      let acc=0;
-      for(const r of byScore){
-        if(acc>=target16Len) break;
-        sixteenthRegions.add(r.startK);
-        acc+=r.len;
-      }
-    }
-    // Map each gap index to whether it's inside a promoted 16th region.
-    const gapIs16 = new Array(kept.length).fill(false);
-    for(const r of regions){
-      if(sixteenthRegions.has(r.startK)){
-        for(let g=r.startK; g<r.endK; g++) gapIs16[g]=true;
-      }
-    }
+    // ── Stream resolution: 8th vs 16th ──
+    // For STAMINA streams the resolution is driven primarily by BPM, so the
+    // note rate stays playable: 16th notes at 150 BPM already = 10 notes/sec.
+    // Convention: stream 16ths up to ~150 BPM, then drop to 8ths above that so a
+    // fast song doesn't become an impossible 16th wall. (16ths at 130 BPM ≈ 8.7
+    // notes/sec is hard but doable; at 180 it would be 12/sec — unreasonable.)
+    // The bridge below uses staminaStep when stamina mode is on.
+    const staminaStep = bpm>165 ? 2 : 1;   // >165 BPM → 8th streams, else 16th
     const linked=[];
     for(let k=0;k<kept.length;k++){
       linked.push(kept[k]);
@@ -1250,15 +1396,13 @@ function generateChart(block,bpm,energy,duration){
         const dens=localDensity(k);
         let step=0;
         if(staminaMode){
-          // Stamina: bridge into a CONTINUOUS stream wherever the section is
-          // intense enough (streamDensBar, set by the Stream intensity slider).
-          // Whole dense regions are either 16th (the most intense, per the
-          // block's frac16) or continuous 8th.
-          if(dens>=streamDensBar){
-            step = gapIs16[k] ? 1 : 2;   // 16th region, else continuous 8th
-          } else if(dens>=4){
-            step=2; // groove-level: 8th steps
-          }
+          // Stamina: bridge into a CONTINUOUS stream at the BPM-appropriate
+          // resolution — but only where the section is GENUINELY driving, not
+          // merely present. A higher density bar (≥6, was ≥4) keeps mild beats
+          // from being inflated into streams; those fall through to medium
+          // (8ths/quarters) below.
+          if(dens>=6) step=staminaStep;
+          else if(dens>=4) step=2; // groove-level: 8th steps, not a stream
         } else {
           // Non-stamina: resolution follows local density (16ths only where the
           // music is genuinely busy), eased a little at higher difficulty.
@@ -1266,14 +1410,11 @@ function generateChart(block,bpm,energy,duration){
           if(dens>=dens16) step=1;
           else if(dens>=4) step=2;
         }
-        if(step && gap>=step && gap<=maxBridge){
-          // Fill the gap at the chosen resolution. For 8th bridging (step=2) we
-          // snap fills to the EVEN (8th) grid so the stream is regular and has
-          // no off-by-one holes at region boundaries — irregular gaps inside a
-          // run are what break flow. 16th bridging (step=1) fills every row.
-          let startR = kept[k].row + step;
-          if(step===2 && (startR % 2 !== 0)) startR++; // align to 8th grid
-          for(let r=startR;r<kept[k+1].row;r+=step){
+        if(step && gap>=step && gap<=maxBridge && !manualOn){
+          // (In manual mode, auto-bridging is suppressed entirely — painted
+          // regions supply their own streams, and everything outside them stays
+          // as raw melody onsets rather than auto-forming small streams.)
+          for(let r=kept[k].row+step;r<kept[k+1].row;r+=step){
             if((kept[k+1].row-r)>=1)
               linked.push({row:r, e:{strength:0.4,bass:0,centroid:kept[k].e.centroid,gap:rowDur}, i:kept[k].i, filler:true});
           }
@@ -1330,17 +1471,10 @@ function generateChart(block,bpm,energy,duration){
 
     // maxRun / minBreak: cap how long a continuous stream runs, then drop a
     // break. Scales the user's beat values by difficulty (harder = longer runs
-    // allowed). In stamina mode long runs are the point, so the cap is generous.
-    // In stamina-OFF the mode is phrased bursts, so we apply a SHORT cap (~4
-    // measures) to stop dense regions from bridging into long continuous streams
-    // — those broken runs then get phrased into 2-3 note bursts below/above.
-    {
-      const maxRunRows = staminaMode
-        ? Math.max(RPB*4, Math.round(userMaxRun*(0.4+0.7*diffFactor))*RPB)
-        : RPB*4*4;  // stamina OFF: cap continuous runs at ~4 measures
-      const breakRows = staminaMode
-        ? Math.max(2, Math.round(userMinBreak*(1.6-1.0*diffFactor))*RPB/RPB)
-        : 2;        // stamina OFF: a short break is enough to phrase
+    // allowed). Only applies in stamina mode (where long runs are the point).
+    if(staminaMode){
+      const maxRunRows=Math.max(RPB*4, Math.round(userMaxRun*(0.4+0.7*diffFactor))*RPB);
+      const breakRows=Math.max(2, Math.round(userMinBreak*(1.6-1.0*diffFactor))*RPB/RPB);
       const out=[]; let runStart=null, runLen=0;
       for(let k=0;k<merged.length;k++){
         const n=merged[k];
@@ -1350,6 +1484,7 @@ function generateChart(block,bpm,energy,duration){
         else { runStart=n.row; runLen=0; }
         // if this continuous run has exceeded the cap, drop notes to make a break
         if(runLen>maxRunRows){
+          // skip notes until we've created a break of breakRows
           const breakUntil=runStart+maxRunRows+breakRows;
           if(n.row<breakUntil){ continue; }       // inside the forced break — drop
           runStart=n.row; runLen=0;                 // resume after the break
@@ -1359,6 +1494,39 @@ function generateChart(block,bpm,energy,duration){
       merged=out;
     }
     kept.length=0; kept.push(...merged);
+  }
+
+  // ── MANUAL OVERRIDE ──
+  // In painted regions, replace whatever the auto-detector produced with a SOLID
+  // stream at the painted resolution. Outside painted regions, keep the auto
+  // rows. The forced rows still flow through placeStep below, so foot
+  // alternation, patterns, crossover gating and drills all apply as normal.
+  if(manualOn){
+    const isManualRow=(row)=> row>=0 && row<manualRowRes.length && manualRowRes[row]!==0;
+    const anyManualInRange=(rowA,rowB)=>{ for(let r=rowA;r<rowB;r++) if(isManualRow(r)) return true; return false; };
+    // keep auto rows that are NOT inside any painted region
+    const outside = kept.filter(n=>{
+      // is this row within a painted region's measure span?
+      const inPainted = manualRegions.some(reg=> n.row>=reg.startMeas*RPM && n.row<reg.endMeas*RPM);
+      return !inPainted;
+    });
+    // build solid forced rows for painted regions
+    const forced=[];
+    for(const reg of manualRegions){
+      const step = reg.type==='s16' ? 1 : 2;
+      const startRow=Math.round(reg.startMeas*RPM), endRow=Math.round(reg.endMeas*RPM);
+      for(let row=startRow; row<endRow && row<totalRows; row+=step){
+        // carry a synthetic event; arrow/contour still chosen by placeStep
+        const nearest = kept.reduce((best,n)=> Math.abs(n.row-row)<Math.abs((best?best.row:1e9)-row)?n:best, null);
+        const cent = nearest? nearest.e.centroid : 2000;
+        forced.push({row, e:{strength:0.7,bass:0.2,centroid:cent,gap:rowDur}, i:0, filler:false, manual:true});
+      }
+    }
+    const combined=[...outside,...forced].sort((a,b)=>a.row-b.row);
+    // de-dupe rows (forced wins)
+    const seen=new Set(); const dedup=[];
+    for(const n of combined){ if(!seen.has(n.row)){ seen.add(n.row); dedup.push(n);} }
+    kept.length=0; kept.push(...dedup);
   }
 
   // ── Place the notes ──
@@ -1373,7 +1541,6 @@ function generateChart(block,bpm,energy,duration){
   for(let k=0;k<kept.length;k++){
     const {row,e,i}=kept[k];
     if(notes[row]!==-1) continue;
-    if(jumpSkipRows.has(row)) continue; // cleared for jump gap-protection
     // forceBreaks: skip filler (bridged) notes whose anchor is in a quiet part
     if(forceBreaks && e.filler && e.centroid!==undefined){
       // look at the nearest real note's strength via the bracketing kept entries
@@ -1387,17 +1554,11 @@ function generateChart(block,bpm,energy,duration){
     // jump cooldown scales with density: higher density = jumps can be closer.
     const jumpReady=(row-lastJumpRow)>=jumpCooldown;
 
-    // Two-tier jump placement:
-    //  • Ideally jumps land in the CLEAR (a downbeat with no adjacent stream
-    //    note) — at breaks, transitions, sparser spots.
-    //  • If the strong downbeat falls INSIDE a 16th stream, we still place the
-    //    jump (so streamy songs aren't jumpless) but carve a one-16th gap before
-    //    and after it so it isn't crammed between stream notes.
-    const inSixteenthStream = (prevGap<=1 || nextGap<=1);
-
-    // JUMP: a strong bass hit on a beat. Allowed even in streams (with gap).
+    // JUMP: a strong bass hit on a beat. It does NOT need to be isolated — real
+    // charts place jumps inside streams and on strong downbeats. The cooldown
+    // (jumpReady) is what keeps them from clustering; isolation is not required.
     if(jumpsEnabled && block>=3 && !e.filler && e.bass>=jumpBassThresh && e.strength>jumpStrengthGate && isDownbeat && jumpReady){
-      placeJump(row, inSixteenthStream); lastJumpRow=row;
+      placeJump(row); lastJumpRow=row;
     }
     else if(holdsEnabled && !e.filler && nextGap>=holdGapGate && (!holdNeedsDownbeat || isDownbeat)){
       const holdLen=Math.min(nextGap-1, RPB*4);
@@ -1435,7 +1596,7 @@ function notesToSM(notes,jumpRows){
 
 function buildSM(title,artist,bpm,offset,charts,ext,safe){
   const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
-  const base=5-charts.length;
+  const base=4-charts.length; // 3 charts → Easy/Medium/Hard (matches UI labels); 2 → Medium/Hard; 1 → Hard
   // StepMania #OFFSET is the audio-time of beat 0 (the first beat of the grid).
   // For a song that starts on/near a beat this is a small POSITIVE value — the
   // reference chart "A Long Fall" uses #OFFSET:0.009000 (just the ITG 9ms bias).
@@ -1483,6 +1644,218 @@ function drawEnergy(){
   cx.fillStyle='#5a5a7a';cx.font='9px Inter';cx.fillText('ENERGY',5,11);
 }
 
+// ── MANUAL TIMELINE (Stage 1-3) ──────
+// Per-difficulty painted regions. Index 0/1/2 = Easy/Medium/Hard slots.
+// manualTouched[i] = has the user actually painted that difficulty (vs inherited)?
+let manualRegionsByDiff=[[],[],[]];
+let manualTouched=[false,false,false];
+let manualActiveDiff=2;        // which difficulty is being painted (default Hard)
+let manualEnabled=false;       // the explicit manual-mode toggle
+// convenience accessor for the currently-edited difficulty's regions
+function manualRegionsCur(){ return manualRegionsByDiff[manualActiveDiff]; }
+// Resolve the regions to USE for a given difficulty: its own if touched, else
+// inherit from the nearest touched difficulty (auto-copy).
+function manualRegionsFor(diffIdx){
+  if(manualTouched[diffIdx]) return manualRegionsByDiff[diffIdx];
+  // inherit: prefer Hard's, then Medium's, then Easy's — whichever was painted
+  for(const i of [2,1,0]){ if(manualTouched[i]) return manualRegionsByDiff[i]; }
+  return [];
+}
+// Map a difficulty loop index (easy→hard order) to its regions, with auto-copy.
+function manualRegionsForSlot(loopIdx, diffCount){
+  let slot;
+  if(diffCount>=3) slot=loopIdx;            // 0,1,2 → Easy,Med,Hard
+  else if(diffCount===2) slot=loopIdx+1;    // 0,1 → Med,Hard
+  else slot=2;                              // single → Hard
+  return manualRegionsFor(slot);
+}
+let manualPlayMode='s16';
+let manualAudioCtx=null, manualSource=null, manualPlaying=false;
+let manualPlayStartCtxTime=0, manualPlayStartOffset=0, manualRAF=null;
+let manualTotalMeasures=0, manualMeasDur=1;
+
+function manualMeasureCount(){
+  if(!audioBuffer) return 0;
+  const beatDur=60/detectedBPM, measDur=beatDur*4;
+  manualMeasDur=measDur;
+  return Math.max(1, Math.ceil(audioBuffer.duration/measDur));
+}
+
+function showManualTimeline(){
+  if(!audioBuffer) return;
+  manualTotalMeasures=manualMeasureCount();
+  document.getElementById('manualSection').style.display='flex';
+  drawManualTimeline(0);
+}
+
+function drawManualTimeline(playheadSec){
+  const cv=document.getElementById('manualCanvas');
+  if(!cv) return;
+  cv.width=canvasW(cv); cv.height=90;
+  const W=cv.width, H=90, cx=cv.getContext('2d');
+  cx.fillStyle='#12121a'; cx.fillRect(0,0,W,H);
+  if(!audioBuffer){return;}
+  const dur=audioBuffer.duration;
+  // measure gridlines + numbers (label every Nth measure to avoid clutter)
+  const M=manualTotalMeasures, pxPerMeas=W/M;
+  const labelEvery=Math.max(1,Math.ceil(40/pxPerMeas));
+  // faint energy underlay so the user can see where the song gets intense
+  if(energyCurve.length){
+    cx.strokeStyle='#7b2fff55'; cx.lineWidth=1; cx.beginPath();
+    energyCurve.forEach((v,i)=>{const x=i/energyCurve.length*W,y=H-v*H*0.7;i?cx.lineTo(x,y):cx.moveTo(x,y);});
+    cx.stroke();
+  }
+  // painted regions
+  manualRegionsCur().forEach(r=>{
+    const x0=r.startMeas*pxPerMeas, x1=r.endMeas*pxPerMeas;
+    cx.fillStyle = r.type==='s16' ? '#ff3cac55' : '#00f0ff44';
+    cx.fillRect(x0,0,x1-x0,H);
+    cx.strokeStyle = r.type==='s16' ? '#ff3cac' : '#00f0ff';
+    cx.lineWidth=1; cx.strokeRect(x0+0.5,0.5,x1-x0-1,H-1);
+    if(x1-x0>26){cx.fillStyle='#fff';cx.font='bold 9px Inter';cx.textAlign='center';cx.textBaseline='top';
+      cx.fillText(r.type==='s16'?'16th':'8th',(x0+x1)/2,3);}
+  });
+  // measure gridlines
+  cx.strokeStyle='#ffffff14'; cx.fillStyle='#5a5a7a'; cx.font='8px Inter'; cx.textAlign='center'; cx.textBaseline='bottom';
+  for(let m=0;m<=M;m++){
+    const x=m*pxPerMeas;
+    cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();
+    if(m<M && m%labelEvery===0){cx.fillText(m+1,x+pxPerMeas/2,H-1);}
+  }
+  // playhead + live measure counter + current-region resolution
+  if(playheadSec!=null && playheadSec>=0){
+    const px=playheadSec/dur*W;
+    cx.strokeStyle='#fff'; cx.lineWidth=2; cx.beginPath();cx.moveTo(px,0);cx.lineTo(px,H);cx.stroke();
+    const measNow=Math.floor(playheadSec/manualMeasDur)+1;
+    const measFloat=playheadSec/manualMeasDur;
+    // which painted region (if any) are we currently over?
+    let regType=null;
+    for(const r of manualRegionsCur()){ if(measFloat>=r.startMeas && measFloat<r.endMeas){ regType=r.type; break; } }
+    const mEl=document.getElementById('manualMeasNow');
+    if(mEl){
+      const label = regType==='s16' ? ' · 16th' : regType==='s8' ? ' · 8th' : ' · melody';
+      mEl.textContent='m '+measNow+label;
+      mEl.style.color = regType==='s16' ? '#ff3cac' : regType==='s8' ? '#00f0ff' : 'var(--muted)';
+    }
+    // also pulse a highlight bar over the current measure so it's easy to see
+    const pm=W/manualTotalMeasures, mx=Math.floor(measFloat)*pm;
+    cx.fillStyle = regType==='s16' ? '#ff3cac33' : regType==='s8' ? '#00f0ff33' : '#ffffff18';
+    cx.fillRect(mx,0,pm,H);
+  }
+  updateManualReadout();
+}
+
+function updateManualReadout(){
+  const note=document.getElementById('manualInheritNote');
+  if(note){
+    const names=['Easy','Medium','Hard'];
+    if(!manualTouched[manualActiveDiff]){
+      // which would it inherit from?
+      let from=null; for(const i of [2,1,0]){ if(manualTouched[i]){from=names[i];break;} }
+      note.textContent = from ? `(inheriting ${from}'s regions — paint to customize)` : '(unpainted)';
+    } else note.textContent='(custom)';
+  }
+  const el=document.getElementById('manualReadout'); if(!el)return;
+  const cur=manualRegionsCur();
+  if(!cur.length){el.textContent='No regions painted for this difficulty — will inherit or follow melody onsets.';return;}
+  const s16=cur.filter(r=>r.type==='s16').reduce((a,r)=>a+(r.endMeas-r.startMeas),0);
+  const s8=cur.filter(r=>r.type==='s8').reduce((a,r)=>a+(r.endMeas-r.startMeas),0);
+  el.textContent=`16th: ${s16.toFixed(0)} measures · 8th: ${s8.toFixed(0)} measures · rest: melody-follow`;
+}
+
+// ---- Playback ----
+function manualEnsureCtx(){
+  if(!manualAudioCtx) manualAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return manualAudioCtx;
+}
+function manualPlay(){
+  if(!audioBuffer||manualPlaying) return;
+  const ctx=manualEnsureCtx();
+  if(ctx.state==='suspended') ctx.resume();
+  manualSource=ctx.createBufferSource();
+  manualSource.buffer=audioBuffer;
+  manualSource.connect(ctx.destination);
+  manualPlayStartCtxTime=ctx.currentTime;
+  manualSource.start(0, manualPlayStartOffset);
+  manualPlaying=true;
+  document.getElementById('manualPlayBtn').textContent='❚❚ Pause';
+  metroNextBeat=0; // reset click scheduler
+  const loop=()=>{
+    if(!manualPlaying) return;
+    const elapsed=ctx.currentTime-manualPlayStartCtxTime+manualPlayStartOffset;
+    if(elapsed>=audioBuffer.duration){ manualStop(); return; }
+    scheduleMetronome(ctx, elapsed);
+    drawManualTimeline(elapsed);
+    manualRAF=requestAnimationFrame(loop);
+  };
+  loop();
+}
+// ── METRONOME: a short click on each beat, positioned by BPM + live offset, so
+// the user can nudge the offset until the clap lines up with the music's beat.
+let metroNextBeat=0;
+function metroCurrentOffset(){
+  // the offset used for the clap grid = detected auto-offset + user's live nudge
+  const useAutoOff=document.getElementById('ruleAutoOffset')?.checked ?? true;
+  const userFine=+(document.getElementById('offset')?.value||0);
+  return (useAutoOff?detectedOffset:0)+userFine;
+}
+function scheduleMetronome(ctx, elapsedNow){
+  const on=document.getElementById('metroToggle')?.checked;
+  if(!on){ return; }
+  const bpm=detectedBPM||120, beat=60/bpm, off=metroCurrentOffset();
+  // schedule any beats falling in the next ~200ms window
+  const lookahead=0.2;
+  // beat time in SONG time = off + n*beat. Convert to ctx time.
+  let n=Math.max(0, Math.ceil((elapsedNow-off)/beat));
+  for(let k=0;k<8;k++){
+    const beatSongTime=off+n*beat;
+    const dt=beatSongTime-elapsedNow; // seconds from now
+    if(dt<0){n++;continue;}
+    if(dt>lookahead) break;
+    if(n>metroNextBeat-1){
+      clickAt(ctx, ctx.currentTime+dt, n%4===0); // accent the downbeat
+      metroNextBeat=n+1;
+    }
+    n++;
+  }
+}
+function clickAt(ctx, when, accent){
+  // Loud, punchy tick: a sharp noise transient through a high-pass so it cuts
+  // clearly through the music. Downbeat is louder/brighter. Kept short so it
+  // reads as a precise point in time you can line up against the beat.
+  const dur=0.05;
+  const buf=ctx.createBuffer(1, Math.ceil(ctx.sampleRate*dur), ctx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3); } // fast-decay noise
+  const src=ctx.createBufferSource(); src.buffer=buf;
+  const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=accent?1500:1100;
+  const vol=+(document.getElementById('metroVol')?.value ?? 1.5);
+  const g=ctx.createGain(); g.gain.value=(accent?3.0:2.2)*vol; // loud — this is a tuning aid, meant to stand out
+  // a short compressor-ish hard limit so it stays punchy without clipping harshly
+  const comp=ctx.createDynamicsCompressor();
+  comp.threshold.value=-6; comp.ratio.value=12; comp.attack.value=0.001; comp.release.value=0.05;
+  src.connect(hp); hp.connect(g); g.connect(comp); comp.connect(ctx.destination);
+  src.start(when); src.stop(when+dur+0.01);
+}
+function manualPause(){
+  if(!manualPlaying) return;
+  const ctx=manualAudioCtx;
+  const elapsed=ctx.currentTime-manualPlayStartCtxTime+manualPlayStartOffset;
+  manualPlayStartOffset=Math.min(elapsed,audioBuffer.duration);
+  try{manualSource.stop();}catch(e){}
+  manualPlaying=false;
+  if(manualRAF)cancelAnimationFrame(manualRAF);
+  document.getElementById('manualPlayBtn').textContent='▶ Play';
+  drawManualTimeline(manualPlayStartOffset);
+}
+function manualStop(){
+  if(manualSource){try{manualSource.stop();}catch(e){}}
+  manualPlaying=false; manualPlayStartOffset=0;
+  if(manualRAF)cancelAnimationFrame(manualRAF);
+  document.getElementById('manualPlayBtn').textContent='▶ Play';
+  drawManualTimeline(0);
+}
+
 function drawStructure(duration){
   const cv=document.getElementById('structureCanvas');
   document.getElementById('structureSection').style.display='flex';
@@ -1527,41 +1900,82 @@ function drawDensityChart(charts,duration,bpm){
       meas.push(cnt/measDur);
     }
     const sm=meas.map((_,i,a)=>{let s=0,c=0;for(let j=Math.max(0,i-WINDOW);j<=Math.min(a.length-1,i+WINDOW);j++){s+=a[j];c++;}return s/c;});
-    // True longest run = longest unbroken chain of consecutive 16th-note rows.
-    // A row "has a note" if it holds a tap or hold-head (>=0). A continuous
-    // stream is a span where every 16th row is filled with no empty gap.
-    const has=r=>{const n=ch.notes[r];return n>=0&&!(n>=20&&n<=23);}; // taps + hold heads, not tail
-    let bestLen=0,bestStart=0,curLen=0,curStart=0;
-    for(let r=0;r<ch.notes.length;r++){
-      if(has(r)){if(curLen===0)curStart=r;curLen++;if(curLen>bestLen){bestLen=curLen;bestStart=curStart;}}
-      else curLen=0;
+    // Longest STREAM, the ITG way: the longest run of consecutive MEASURES that
+    // are at (near-)full 16th density. A measure counts as "stream" if it has at
+    // least 15 of 16 rows filled (allows the odd jump/melody gap without breaking
+    // the run, which the old row-by-row counter wrongly did — a single gap reset
+    // the whole count, and 8th regions never counted at all).
+    const STREAM_MIN=15; // notes in a measure to count as a 16th-stream measure
+    const measFilled=[];
+    for(let m=0;m<totalMeasures;m++){
+      const s=m*rpm,e=Math.min(s+rpm,ch.notes.length);
+      let c=0; for(let r=s;r<e;r++){const n=ch.notes[r]; if(n>=0&&!(n>=20&&n<=23))c++;}
+      measFilled.push(c);
     }
-    const runNotes=bestLen;
-    const runStartMeas=bestStart/rpm;
-    const runMeasSpan=bestLen/rpm;
+    let bestMeas=0,bestStartM=0,curMeas=0,curStartM=0;
+    for(let m=0;m<measFilled.length;m++){
+      if(measFilled[m]>=STREAM_MIN){ if(curMeas===0)curStartM=m; curMeas++; if(curMeas>bestMeas){bestMeas=curMeas;bestStartM=curStartM;} }
+      else curMeas=0;
+    }
+    const runMeasSpan=bestMeas;            // longest stream length in MEASURES
+    const runStartMeas=bestStartM;
+    const runNotes=bestMeas*rpm;           // approx notes (for reference only)
     // Peak NPS = the actual densest measure this chart contains (raw, not
-    // smoothed). This reflects each chart's real maximum, so an 8th-note chart
-    // and a 16th-note chart report different peaks.
+    // smoothed). This reflects each chart's real maximum.
     const peakNPS=Math.max(...meas,0);
     return{sm,meas,block:ch.block,color:colors[ci],runNotes,runStartMeas,runMeasSpan,peakNPS};
   });
-  const gMax=Math.max(maxNPS,...series.flatMap(s=>s.sm),1);
+  const gMax=Math.max(maxNPS,...series.flatMap(s=>s.meas),1);
   // Max NPS reference line
   const maxY=H-(maxNPS/gMax)*(H-12)-4;
   cx.strokeStyle='#ffffff22';cx.lineWidth=1;cx.setLineDash([4,4]);cx.beginPath();cx.moveTo(0,maxY);cx.lineTo(W,maxY);cx.stroke();cx.setLineDash([]);
   cx.fillStyle='#ffffff44';cx.font='8px Inter';cx.textAlign='left';cx.textBaseline='top';cx.fillText(`Max ${maxNPS.toFixed(1)} NPS (${bpm.toFixed(0)} BPM 16ths)`,4,maxY+2);
   series.forEach((s,si)=>{
-    cx.beginPath();cx.strokeStyle=s.color;cx.lineWidth=si===series.length-1?2:1.5;
-    s.sm.forEach((v,i)=>{const x=i/totalMeasures*W,y=H-(v/gMax)*(H-12)-4;i===0?cx.moveTo(x,y):cx.lineTo(x,y);});cx.stroke();
-    // Longest run annotation on hardest chart
-    if(si===series.length-1&&s.runNotes>=rpm){
+    const isTop=si===series.length-1;
+    // ITG-style stepped/blocky density: each MEASURE is a flat block at its raw
+    // density, with abrupt vertical jumps between measures (no smoothing, no
+    // diagonal slopes). The hardest chart is filled; others drawn as stepped
+    // outlines so all three remain readable.
+    const vals=s.meas; // RAW per-measure values (not smoothed)
+    const yOf=v=>H-(v/gMax)*(H-12)-4;
+    const xOf=i=>i/totalMeasures*W;
+    if(isTop){
+      // filled blocky area
+      cx.beginPath();
+      cx.moveTo(0,H);
+      for(let i=0;i<vals.length;i++){
+        const x0=xOf(i), x1=xOf(i+1), y=yOf(vals[i]);
+        cx.lineTo(x0,y); cx.lineTo(x1,y);   // flat top across the measure
+      }
+      cx.lineTo(W,H); cx.closePath();
+      cx.fillStyle=s.color+'cc'; cx.fill();
+      cx.strokeStyle=s.color; cx.lineWidth=1.5;
+      // stroke just the stepped top edge
+      cx.beginPath();
+      for(let i=0;i<vals.length;i++){
+        const x0=xOf(i), x1=xOf(i+1), y=yOf(vals[i]);
+        if(i===0)cx.moveTo(x0,y);else cx.lineTo(x0,y);
+        cx.lineTo(x1,y);
+      }
+      cx.stroke();
+    } else {
+      // stepped outline for the other difficulties
+      cx.beginPath(); cx.strokeStyle=s.color; cx.lineWidth=1.5;
+      for(let i=0;i<vals.length;i++){
+        const x0=xOf(i), x1=xOf(i+1), y=yOf(vals[i]);
+        if(i===0)cx.moveTo(x0,y);else cx.lineTo(x0,y);
+        cx.lineTo(x1,y);
+      }
+      cx.stroke();
+    }
+    // Longest stream annotation on hardest chart (now in MEASURES)
+    if(isTop&&s.runMeasSpan>=1){
       const x0=s.runStartMeas/totalMeasures*W,x1=(s.runStartMeas+s.runMeasSpan)/totalMeasures*W;
-      cx.fillStyle=s.color+'22';cx.fillRect(x0,2,x1-x0,H-4);
-      cx.strokeStyle=s.color;cx.lineWidth=1;cx.setLineDash([2,2]);cx.strokeRect(x0,2,x1-x0,H-4);cx.setLineDash([]);
-      if(x1-x0>30){cx.fillStyle=s.color;cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.runMeasSpan.toFixed(1)+'m run',(x0+x1)/2,H-4);}
+      cx.strokeStyle='#fff';cx.lineWidth=1;cx.setLineDash([2,2]);cx.strokeRect(x0,2,x1-x0,H-4);cx.setLineDash([]);
+      if(x1-x0>30){cx.fillStyle='#fff';cx.font='bold 8px Inter';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText(s.runMeasSpan+'m stream',(x0+x1)/2,H-4);}
     }
     const el=document.createElement('div');el.style.cssText='display:flex;align-items:center;gap:4px';
-    const runTxt=s.runNotes>=rpm?`longest stream ${s.runMeasSpan.toFixed(1)} measures (${s.runNotes} notes)`:'no sustained stream';
+    const runTxt=s.runMeasSpan>=1?`longest stream ${s.runMeasSpan} measures`:'no sustained stream';
     el.innerHTML=`<span style="display:inline-block;width:16px;height:3px;background:${s.color};border-radius:2px"></span>${names[si]||'Chart'} Blk${s.block} (peak ${s.peakNPS.toFixed(1)} NPS, ${runTxt})`;
     legend.appendChild(el);
   });
@@ -1583,6 +1997,159 @@ async function makeImg(title,artist,w,h,artImg){
 }
 
 // ── PREVIEW button ────────────────────────────────────────────────
+// ── Manual timeline event wiring ──
+(function wireManual(){
+  const playBtn=document.getElementById('manualPlayBtn');
+  const stopBtn=document.getElementById('manualStopBtn');
+  if(playBtn) playBtn.addEventListener('click',()=>{ manualPlaying?manualPause():manualPlay(); });
+  if(stopBtn) stopBtn.addEventListener('click',()=>manualStop());
+  // Offset nudge buttons — adjust the user fine-tune offset live so the beat
+  // clap (and exported sync) can be tuned by ear during playback.
+  const offEl=document.getElementById('offset');
+  const liveVal=document.getElementById('offsetLiveVal');
+  const refreshOffsetVal=()=>{ if(liveVal&&offEl) liveVal.textContent=(+offEl.value>=0?'+':'')+(+offEl.value).toFixed(3)+'s'; };
+  refreshOffsetVal();
+  const nudge=(d)=>{ if(!offEl)return; offEl.value=((+offEl.value)+d).toFixed(3); refreshOffsetVal();
+    // update the offset slider label if present
+    const ov=document.getElementById('offsetVal'); if(ov)ov.textContent=(+offEl.value)+'s'; };
+  document.getElementById('offsetDownBtn')?.addEventListener('click',()=>nudge(-0.005)); // 5ms earlier
+  document.getElementById('offsetUpBtn')?.addEventListener('click',()=>nudge(+0.005));   // 5ms later
+  // keep the live readout in sync if the user drags the main offset slider
+  if(offEl) offEl.addEventListener('input',refreshOffsetVal);
+  // Save painted regions (all difficulties) to a JSON file
+  const saveBtn=document.getElementById('manualSaveBtn');
+  if(saveBtn) saveBtn.addEventListener('click',()=>{
+    const data={version:1, regionsByDiff:manualRegionsByDiff, touched:manualTouched,
+      song:(document.getElementById('songTitle')?.value||'chart')};
+    const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(data.song.replace(/[^a-z0-9]+/gi,'_')||'chart')+'_regions.json';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+  // Load painted regions from a JSON file
+  const loadBtn=document.getElementById('manualLoadBtn');
+  const loadInput=document.getElementById('manualLoadInput');
+  if(loadBtn&&loadInput){
+    loadBtn.addEventListener('click',()=>loadInput.click());
+    loadInput.addEventListener('change',e=>{
+      const f=e.target.files[0]; if(!f)return;
+      const rd=new FileReader();
+      rd.onload=()=>{
+        try{
+          const data=JSON.parse(rd.result);
+          if(data.regionsByDiff&&Array.isArray(data.regionsByDiff)){
+            manualRegionsByDiff=data.regionsByDiff;
+            manualTouched=data.touched||[false,false,false];
+            drawManualTimeline(manualPlaying?null:manualPlayStartOffset);
+            updateManualReadout();
+            log('Loaded painted regions from '+f.name,'ok');
+          } else log('That file has no region data','err');
+        }catch(err){ log('Could not read regions file: '+err.message,'err'); }
+      };
+      rd.readAsText(f);
+      loadInput.value=''; // allow re-loading same file
+    });
+  }
+  // paint-mode buttons
+  document.querySelectorAll('.paint-mode').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.paint-mode').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); manualPlayMode=b.dataset.mode;
+    });
+  });
+  // manual-mode toggle
+  const mt=document.getElementById('manualToggle');
+  if(mt) mt.addEventListener('change',()=>{ manualEnabled=mt.checked; updateManualReadout(); });
+  // difficulty selector (which difficulty's regions you're editing)
+  document.querySelectorAll('.diff-sel').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.diff-sel').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); manualActiveDiff=+b.dataset.diff;
+      drawManualTimeline(manualPlaying?null:manualPlayStartOffset);
+    });
+  });
+  // click-drag painting on the canvas
+  const cv=document.getElementById('manualCanvas');
+  if(cv){
+    let dragging=false, dragStartMeas=0;
+    const measAtX=(clientX)=>{
+      const rect=cv.getBoundingClientRect();
+      const x=Math.max(0,Math.min(rect.width,clientX-rect.left));
+      return Math.max(0,Math.min(manualTotalMeasures, Math.round(x/rect.width*manualTotalMeasures)));
+    };
+    const seekAtX=(clientX)=>{
+      const rect=cv.getBoundingClientRect();
+      const x=Math.max(0,Math.min(rect.width,clientX-rect.left));
+      return x/rect.width*(audioBuffer?audioBuffer.duration:0);
+    };
+    cv.addEventListener('pointerdown',e=>{
+      if(!audioBuffer)return;
+      // RIGHT-CLICK (or shift-click) seeks playback to that spot and plays from
+      // there — so you don't have to start from the beginning every time.
+      if(e.button===2 || e.shiftKey){
+        manualPlayStartOffset=seekAtX(e.clientX);
+        if(manualPlaying){ manualPause(); manualPlay(); }
+        else { manualPlay(); }   // start playing from the clicked spot
+        return;
+      }
+      dragging=true; dragStartMeas=measAtX(e.clientX); cv.setPointerCapture(e.pointerId);
+    });
+    // suppress the browser context menu so right-click-to-seek works cleanly
+    cv.addEventListener('contextmenu',e=>e.preventDefault());
+    cv.addEventListener('pointermove',e=>{
+      if(!dragging)return;
+      const cur=measAtX(e.clientX);
+      const a=Math.min(dragStartMeas,cur), b=Math.max(dragStartMeas,cur);
+      drawManualTimeline(manualPlaying?null:manualPlayStartOffset);
+      // preview the selection box
+      const cx=cv.getContext('2d'), W=cv.width, pm=W/manualTotalMeasures;
+      cx.fillStyle='#ffffff22'; cx.fillRect(a*pm,0,(b-a)*pm,cv.height);
+    });
+    cv.addEventListener('pointerup',e=>{
+      if(!dragging)return; dragging=false;
+      const cur=measAtX(e.clientX);
+      let a=Math.min(dragStartMeas,cur), b=Math.max(dragStartMeas,cur);
+      if(b<=a){ b=a+1; } // a single click paints one measure
+      applyManualPaint(a,b,manualPlayMode);
+    });
+  }
+})();
+function applyManualPaint(a,b,mode){
+  // remove any overlap in [a,b], then add the new region (unless erasing)
+  const next=[];
+  manualRegionsCur().forEach(r=>{
+    if(r.endMeas<=a || r.startMeas>=b){ next.push(r); return; } // no overlap
+    if(r.startMeas<a) next.push({startMeas:r.startMeas,endMeas:a,type:r.type});
+    if(r.endMeas>b)  next.push({startMeas:b,endMeas:r.endMeas,type:r.type});
+  });
+  if(mode!=='erase') next.push({startMeas:a,endMeas:b,type:mode});
+  next.sort((x,y)=>x.startMeas-y.startMeas);
+  // Merge touching/overlapping regions of the SAME type into one.
+  const merged=[];
+  for(const r of next){
+    const last=merged[merged.length-1];
+    if(last && last.type===r.type && r.startMeas<=last.endMeas){
+      last.endMeas=Math.max(last.endMeas,r.endMeas);
+    } else {
+      merged.push({...r});
+    }
+  }
+  manualRegionsByDiff[manualActiveDiff]=merged; manualTouched[manualActiveDiff]=true;
+  // Auto-copy as a STARTING POINT: any difficulty the user hasn't touched yet
+  // inherits a copy of what was just painted, so painting one difficulty seeds
+  // the others. Untouched difficulties stay flagged untouched (so if the user
+  // later edits them they become custom; and further edits here keep seeding
+  // the still-blank ones). We deep-copy so edits to one don't affect another.
+  for(let d=0; d<manualRegionsByDiff.length; d++){
+    if(d!==manualActiveDiff && !manualTouched[d]){
+      manualRegionsByDiff[d]=merged.map(r=>({...r}));
+    }
+  }
+  drawManualTimeline(manualPlaying?null:manualPlayStartOffset);
+  updateManualReadout();
+}
+
 document.getElementById('genBtn').addEventListener('click',async()=>{
   if(!audioBuffer){log('No audio loaded!','err');return;}
   const btn=document.getElementById('genBtn');btn.disabled=true;btn.textContent='⏳ Generating...';
@@ -1594,9 +2161,14 @@ document.getElementById('genBtn').addEventListener('click',async()=>{
     const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
     log(`Generating ${diffs.length} chart(s): blocks ${diffs.join(', ')}`);
     const charts=[];
-    for(const block of diffs){
+    for(let di=0; di<diffs.length; di++){
+      const block=diffs[di];
       log('Building block '+block+'...');await tick();
-      const {notes,rpb}=generateChart(block,bpm,energyCurve,audioBuffer.duration);
+      // Manual mode: pass the painted regions for this difficulty slot (with
+      // auto-copy inheritance). diffs are ordered easy→hard, mapping to slots
+      // 0,1,2. If fewer than 3 difficulties, map by index.
+      const manualR = manualEnabled ? manualRegionsForSlot(di, diffs.length) : null;
+      const {notes,rpb}=generateChart(block,bpm,energyCurve,audioBuffer.duration, manualR);
       await tick();
       const nc=notes.filter(n=>n>=0&&n<=3).length;
       log('  Block '+block+': '+nc+' notes','ok');
@@ -1609,19 +2181,58 @@ document.getElementById('genBtn').addEventListener('click',async()=>{
     const offset=(useAutoOff?detectedOffset:0)+userFine+(use9ms?0.009:0);
     lastGeneratedData={title,artist,bpm,offset,charts,ext,safe};
     document.getElementById('dlBtn').style.display='block';
+    populateExportPicker(charts);
     log('Preview ready — review density chart then click Download','ok');
   }catch(err){log('Error: '+err.message,'err');console.error(err);}
   btn.disabled=false;btn.textContent='⚡ PREVIEW CHART';
 });
 
 // ── DOWNLOAD button ───────────────────────────────────────────────
+function populateExportPicker(charts){
+  const wrap=document.getElementById('exportPicker');
+  const list=document.getElementById('exportPickerList');
+  if(!wrap||!list)return;
+  list.innerHTML='';
+  // difficulty slot names, same logic as buildSM
+  const diffNames=['Beginner','Easy','Medium','Hard','Challenge'];
+  const base=4-charts.length; // 3 charts → Easy/Medium/Hard (matches UI labels); 2 → Medium/Hard; 1 → Hard
+  charts.forEach((c,i)=>{
+    const name=diffNames[Math.min(base+i,4)];
+    const lbl=document.createElement('label');
+    lbl.style.cssText='display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--accent)';
+    lbl.innerHTML=`<input type="checkbox" class="export-diff" data-idx="${i}" checked/> ${name} (${c.block})`;
+    list.appendChild(lbl);
+  });
+  wrap.style.display = charts.length>1 ? 'block' : 'none'; // only show picker if >1
+}
+
 document.getElementById('dlBtn').addEventListener('click',async()=>{
   if(!lastGeneratedData){log('Generate first!','err');return;}
   const btn=document.getElementById('dlBtn');btn.disabled=true;btn.textContent='⏳ Packing...';
   try{
-    const{title,artist,bpm,offset,charts,ext,safe}=lastGeneratedData;
+    const{bpm,charts,ext}=lastGeneratedData;
+    // Re-read title/artist LIVE at download time (like the offset), so renaming
+    // the song after Preview is reflected in the exported files and folder name.
+    const title=document.getElementById('songTitle').value||'Unknown';
+    const artist=document.getElementById('songArtist').value||'Unknown Artist';
+    const safe=title.replace(/[^a-zA-Z0-9_\- ]/g,'_');
+    // Re-read the offset LIVE at download time (not the value frozen at Preview),
+    // so any offset nudging done by ear with the beat clap AFTER previewing is
+    // actually applied to the exported #OFFSET.
+    const useAutoOff=document.getElementById('ruleAutoOffset').checked;
+    const userFine=+document.getElementById('offset').value;
+    const use9ms=document.getElementById('rule9ms').checked;
+    const offset=(useAutoOff?detectedOffset:0)+userFine+(use9ms?0.009:0);
+    // Export only the difficulties the user checked (if the picker is shown).
+    let exportCharts=charts;
+    const boxes=[...document.querySelectorAll('.export-diff')];
+    if(boxes.length){
+      const checkedIdx=new Set(boxes.filter(b=>b.checked).map(b=>+b.dataset.idx));
+      exportCharts=charts.filter((c,i)=>checkedIdx.has(i));
+    }
+    if(!exportCharts.length){log('Select at least one difficulty to export','err');btn.disabled=false;btn.textContent='⬇ DOWNLOAD ZIP';return;}
     log('Writing .sm...');await tick();
-    const smText=buildSM(title,artist,bpm,offset,charts,ext,safe);
+    const smText=buildSM(title,artist,bpm,offset,exportCharts,ext,safe);
     log('Generating artwork...');await tick();
     // Each art type uses its own uploaded image if provided, else the
     // auto-extracted embedded art, else a generated placeholder.
@@ -1642,7 +2253,7 @@ document.getElementById('dlBtn').addEventListener('click',async()=>{
     const url=URL.createObjectURL(zipBlob);
     const a=document.createElement('a');a.href=url;a.download=`${safe}.zip`;a.click();
     URL.revokeObjectURL(url);
-    log(`✓ Downloaded "${safe}.zip"','ok`);
+    log(`✓ Downloaded "${safe}.zip"`,'ok');
   }catch(err){log('Error: '+err.message,'err');console.error(err);}
   btn.disabled=false;btn.textContent='⬇ DOWNLOAD ZIP';
 });

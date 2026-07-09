@@ -594,7 +594,9 @@ async function computeSpectralFeatures(){
   const WIN=1024,HOP=256; odfWin=WIN; odfHop=HOP;
   const useLen=Math.min(monoData.length, Math.floor(sr*150)); // analyze ≤150s
   const nF=Math.max(0,Math.floor((useLen-WIN)/HOP));
-  odfN=nF;
+  odfN=0; // only claim success at the END — if we throw partway, the onset
+          // stage must see odfN=0 and use the time-domain fallback, not run
+          // on empty spectral arrays (which yields 0 onsets → BPM 120/offset 0)
   odfFlux=new Float32Array(nF); odfMel=new Float32Array(nF);
   odfBass=new Float32Array(nF); odfCent=new Float32Array(nF);
   odfBassFlux=new Float32Array(nF);
@@ -627,6 +629,7 @@ async function computeSpectralFeatures(){
     const t=prev;prev=cur;cur=t;
     if((f&2047)===0){setP(15+Math.round(25*f/nF));await new Promise(r=>setTimeout(r,0));}
   }
+  odfN=nF; // success — spectral path is valid
 }
 
 function computeOnsets(){
@@ -691,8 +694,13 @@ function computeOnsets(){
         lastPk=i;
       }
     }
-    log('Onsets (spectral flux): '+onsetTimes.length,'ok');
-    return;
+    if(onsetTimes.length>=8){
+      log('Onsets (spectral flux): '+onsetTimes.length,'ok');
+      return;
+    }
+    // too few — clear and fall through to the time-domain fallback below
+    log('Spectral onsets too sparse ('+onsetTimes.length+') — using time-domain fallback','warn');
+    onsetTimes=[];onsetStrengths=[];onsetBass=[];onsetCentroid=[];
   }
   // ── Fallback: time-domain (no FFT) ──
   const sr=audioBuffer.sampleRate,d=audioBuffer.getChannelData(0);
@@ -724,7 +732,10 @@ function computeOnsets(){
 let bpmCandidates=[];
 function fitTempo(){
   bpmCandidates=[];
-  if(!onsetTimes||onsetTimes.length<8){detectedOffset=0;return 120;}
+  if(!onsetTimes||onsetTimes.length<8){
+    log('Tempo fit FAILED: only '+(onsetTimes?onsetTimes.length:0)+' onsets — offset defaulted to 0. Try raising onset sensitivity.','err');
+    detectedOffset=0;return 120;
+  }
   const sr=odfSr||audioBuffer.sampleRate;
   const N=onsetTimes.length;
   const pos=new Float64Array(N), str=new Float64Array(N);
@@ -846,7 +857,10 @@ function fitTempo(){
     let bi=b;for(let j=b;j<e;j++)if(fit[j]>fit[bi])bi=j;
     cands.push({bpm:sr*60/(minInt+bi),fitness:fit[bi]});
   }
-  if(!cands.length){detectedOffset=0;return 120;}
+  if(!cands.length){
+    log('Tempo fit FAILED: no interval candidates — offset defaulted to 0.','err');
+    detectedOffset=0;return 120;
+  }
   cands.sort((a,b)=>b.fitness-a.fitness);
   // 4. Dedupe near-equal / double / half (AV RemoveDuplicates).
   for(let i=0;i<cands.length;i++){

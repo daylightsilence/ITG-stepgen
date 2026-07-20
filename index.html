@@ -2337,8 +2337,32 @@ function restepChunk(chunk,stats,regions,opts){
     recentNotes.push(p);if(recentNotes.length>8)recentNotes.shift();
     lastFoot=foot;lastPanel=p;panelUse[p]++;
   };
+  // Shape suppression, ported from the generator's own choosePanel (see that
+  // function's comment for the full rationale): a toggled-off pattern must
+  // not be able to complete during re-stepping either, not just in fresh
+  // generation.
+  const inactiveSeqsRS=Object.keys(PATTERNS)
+    .filter(n=>!activePats.has(n))
+    .map(n=>PATTERNS[n].seq)
+    .filter(seq=>seq.length>=3 && seq.length<=8);
+  const completesInactiveRS=(candidate)=>{
+    for(const seq of inactiveSeqsRS){
+      const L=seq.length;
+      if(seq[L-1]!==candidate) continue;
+      if(recentNotes.length<L-1) continue;
+      let m=true;
+      const base=recentNotes.length-(L-1);
+      for(let i=0;i<L-1;i++){ if(recentNotes[base+i]!==seq[i]){m=false;break;} }
+      if(m) return true;
+    }
+    return false;
+  };
   const choose=(cands,foot,drillMult)=>{
     if(!cands.length)return -1;
+    if(cands.length>1){
+      const filtered=cands.filter(p=>!completesInactiveRS(p));
+      if(filtered.length) cands=filtered;
+    }
     if(cands.length===1){return cands[0];}
     const maxUse=Math.max(...cands.map(p=>panelUse[p]),1);
     const tc={};for(const t of recentTrans){const tp=+t.split('>')[1];tc[tp]=(tc[tp]||0)+1;}
@@ -2429,7 +2453,19 @@ function restepChunk(chunk,stats,regions,opts){
         if(ch[c]==='2'||ch[c]==='4'){open[c]={col:p,foot};stats.holds++;}}
     }else if(arrows.length===2){
       // jump: left foot from {0,1}, right foot from {2,3} (mirrors placeJump)
-      let lp=choose(freeCols([0,1]),'L',1),rp=choose(freeCols([2,3]),'R',1);
+      let lp=choose(freeCols([0,1]),'L',1);
+      // lp is the panel that's "in sequence" for pattern-tracking (the
+      // primary/first-chosen one) — push it to history BEFORE choosing the
+      // simultaneous right-foot panel, so rp's own suppression check sees it
+      // as context. rp itself does NOT get pushed afterward — a jump is a
+      // simultaneous event, not two sequential steps, so its partner panel
+      // must not become an invisible "middle note" of some other shape
+      // (mirrors the same fix in the generator's own placeJump).
+      if(lp>=0){
+        recentTrans.push(lastPanel+'>'+lp); if(recentTrans.length>6)recentTrans.shift();
+        recentNotes.push(lp); if(recentNotes.length>8)recentNotes.shift();
+      }
+      let rp=choose(freeCols([2,3]),'R',1);
       if(lp<0)lp=freeCols([0,1,2,3])[0]??-1;
       if(rp<0)rp=freeCols([0,1,2,3].filter(p=>p!==lp))[0]??-1;
       const dst=[lp,rp].filter(p=>p>=0).sort((a,b)=>a-b);
@@ -2438,7 +2474,7 @@ function restepChunk(chunk,stats,regions,opts){
         if(i<dst.length){const p=dst[i];res[p]=ch[c];panelUse[p]++;
           if(ch[c]==='2'||ch[c]==='4'){open[c]={col:p,foot:p<=1?'L':'R'};stats.holds++;}}
       });
-      if(dst.length===2){recentNotes=[];lastPanel=dst[1];stats.jumps++;}
+      if(dst.length===2){lastPanel=dst[1];stats.jumps++;}
     }else if(arrows.length>2){
       // hands: keep on free columns, original order
       const free=freeCols([0,1,2,3]);

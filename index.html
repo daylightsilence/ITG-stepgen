@@ -275,8 +275,12 @@ const PATTERNS = {
   "Staircase Dn":  {seq:[3,2,1,0],          cat:"stream",  group:"stamina",minDiff:2},
   "Zigzag A":      {seq:[0,2,0,3,1,3],      cat:"stream",  group:"stamina",minDiff:3},
   "Zigzag B":      {seq:[3,1,3,0,2,0],      cat:"stream",  group:"stamina",minDiff:3},
-  "Box CW":        {seq:[0,2,1,3],          cat:"box",     group:"stamina",minDiff:3},
-  "Box CCW":       {seq:[1,3,0,2],          cat:"box",     group:"stamina",minDiff:3},
+  // Box CW / Box CCW removed: with only 4 panels, their 4-note sequences were
+  // mathematically IDENTICAL to Run L→R and Spread B respectively — two
+  // different names for the exact same arrow order, which is exactly what let
+  // a toggled-off "Box" reappear under "Run" or "Spread" instead. Box Full (an
+  // 8-note cycle that actually returns near its start) is the one genuinely
+  // distinct box shape and is kept.
   "Box Full":      {seq:[0,2,1,3,0,3,1,2],  cat:"box",     group:"stamina",minDiff:5},
   "Spiral In":     {seq:[0,2,1,3,0,2],      cat:"spiral",  group:"stamina",minDiff:4},
   "Spiral Out":    {seq:[1,3,0,2,1,3],      cat:"spiral",  group:"stamina",minDiff:4},
@@ -324,13 +328,18 @@ const PATTERNS = {
 
 // Auto-generate mirrored versions (L↔R swap)
 const MIRROR_MAP = {0:3,1:2,2:1,3:0};
+const baseSeqKeys=new Set(Object.values(PATTERNS).map(p=>p.seq.join(',')));
 Object.keys(PATTERNS).forEach(name=>{
   const p=PATTERNS[name];
   if(p.noMirror) return; // this pattern already defines all its own orientations
   const m=p.seq.map(x=>MIRROR_MAP[x]);
+  const mkey=m.join(',');
+  if(mkey===p.seq.join(',')) return; // self-mirror, nothing new to add
+  if(baseSeqKeys.has(mkey)) return; // ALREADY covered by another hand-authored
+                                     // pattern (its natural L/R twin) — skip
+                                     // the redundant duplicate chip entirely
   const mn=name+' ⟳';
-  if(JSON.stringify(m)!==JSON.stringify(p.seq))
-    PATTERNS[mn]={seq:m,cat:p.cat,group:p.group,minDiff:p.minDiff,mirror:true};
+  PATTERNS[mn]={seq:m,cat:p.cat,group:p.group,minDiff:p.minDiff,mirror:true};
 });
 
 // All patterns start active EXCEPT crossovers — crossovers are a deliberate
@@ -1218,11 +1227,44 @@ function generateChart(block,bpm,energy,duration,manualRegions){
   // Choose a panel for the given foot. A foot freely uses its home outer arrow
   // and BOTH center arrows (natural pivoting/facing). The opposite outer arrow
   // is a real crossover and is rare.
-  function choosePanel(candidates,foot,contourBias,drillMult=1){
+  // ── SHAPE SUPPRESSION ──────────────────────────────────────────────
+  // Toggling a pattern off previously only stopped US from injecting it —
+  // it could never stop the weighted chooser from independently landing on
+  // that exact shape by chance (measured baseline: several % of all 4-note
+  // windows, regardless of any toggle). This actually blocks it: precompute
+  // every INACTIVE pattern's sequence once per chart, and whenever a
+  // candidate panel would COMPLETE one (i.e. the recent history + this
+  // candidate exactly matches a toggled-off shape), that candidate is
+  // filtered out before weighting — with a fallback to the unfiltered list
+  // if that would leave no candidates at all, so play is never blocked
+  // outright.
+  const inactiveSeqs=Object.keys(PATTERNS)
+    .filter(n=>!activePats.has(n))
+    .map(n=>PATTERNS[n].seq)
+    .filter(seq=>seq.length>=3 && seq.length<=8);
+  function completesInactivePattern(candidate){
+    for(const seq of inactiveSeqs){
+      const L=seq.length;
+      if(seq[L-1]!==candidate) continue;
+      if(recentNotes.length<L-1) continue;
+      let match=true;
+      const base=recentNotes.length-(L-1);
+      for(let i=0;i<L-1;i++){ if(recentNotes[base+i]!==seq[i]){match=false;break;} }
+      if(match) return true;
+    }
+    return false;
+  }
+  function choosePanel(candidates,foot,contourBias,drillMult=1,trackHistory=true){
+    if(candidates.length>1){
+      const filtered=candidates.filter(p=>!completesInactivePattern(p));
+      if(filtered.length) candidates=filtered;
+    }
     if(candidates.length===1){
       const p=candidates[0];
-      recentTransitions.push(lastPanel+'>'+p); if(recentTransitions.length>6)recentTransitions.shift();
-      recentNotes.push(p); if(recentNotes.length>8)recentNotes.shift();
+      if(trackHistory){
+        recentTransitions.push(lastPanel+'>'+p); if(recentTransitions.length>6)recentTransitions.shift();
+        recentNotes.push(p); if(recentNotes.length>8)recentNotes.shift();
+      }
       return p;
     }
     const maxUse=Math.max(...candidates.map(p=>panelUse[p]),1);
@@ -1249,8 +1291,10 @@ function generateChart(block,bpm,energy,duration,manualRegions){
     });
     let total=weights.reduce((a,b)=>a+b,0), r=Math.random()*total, chosen=candidates[candidates.length-1];
     for(let i=0;i<candidates.length;i++){r-=weights[i];if(r<=0){chosen=candidates[i];break;}}
-    recentTransitions.push(lastPanel+'>'+chosen); if(recentTransitions.length>6)recentTransitions.shift();
-    recentNotes.push(chosen); if(recentNotes.length>8)recentNotes.shift();
+    if(trackHistory){
+      recentTransitions.push(lastPanel+'>'+chosen); if(recentTransitions.length>6)recentTransitions.shift();
+      recentNotes.push(chosen); if(recentNotes.length>8)recentNotes.shift();
+    }
     return chosen;
   }
   // commit a step for a SPECIFIC foot (foot tracked independently of panel)
@@ -1308,6 +1352,32 @@ function generateChart(block,bpm,energy,duration,manualRegions){
       if(!ok) continue;
       const foot0=(lastFoot==='L')?'R':'L';
       if(!patternFits(seq,foot0)) continue;
+      // SEAM CHECK: the pattern itself is active (allowed), but its early
+      // notes combine with whatever came just BEFORE it — if that seam
+      // happens to complete a DIFFERENT, toggled-OFF pattern, this injection
+      // must be rejected (try another candidate) rather than silently letting
+      // a forbidden shape appear at the boundary.
+      const simHistory=recentNotes.slice();
+      let seamOk=true;
+      for(let j=0;j<L;j++){
+        const cand=seq[j];
+        const savedLen=simHistory.length;
+        // reuse the same matching logic as completesInactivePattern, but
+        // against the simulated (growing) history instead of the live one
+        let hit=false;
+        for(const iseq of inactiveSeqs){
+          const IL=iseq.length;
+          if(iseq[IL-1]!==cand) continue;
+          if(simHistory.length<IL-1) continue;
+          let m=true;
+          const base=simHistory.length-(IL-1);
+          for(let ii=0;ii<IL-1;ii++){ if(simHistory[base+ii]!==iseq[ii]){m=false;break;} }
+          if(m){hit=true;break;}
+        }
+        if(hit){seamOk=false;break;}
+        simHistory.push(cand); if(simHistory.length>8) simHistory.shift();
+      }
+      if(!seamOk) continue;
       let foot=foot0;
       for(let j=0;j<L;j++){
         const row=kept[k+j].row, p=seq[j], prevPanel=lastPanel;
@@ -1348,7 +1418,17 @@ function generateChart(block,bpm,energy,duration,manualRegions){
   }
   function placeJump(row){
     if(row<0||row>=totalRows||notes[row]!==-1||jumpRows[row])return;
-    const lp=choosePanel([0,1],'L',0), rp=choosePanel([2,3],'R',0);
+    // The LEFT panel is what's stored in notes[row] — the one visibly "in
+    // sequence" on the chart — so it tracks history normally (contributes to
+    // pattern-shape matching like any other step). The RIGHT panel is
+    // simultaneous with it, not a separate sequential step, so it's still
+    // checked against the suppression list (a toggled-off shape can't sneak
+    // in via a jump's second arrow either) but does NOT get pushed into
+    // recentNotes/recentTransitions afterward — that was the original bug:
+    // a jump's second panel silently acting as an invisible "middle note" of
+    // a 3-4 note shape the suppression could never see as a coherent whole.
+    const lp=choosePanel([0,1],'L',0);
+    const rp=choosePanel([2,3],'R',0,1,false);
     notes[row]=lp; jumpRows[row]=[lp,rp];
     panelUse[lp]++; panelUse[rp]++;
     leftFootPanel=lp; rightFootPanel=rp;
